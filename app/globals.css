@@ -342,7 +342,9 @@ html, body {
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: auto;
 }
 
 .lesson-block-room {

@@ -199,7 +199,11 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                         marginBottom: 2,
                         display: 'inline-block',
                         lineHeight: 1,
-                        flexShrink: 0
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '100%'
                       }}>
                         {lesson.type}
                       </div>
