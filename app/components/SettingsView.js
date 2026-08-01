@@ -2,129 +2,206 @@
 
 import { useState } from 'react';
 
-// Toggle component
-function Toggle({ checked, onChange }) {
+function Toggle({ checked, onChange, id }) {
   return (
-    <label className="toggle">
-      <input type="checkbox" checked={checked} onChange={onChange} />
+    <label className="toggle" htmlFor={id}>
+      <input id={id} type="checkbox" checked={checked} onChange={onChange} />
       <div className="toggle-track" />
       <div className="toggle-thumb" />
     </label>
   );
 }
 
-export default function SettingsView({ selectedGroups, disabledSubjects, uniqueSubjects, onToggleGroup, onToggleSubject, onRemoveGroup, onAddGroup }) {
+function ChevronIcon({ open }) {
+  return (
+    <svg
+      width="16" height="16" viewBox="0 0 16 16" fill="none"
+      style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
+    >
+      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+export default function SettingsView({
+  selectedGroups,
+  disabledSubjectsByGroup,
+  timetableByGroup,
+  onToggleSubjectForGroup,
+  onRemoveGroup,
+  onAddGroup,
+}) {
   const [expandedGroups, setExpandedGroups] = useState({});
 
-  const toggleExpanded = (groupId) => {
-    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
+  const toggleExpanded = (key) => {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Subjects per group: we don't have per-group subject data yet, so show all unique subjects under each group
-  // In the future this can be scoped per group. For now it shows global subject list.
-  const groupKey = (g) => g.uniqueId || g.id;
-  const isGroupActive = (g) => !disabledSubjects.includes('group_' + groupKey(g));
+  const groupKey = (g) => String(g.uniqueId || g.id);
 
   return (
     <div className="settings-view">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="settings-header">
         <div className="settings-title">Ajustes</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+          Gestiona tus grupos y asignaturas
+        </div>
       </div>
 
+      {/* ── Groups section ─────────────────────────────────────────────────── */}
       <div className="settings-section">
-        <div className="settings-section-label">Tus grupos</div>
-        <div className="settings-card">
-          {selectedGroups.length === 0 && (
-            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: 14, textAlign: 'center' }}>
-              No tienes grupos. Añade uno abajo.
-            </div>
-          )}
+        <div className="settings-section-label">Mis grupos</div>
 
-          {selectedGroups.map(g => {
-            const key = groupKey(g);
-            const isExpanded = expandedGroups[key];
-            // Group-level subjects from all unique subjects (simplified for now)
-            const groupSubjects = uniqueSubjects; // TODO: scope per group
-
-            return (
-              <div key={key}>
-                <div className="settings-row">
-                  <Toggle
-                    checked={isGroupActive(g)}
-                    onChange={() => onToggleGroup(g)}
-                  />
-                  <div className="settings-row-label">
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</div>
-                    <div className="settings-row-sublabel" style={{ marginTop: 2 }}>
-                      {g.longName ? (g.longName.length > 40 ? g.longName.substring(0, 40) + '…' : g.longName) : ''}
-                    </div>
-                  </div>
-                  <button
-                    className={`settings-expand-btn${isExpanded ? ' open' : ''}`}
-                    onClick={() => toggleExpanded(key)}
-                    aria-label="Ver asignaturas"
-                  >
-                    ›
-                  </button>
-                  <button
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer', padding: '4px' }}
-                    onClick={() => onRemoveGroup(g)}
-                    aria-label="Eliminar grupo"
-                  >
-                    🗑
-                  </button>
-                </div>
-
-                {/* Expandable subjects */}
-                {isExpanded && (
-                  <div>
-                    {groupSubjects.length === 0 ? (
-                      <div className="settings-subrow">
-                        <span className="settings-subrow-label" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                          Carga el horario para ver asignaturas
-                        </span>
-                      </div>
-                    ) : (
-                      groupSubjects.map(subj => (
-                        <div key={subj.id} className="settings-subrow">
-                          <Toggle
-                            checked={!disabledSubjects.includes(subj.id)}
-                            onChange={() => onToggleSubject(subj.id)}
-                          />
-                          <span className="settings-subrow-label">{subj.name}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
+        {selectedGroups.length === 0 ? (
+          <div className="settings-card">
+            <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                No tienes ningún grupo. Pulsa el botón para añadir.
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <div className="settings-card">
+            {selectedGroups.map((g, gIdx) => {
+              const key = groupKey(g);
+              const isExpanded = expandedGroups[key];
+              const disabledForGroup = disabledSubjectsByGroup[key] || [];
+              const subjectsForGroup = timetableByGroup[key] || [];
+              const allEnabled = subjectsForGroup.every(s => !disabledForGroup.includes(s.id));
+
+              return (
+                <div key={key}>
+                  {/* Group row */}
+                  <div
+                    className="settings-row"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => toggleExpanded(key)}
+                  >
+                    {/* Expand arrow */}
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      <ChevronIcon open={isExpanded} />
+                    </span>
+
+                    {/* Group info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                        {g.name}
+                      </div>
+                      {g.longName && (
+                        <div style={{
+                          fontSize: 12,
+                          color: 'var(--text-secondary)',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {g.longName}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Subject count badge */}
+                    {subjectsForGroup.length > 0 && (
+                      <span style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        background: 'var(--bg-secondary)',
+                        padding: '2px 8px',
+                        borderRadius: 20,
+                        flexShrink: 0,
+                      }}>
+                        {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length}
+                      </span>
+                    )}
+
+                    {/* Delete btn - stop propagation */}
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        fontSize: 18,
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                      onClick={(e) => { e.stopPropagation(); onRemoveGroup(g); }}
+                      aria-label="Eliminar grupo"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Subjects expandable section */}
+                  {isExpanded && (
+                    <div style={{ background: 'var(--bg-secondary)' }}>
+                      {subjectsForGroup.length === 0 ? (
+                        <div style={{ padding: '12px 20px 12px 44px', fontSize: 13, color: 'var(--text-muted)' }}>
+                          Carga el horario para ver las asignaturas
+                        </div>
+                      ) : (
+                        <>
+                          {/* "All" toggle */}
+                          <div className="settings-subrow" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <Toggle
+                              id={`all-${key}`}
+                              checked={allEnabled}
+                              onChange={() => {
+                                subjectsForGroup.forEach(s => {
+                                  const isDisabled = disabledForGroup.includes(s.id);
+                                  if (allEnabled && !isDisabled) onToggleSubjectForGroup(key, s.id);
+                                  if (!allEnabled && isDisabled) onToggleSubjectForGroup(key, s.id);
+                                });
+                              }}
+                            />
+                            <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-secondary)' }}>
+                              Todas las asignaturas
+                            </span>
+                          </div>
+
+                          {/* Individual subjects */}
+                          {subjectsForGroup.map(subj => (
+                            <div key={subj.id} className="settings-subrow">
+                              <Toggle
+                                id={`subj-${key}-${subj.id}`}
+                                checked={!disabledForGroup.includes(subj.id)}
+                                onChange={() => onToggleSubjectForGroup(key, subj.id)}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                                  {subj.name}
+                                </div>
+                                {subj.shortName && (
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                    {subj.shortName}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {gIdx < selectedGroups.length - 1 && (
+                    <div style={{ height: 1, background: 'var(--border)' }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <button className="add-group-btn" onClick={onAddGroup}>
-          <span>+</span> Añadir grupo
+          + Añadir grupo
         </button>
-      </div>
-
-      <div className="settings-section">
-        <div className="settings-section-label">Asignaturas</div>
-        <div className="settings-card">
-          {uniqueSubjects.length === 0 && (
-            <div style={{ padding: '20px', color: 'var(--text-muted)', fontSize: 14, textAlign: 'center' }}>
-              Añade un grupo y carga el horario para ver tus asignaturas.
-            </div>
-          )}
-          {uniqueSubjects.map(subj => (
-            <div key={subj.id} className="settings-row">
-              <Toggle
-                checked={!disabledSubjects.includes(subj.id)}
-                onChange={() => onToggleSubject(subj.id)}
-              />
-              <span className="settings-row-label" style={{ fontSize: 14 }}>{subj.name}</span>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div style={{ height: 32 }} />

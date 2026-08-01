@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 
-// Lazy-load heavy components
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
 const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
@@ -11,19 +10,17 @@ const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: fal
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
 
-// ─── Date helpers ────────────────────────────────────────────────────────────
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
-/** Returns the Monday of the week containing `date` */
 function getWeekMonday(date) {
   const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon … 6=Sat
-  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-/** Returns Mon–Fri dates for a given Monday */
 function getWeekDates(monday) {
   return Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday);
@@ -32,33 +29,34 @@ function getWeekDates(monday) {
   });
 }
 
-/** Default date: current week, unless it's summer → go to Sept 7 */
 function getDefaultDate() {
   const now = new Date();
-  const m = now.getMonth(); // 0-indexed
+  const m = now.getMonth();
   if (m === 6 || m === 7 || (m === 8 && now.getDate() < 7)) {
-    return new Date(now.getFullYear() + (m >= 9 ? 1 : 0), 8, 7); // Sept 7
+    return new Date(now.getFullYear() + (m >= 9 ? 1 : 0), 8, 7);
   }
   return now;
 }
 
-// ─── Header label helpers ────────────────────────────────────────────────────
+// ─── Header label ─────────────────────────────────────────────────────────────
 
-function buildHeaderLabel(selectedGroups) {
-  if (selectedGroups.length === 0) return 'EHUntis';
-  if (selectedGroups.length === 1) return selectedGroups[0].name;
-  if (selectedGroups.length === 2) return `${selectedGroups[0].name} · ${selectedGroups[1].name}`;
-  return `${selectedGroups[0].name} +${selectedGroups.length - 1}`;
+function buildHeaderLabel(groups) {
+  if (groups.length === 0) return 'EHUntis';
+  if (groups.length === 1) return groups[0].name;
+  if (groups.length === 2) return `${groups[0].name} · ${groups[1].name}`;
+  return `${groups[0].name} +${groups.length - 1}`;
 }
 
-// ─── Main App ────────────────────────────────────────────────────────────────
+// ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('horarios');
   const [allClasses, setAllClasses] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);
-  const [disabledSubjects, setDisabledSubjects] = useState([]);
+
+  // Per-group disabled subjects: { [groupKey]: [subjectId, ...] }
+  const [disabledSubjectsByGroup, setDisabledSubjectsByGroup] = useState({});
+
   const [timetable, setTimetable] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
   const [initDone, setInitDone] = useState(false);
@@ -67,22 +65,23 @@ export default function Home() {
   const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(defaultDate));
   const [selectedDay, setSelectedDay] = useState(defaultDate);
 
-  const [activeLesson, setActiveLesson] = useState(null); // modal
+  const [activeLesson, setActiveLesson] = useState(null);
   const [showGroupSearch, setShowGroupSearch] = useState(false);
 
   const weekDates = getWeekDates(currentMonday);
 
+  const groupKey = (g) => String(g.uniqueId || g.id);
+
   // ── Persistence ────────────────────────────────────────────────────────────
   useEffect(() => {
     try {
-      const sg = localStorage.getItem('ehuntis_groups');
-      const ds = localStorage.getItem('ehuntis_disabled');
+      const sg = localStorage.getItem('ehuntis_groups_v2');
+      const ds = localStorage.getItem('ehuntis_disabled_v2');
       if (sg) setSelectedGroups(JSON.parse(sg));
-      if (ds) setDisabledSubjects(JSON.parse(ds));
+      if (ds) setDisabledSubjectsByGroup(JSON.parse(ds));
     } catch (_) {}
     setInitDone(true);
 
-    // Fetch class list
     fetch('/api/classes')
       .then(r => r.json())
       .then(d => { if (!d.error) setAllClasses(d); })
@@ -90,14 +89,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (initDone) localStorage.setItem('ehuntis_groups', JSON.stringify(selectedGroups));
+    if (initDone) localStorage.setItem('ehuntis_groups_v2', JSON.stringify(selectedGroups));
   }, [selectedGroups, initDone]);
 
   useEffect(() => {
-    if (initDone) localStorage.setItem('ehuntis_disabled', JSON.stringify(disabledSubjects));
-  }, [disabledSubjects, initDone]);
+    if (initDone) localStorage.setItem('ehuntis_disabled_v2', JSON.stringify(disabledSubjectsByGroup));
+  }, [disabledSubjectsByGroup, initDone]);
 
-  // ── Timetable fetching ─────────────────────────────────────────────────────
+  // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
     if (!initDone || selectedGroups.length === 0) {
       setTimetable([]);
@@ -105,7 +104,12 @@ export default function Home() {
     }
     setLoadingTimetable(true);
     const ids = selectedGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).join(',');
-    const dateStr = `${currentMonday.getFullYear()}-${String(currentMonday.getMonth() + 1).padStart(2, '0')}-${String(currentMonday.getDate()).padStart(2, '0')}`;
+    const dateStr = [
+      currentMonday.getFullYear(),
+      String(currentMonday.getMonth() + 1).padStart(2, '0'),
+      String(currentMonday.getDate()).padStart(2, '0'),
+    ].join('-');
+
     fetch(`/api/timetable?classIds=${ids}&date=${dateStr}`)
       .then(r => r.json())
       .then(d => { if (!d.error) setTimetable(d); })
@@ -113,19 +117,39 @@ export default function Home() {
       .finally(() => setLoadingTimetable(false));
   }, [selectedGroups, currentMonday, initDone]);
 
-  // ── Derived data ──────────────────────────────────────────────────────────
-  const filteredTimetable = timetable.filter(l =>
-    !l.subjectIds?.some(id => disabledSubjects.includes(id))
-  );
+  // ── Per-group subject index ───────────────────────────────────────────────
+  // Build { [groupKey]: [{ id, name, shortName }] } from the timetable
+  const timetableByGroup = {};
+  selectedGroups.forEach(g => {
+    const key = groupKey(g);
+    const seen = new Map();
+    timetable
+      .filter(l => l.classId === (Array.isArray(g.id) ? g.id[0] : g.id))
+      .forEach(lesson => {
+        (lesson.subjectIds || []).forEach((id, idx) => {
+          if (!seen.has(id)) {
+            seen.set(id, {
+              id,
+              name: lesson.subjects?.[idx] || String(id),
+              shortName: lesson.subjectShortNames?.[idx] || '',
+            });
+          }
+        });
+      });
+    timetableByGroup[key] = Array.from(seen.values());
+  });
 
-  const uniqueSubjects = [];
-  timetable.forEach(lesson => {
-    (lesson.subjects || []).forEach((name, idx) => {
-      const id = lesson.subjectIds?.[idx];
-      if (id && !uniqueSubjects.find(s => s.id === id)) {
-        uniqueSubjects.push({ id, name });
-      }
+  // ── Filtered timetable ────────────────────────────────────────────────────
+  const filteredTimetable = timetable.filter(lesson => {
+    // Find which group this lesson belongs to
+    const ownerGroup = selectedGroups.find(g => {
+      const gIds = Array.isArray(g.id) ? g.id : [g.id];
+      return gIds.includes(lesson.classId);
     });
+    if (!ownerGroup) return true;
+    const key = groupKey(ownerGroup);
+    const disabled = disabledSubjectsByGroup[key] || [];
+    return !lesson.subjectIds?.some(id => disabled.includes(id));
   });
 
   // ── Group management ───────────────────────────────────────────────────────
@@ -137,20 +161,23 @@ export default function Home() {
   }, []);
 
   const removeGroup = useCallback((g) => {
+    const key = groupKey(g);
     setSelectedGroups(prev => prev.filter(x => x.id !== g.id));
+    setDisabledSubjectsByGroup(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }, []);
 
-  const toggleSubject = useCallback((id) => {
-    setDisabledSubjects(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  }, []);
-
-  const toggleGroup = useCallback((g) => {
-    const key = 'group_' + (g.uniqueId || g.id);
-    setDisabledSubjects(prev =>
-      prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]
-    );
+  const toggleSubjectForGroup = useCallback((gKey, subjectId) => {
+    setDisabledSubjectsByGroup(prev => {
+      const current = prev[gKey] || [];
+      const next = current.includes(subjectId)
+        ? current.filter(id => id !== subjectId)
+        : [...current, subjectId];
+      return { ...prev, [gKey]: next };
+    });
   }, []);
 
   // ── Week navigation ────────────────────────────────────────────────────────
@@ -170,7 +197,7 @@ export default function Home() {
     });
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
     return (
       <div className="app-shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -179,24 +206,22 @@ export default function Home() {
     );
   }
 
-  const headerLabel = buildHeaderLabel(selectedGroups);
-
   return (
     <div className="app-shell">
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className="app-header">
         <button
           className="header-group-btn"
           onClick={() => setShowGroupSearch(true)}
           aria-label="Seleccionar grupo"
         >
-          {headerLabel}
+          {buildHeaderLabel(selectedGroups)}
           <span className="header-chevron">▾</span>
         </button>
         <button className="header-menu-btn" aria-label="Menú">⋯</button>
       </header>
 
-      {/* ── Content ──────────────────────────────────────────────────────── */}
+      {/* Content */}
       {activeTab === 'horarios' && (
         <>
           <WeekHeader
@@ -208,15 +233,17 @@ export default function Home() {
           />
 
           {loadingTimetable && (
-            <div className="spinner-wrap"><div className="spinner" /></div>
+            <div className="spinner-wrap" style={{ flex: 1 }}>
+              <div className="spinner" />
+            </div>
           )}
 
           {!loadingTimetable && selectedGroups.length === 0 && (
-            <div className="empty-state" style={{ flex: 1 }}>
+            <div className="empty-state">
               <div className="empty-state-icon">📅</div>
-              <div className="empty-state-title">Sin horario</div>
+              <div className="empty-state-title">Tu horario aquí</div>
               <div className="empty-state-body">
-                Añade tu grupo para ver tu horario personalizado.
+                Busca y añade tu grupo para ver tu horario de la semana.
               </div>
               <button className="empty-cta-btn" onClick={() => setShowGroupSearch(true)}>
                 Añadir grupo
@@ -227,8 +254,6 @@ export default function Home() {
           {!loadingTimetable && selectedGroups.length > 0 && (
             <WeekCalendar
               lessons={filteredTimetable}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
               onLessonClick={setActiveLesson}
               weekDates={weekDates}
             />
@@ -239,10 +264,9 @@ export default function Home() {
       {activeTab === 'ajustes' && (
         <SettingsView
           selectedGroups={selectedGroups}
-          disabledSubjects={disabledSubjects}
-          uniqueSubjects={uniqueSubjects}
-          onToggleGroup={toggleGroup}
-          onToggleSubject={toggleSubject}
+          disabledSubjectsByGroup={disabledSubjectsByGroup}
+          timetableByGroup={timetableByGroup}
+          onToggleSubjectForGroup={toggleSubjectForGroup}
           onRemoveGroup={removeGroup}
           onAddGroup={() => setShowGroupSearch(true)}
         />
@@ -250,7 +274,7 @@ export default function Home() {
 
       {activeTab === 'perfil' && <ProfileView />}
 
-      {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
+      {/* Tab bar */}
       <nav className="tab-bar">
         <button
           className={`tab-btn${activeTab === 'ajustes' ? ' active' : ''}`}
@@ -278,7 +302,7 @@ export default function Home() {
         </button>
       </nav>
 
-      {/* ── Modals ───────────────────────────────────────────────────────── */}
+      {/* Modals */}
       {activeLesson && (
         <LessonModal
           lesson={activeLesson}

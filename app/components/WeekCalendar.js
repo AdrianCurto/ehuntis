@@ -12,23 +12,35 @@ const PALETTE = [
   { bg: '#F08080', text: '#5C1A1A' }, // coral
 ];
 
-// Stable hash from subject id
-function subjectColor(subjectId) {
+export function subjectColor(subjectId) {
   const id = typeof subjectId === 'number' ? subjectId : parseInt(subjectId, 10) || 0;
   return PALETTE[Math.abs(id) % PALETTE.length];
 }
 
-// Hours visible in the calendar
+/**
+ * Smart display name for a lesson block.
+ * Priority: use the WebUntis short name (e.g. "TeoMecVibMec") → strip trailing "_NNNN" codes
+ * → fall back to first 2 words of long name.
+ */
+function blockDisplayName(lesson) {
+  const shortRaw = lesson.subjectShortNames?.[0] || '';
+  // Strip year-suffix codes like "_27315" or "_2627"
+  const shortClean = shortRaw.replace(/_\d{4,}$/, '').trim();
+  if (shortClean && shortClean.length <= 20) return shortClean;
+
+  // Fall back to first 2 significant words of long name
+  const longName = lesson.subjects?.[0] || '';
+  const words = longName.split(' ').filter(w => w.length > 2);
+  return words.slice(0, 2).join(' ') || longName.substring(0, 16);
+}
+
 const START_HOUR = 7;
 const END_HOUR = 22;
 const SLOT_HEIGHT = 60; // px per hour
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 
 function toMinutes(t) {
-  // t is integer like 830 → 8:30
-  const h = Math.floor(t / 100);
-  const m = t % 100;
-  return h * 60 + m;
+  return Math.floor(t / 100) * 60 + (t % 100);
 }
 
 function minutesSinceStart(t) {
@@ -37,9 +49,8 @@ function minutesSinceStart(t) {
 
 // Groups overlapping lessons into columns within a day
 function arrangeColumns(lessons) {
-  // Sort by start time
   const sorted = [...lessons].sort((a, b) => a.startTime - b.startTime);
-  const columns = []; // each column is an array of lessons
+  const columns = [];
 
   for (const lesson of sorted) {
     let placed = false;
@@ -54,11 +65,10 @@ function arrangeColumns(lessons) {
     if (!placed) columns.push([lesson]);
   }
 
-  // Assign column index and total to each lesson
   const result = new Map();
   columns.forEach((col, colIdx) => {
     col.forEach(lesson => {
-      result.set(lesson.id + '_' + lesson.startTime, {
+      result.set(lesson.id + '_' + lesson.startTime + '_' + lesson.classId, {
         colIdx,
         total: columns.length,
       });
@@ -67,20 +77,21 @@ function arrangeColumns(lessons) {
   return result;
 }
 
-export default function WeekCalendar({ lessons, selectedDay, onSelectDay, onLessonClick, weekDates }) {
+export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
   const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
-  const DAYS = ['LU', 'MA', 'MI', 'JU', 'VI'];
 
-  // Group lessons by day-of-week (0=Mon … 4=Fri)
+  // Group lessons by day index (0=Mon … 4=Fri)
   const lessonsByDay = weekDates.map((date) => {
     const dateNum = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
     return lessons.filter(l => l.date === dateNum);
   });
 
+  const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
+
   return (
     <div className="calendar-scroll">
-      <div className="calendar-grid">
-        {/* Time labels */}
+      <div className="calendar-grid" style={{ minHeight: totalHeight + 'px' }}>
+        {/* Time labels column */}
         <div className="time-col">
           {hours.map(h => (
             <div key={h} className="time-label">
@@ -90,29 +101,31 @@ export default function WeekCalendar({ lessons, selectedDay, onSelectDay, onLess
         </div>
 
         {/* Day columns */}
-        <div className="days-grid">
+        <div className="days-grid" style={{ height: totalHeight + 'px' }}>
           {weekDates.map((date, dayIdx) => {
             const dayLessons = lessonsByDay[dayIdx];
             const layout = arrangeColumns(dayLessons);
 
             return (
               <div key={dayIdx} className="day-col">
-                <div className="day-col-inner" style={{ height: `${TOTAL_HOURS * SLOT_HEIGHT}px` }}>
+                <div
+                  className="day-col-inner"
+                  style={{ height: totalHeight + 'px' }}
+                >
                   {dayLessons.map((lesson, idx) => {
                     const startMin = minutesSinceStart(lesson.startTime);
                     const endMin = minutesSinceStart(lesson.endTime);
                     const top = (startMin / 60) * SLOT_HEIGHT;
-                    const height = Math.max(((endMin - startMin) / 60) * SLOT_HEIGHT - 3, 24);
+                    const height = Math.max(((endMin - startMin) / 60) * SLOT_HEIGHT - 2, 22);
 
-                    const key = lesson.id + '_' + lesson.startTime;
+                    const key = lesson.id + '_' + lesson.startTime + '_' + lesson.classId;
                     const col = layout.get(key) || { colIdx: 0, total: 1 };
                     const widthPct = 100 / col.total;
                     const leftPct = col.colIdx * widthPct;
 
                     const color = subjectColor(lesson.subjectIds?.[0] || 0);
-                    const name = lesson.subjects?.[0] || '';
-                    // Short name: take up to first 12 chars or abbreviation
-                    const shortName = name.length > 18 ? name.split(' ').map(w => w[0]).join('').substring(0, 5) : name;
+                    const displayName = blockDisplayName(lesson);
+                    const isShort = height < 40; // very small block
 
                     return (
                       <div
@@ -121,16 +134,18 @@ export default function WeekCalendar({ lessons, selectedDay, onSelectDay, onLess
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
-                          left: `${leftPct + 1}%`,
-                          width: `${widthPct - 2}%`,
+                          left: `${leftPct + 0.5}%`,
+                          width: `${widthPct - 1}%`,
                           background: color.bg,
                           color: color.text,
                           position: 'absolute',
                         }}
                         onClick={() => onLessonClick(lesson)}
                       >
-                        <div className="lesson-block-name">{shortName}</div>
-                        {height > 44 && lesson.rooms?.[0] && (
+                        <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12 }}>
+                          {displayName}
+                        </div>
+                        {!isShort && lesson.rooms?.[0] && (
                           <div className="lesson-block-room">{lesson.rooms[0]}</div>
                         )}
                         {lesson.code === 'cancelled' && (
