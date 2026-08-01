@@ -21,18 +21,6 @@ export default function WeekHeader({ weekDates, selectedDay, isDayView, onSelect
     <div className="week-nav">
       {/* Month + Arrows */}
       <div className="week-nav-range">
-        {isDayView && selectedDay ? (
-          <>
-            <div className="week-nav-month">
-              <span>{MONTHS_SHORT[selectedDay.getMonth()].toUpperCase()}</span>
-              <span style={{ fontSize: '9px', fontWeight: 600 }}>{firstDay.getDate()}-{lastDay.getDate()}</span>
-            </div>
-            <div className="week-nav-arrows">
-              <button className="week-nav-arrow-mini" onClick={onPrevDay} aria-label="Día anterior">‹</button>
-              <button className="week-nav-arrow-mini" onClick={onNextDay} aria-label="Día siguiente">›</button>
-            </div>
-          </>
-        ) : (
           <>
             <div className="week-nav-month">
               {m1 === m2 ? (
@@ -49,7 +37,6 @@ export default function WeekHeader({ weekDates, selectedDay, isDayView, onSelect
               <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
             </div>
           </>
-        )}
       </div>
 
       {/* Day buttons */}
