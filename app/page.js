@@ -75,6 +75,7 @@ export default function Home() {
   const [timetable, setTimetable] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
   const [initDone, setInitDone] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(getDefaultDate()));
   const [selectedDay, setSelectedDay] = useState(null);
@@ -179,7 +180,22 @@ export default function Home() {
       })
       .catch(console.error)
       .finally(() => setLoadingTimetable(false));
-  }, [selectedGroups, disabledGroupIds, currentMonday, initDone]);
+  }, [selectedGroups, disabledGroupIds, currentMonday, initDone, refreshTrigger]);
+
+  const forceRefreshTimetable = useCallback(() => {
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ehuntis_timetable_cache_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+    setSemesterTimetable([]);
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   // Derive the current week's timetable from the semester cache
   useEffect(() => {
@@ -431,6 +447,7 @@ export default function Home() {
 
       {activeTab === 'ajustes' && (
         <SettingsView
+          onForceRefresh={forceRefreshTimetable}
           selectedGroups={selectedGroups}
           disabledGroupIds={disabledGroupIds}
           disabledSubjectsByGroup={disabledSubjectsByGroup}

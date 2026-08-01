@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, Trash2, Library } from 'lucide-react';
+import { ChevronRight, Trash2, Library, RefreshCw } from 'lucide-react';
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -23,6 +23,7 @@ function ChevronIcon({ open }) {
 }
 
 export default function SettingsView({
+  onForceRefresh,
   selectedGroups,
   disabledGroupIds,
   disabledSubjectsByGroup,
@@ -46,11 +47,17 @@ export default function SettingsView({
   return (
     <div className="settings-view">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="settings-header">
-        <div className="settings-title">Ajustes</div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-          Gestiona tus grupos y asignaturas
+      <div className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div className="settings-title">Ajustes</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+            Gestiona tus grupos y asignaturas
+          </div>
         </div>
+        <button className="primary-btn" onClick={onForceRefresh} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13 }}>
+          <RefreshCw size={14} />
+          Refrescar datos
+        </button>
       </div>
 
       {/* ── Groups section ─────────────────────────────────────────────────── */}
