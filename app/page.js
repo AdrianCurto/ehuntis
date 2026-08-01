@@ -46,7 +46,8 @@ export default function Home() {
     }
     
     setLoading(true);
-    const classIds = selectedGroups.map(g => g.id).join(',');
+    // Flatten the IDs since they are now arrays
+    const classIds = selectedGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).join(',');
     
     // By default fetches current week based on server time, but for testing we can hardcode 
     // a date where classes definitely exist (e.g. Sept/Oct). In production this should be the current date.
@@ -78,14 +79,17 @@ export default function Home() {
   });
 
   const addGroup = (c) => {
-    if (!selectedGroups.find(g => g.id === c.id)) {
+    if (!selectedGroups.find(g => (g.uniqueId && g.uniqueId === c.uniqueId) || (g.id === c.id))) {
       setSelectedGroups([...selectedGroups, c]);
     }
     setSearchTerm('');
   };
 
-  const removeGroup = (id) => {
-    setSelectedGroups(selectedGroups.filter(g => g.id !== id));
+  const removeGroup = (itemToRemove) => {
+    setSelectedGroups(selectedGroups.filter(g => {
+        if (itemToRemove.uniqueId) return g.uniqueId !== itemToRemove.uniqueId;
+        return g.id !== itemToRemove.id;
+    }));
   };
 
   const toggleSubject = (id) => {
@@ -129,18 +133,33 @@ export default function Home() {
               
               {searchTerm.length > 2 && (
                 <ul className="absolute z-10 w-full max-h-60 overflow-y-auto border border-gray-200 bg-white rounded-lg shadow-xl top-14 left-0">
-                  {classes.filter(c => c.longName?.toLowerCase().includes(searchTerm.toLowerCase()) || c.name?.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 20).map(c => (
-                    <li 
-                      key={c.id} 
-                      className="p-3 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
-                      onClick={() => addGroup(c)}
-                    >
-                      {c.longName || c.name}
-                    </li>
-                  ))}
-                  {classes.filter(c => c.longName?.toLowerCase().includes(searchTerm.toLowerCase()) || c.name?.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                      <li className="p-3 text-sm text-gray-500">No hay resultados</li>
-                  )}
+                  {(() => {
+                    const normalizeStr = (str) => {
+                        if (!str) return '';
+                        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                    };
+                    const searchTerms = normalizeStr(searchTerm).split(/[\s-]+/).filter(t => t.length > 0);
+                    
+                    const filteredClasses = classes.filter(c => {
+                        const text = normalizeStr((c.longName || '') + ' ' + (c.name || ''));
+                        return searchTerms.every(term => text.includes(term));
+                    });
+
+                    if (filteredClasses.length === 0) {
+                        return <li className="p-3 text-sm text-gray-500">No hay resultados</li>;
+                    }
+
+                    return filteredClasses.slice(0, 20).map(c => (
+                        <li 
+                          key={c.uniqueId || c.id} 
+                          className="p-3 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
+                          onClick={() => addGroup(c)}
+                        >
+                          <div className="font-semibold text-gray-800">{c.longName || c.name}</div>
+                          {c.longName && c.name && <div className="text-xs text-gray-500">{c.name}</div>}
+                        </li>
+                    ));
+                  })()}
                 </ul>
               )}
             </div>
@@ -150,9 +169,12 @@ export default function Home() {
               {selectedGroups.length === 0 && <p className="text-sm text-gray-400 italic">No has añadido ningún grupo.</p>}
               <div className="space-y-2">
                 {selectedGroups.map(g => (
-                  <div key={g.id} className="flex justify-between items-center bg-blue-50/50 p-3 rounded-lg border border-blue-100 text-sm font-medium text-blue-900 group transition-all hover:bg-blue-100/50">
-                    <span className="line-clamp-2 pr-2">{g.longName || g.name}</span>
-                    <button onClick={() => removeGroup(g.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md transition-colors" title="Eliminar grupo">
+                  <div key={g.uniqueId || g.id} className="flex justify-between items-center bg-blue-50/50 p-3 rounded-lg border border-blue-100 text-sm font-medium text-blue-900 group transition-all hover:bg-blue-100/50">
+                    <div className="flex flex-col overflow-hidden pr-2">
+                        <span className="font-semibold truncate">{g.longName || g.name}</span>
+                        {g.longName && g.name && <span className="text-xs opacity-75 truncate">{g.name}</span>}
+                    </div>
+                    <button onClick={() => removeGroup(g)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md transition-colors" title="Eliminar grupo">
                       ✕
                     </button>
                   </div>

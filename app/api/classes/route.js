@@ -8,13 +8,31 @@ export async function GET() {
     await untis.login();
     const classes = await untis.getClasses();
     
-    // Sort classes by longName for easier searching
-    const sortedClasses = classes
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        longName: c.longName
-      }))
+    // Deduplicate classes with same name and longName, merging their IDs
+    const classMap = new Map();
+    classes.forEach(c => {
+      // Clean up longName if it starts with an identifier like "306-X3 "
+      let cleanLongName = c.longName || '';
+      const prefixMatch = cleanLongName.match(/^[0-9A-Z]+-[0-9A-Z]+\s+(.*)$/i);
+      if (prefixMatch) {
+        cleanLongName = prefixMatch[1];
+      }
+      
+      const key = `${c.name}::${cleanLongName}`;
+      if (!classMap.has(key)) {
+        classMap.set(key, {
+          uniqueId: key,
+          id: [c.id],
+          name: c.name,
+          longName: cleanLongName,
+          rawLongName: c.longName
+        });
+      } else {
+        classMap.get(key).id.push(c.id);
+      }
+    });
+
+    const sortedClasses = Array.from(classMap.values())
       .sort((a, b) => (a.longName || a.name).localeCompare(b.longName || b.name));
 
     return NextResponse.json(sortedClasses);
