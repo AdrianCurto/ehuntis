@@ -132,18 +132,16 @@ export default function Home() {
       return;
     }
     
-    const month = currentMonday.getMonth();
-    const year = currentMonday.getFullYear();
-    let startDate, endDate;
-    if (month >= 7 || month === 0) { // Fall: Aug 1 - Jan 31
-      const startYear = month === 0 ? year - 1 : year;
-      const endYear = month === 0 ? year : year + 1;
-      startDate = new Date(startYear, 7, 1);
-      endDate = new Date(endYear, 0, 31);
-    } else { // Spring: Feb 1 - Jul 31
-      startDate = new Date(year, 1, 1);
-      endDate = new Date(year, 6, 31);
-    }
+    const today = new Date();
+    const month = today.getMonth();
+    const year = today.getFullYear();
+    // Academic year runs from Sept 1 (startYear) to July 1 (startYear + 1)
+    // If today is Aug-Dec (month >= 7), startYear is current year
+    // If today is Jan-July (month < 7), startYear is previous year
+    const startYear = month >= 7 ? year : year - 1;
+    
+    const startDate = new Date(startYear, 8, 1); // Sept 1
+    const endDate = new Date(startYear + 1, 6, 1); // July 1
     
     const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
     const cacheKey = `ehuntis_timetable_cache_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
@@ -193,7 +191,7 @@ export default function Home() {
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
     } catch(e) {}
-    setSemesterTimetable([]);
+    // We intentionally DO NOT clear semesterTimetable here to prevent screen blanking
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
@@ -327,10 +325,23 @@ export default function Home() {
   }, []);
 
   // ── Week navigation ────────────────────────────────────────────────────────
+  const getAcademicYearBounds = () => {
+    const today = new Date();
+    const month = today.getMonth();
+    const startYear = month >= 7 ? today.getFullYear() : today.getFullYear() - 1;
+    return {
+      minDate: new Date(startYear, 8, 1), // Sept 1
+      maxDate: new Date(startYear + 1, 6, 1) // July 1
+    };
+  };
+
   const goToPrevWeek = () => {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() - 7);
+      const { minDate } = getAcademicYearBounds();
+      // Ensure we don't go before Sept 1 of the current academic year
+      if (d < getWeekMonday(minDate)) return prev;
       return d;
     });
   };
@@ -339,6 +350,9 @@ export default function Home() {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() + 7);
+      const { maxDate } = getAcademicYearBounds();
+      // Ensure we don't go past July 1 of the current academic year
+      if (d > getWeekMonday(maxDate)) return prev;
       return d;
     });
   };
@@ -412,9 +426,16 @@ export default function Home() {
             onNextDay={handleNextDay}
           />
 
-          {loadingTimetable && (
+          {loadingTimetable && semesterTimetable.length === 0 && (
             <div className="spinner-wrap" style={{ flex: 1 }}>
               <div className="spinner" />
+            </div>
+          )}
+
+          {loadingTimetable && semesterTimetable.length > 0 && (
+            <div style={{ position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 50, border: '1px solid var(--border)' }}>
+              <div className="spinner" style={{ width: 14, height: 14, borderLeftColor: 'var(--brand)' }} />
+              Actualizando...
             </div>
           )}
 

@@ -91,6 +91,9 @@ export async function GET(request) {
     
     let allTimetables = [];
 
+    // Fetch all schoolyears to constrain our request bounds so WebUntis doesn't crash
+    const schoolyears = await untis.getSchoolyears();
+
     // Calculate start and end range
     let startRange, endRange;
     if (startDateStr && endDateStr) {
@@ -105,55 +108,48 @@ export async function GET(request) {
       endRange.setDate(endRange.getDate() + 6);
     }
 
-    for (const classId of classIds) {
-      if (!classId) continue;
-      
-      const fetchChunk = async (s, e) => {
-        try {
-          const tt = await untis.getTimetableForRange(s, e, classId, WebUntisElementType.CLASS);
-          return tt.map(lesson => {
-            const rawSubjects = lesson.subjects || lesson.su || [];
-            const rawRooms = lesson.rooms || lesson.ro || [];
-            const rawTeachers = lesson.teachers || lesson.te || [];
-            
-            return {
-              id: lesson.id,
-              date: lesson.date,
-              startTime: lesson.startTime,
-              endTime: lesson.endTime,
-              classId: classId,
-              subjects: rawSubjects.map(s => s.element?.longName || s.element?.name || s.longname || s.name || s.id),
-              subjectShortNames: rawSubjects.map(s => s.element?.name || s.name || ''),
-              subjectIds: rawSubjects.map(s => s.id),
-              rooms: rawRooms.map(r => r.element?.longName || r.element?.name || r.longname || r.name || r.id),
-              teachers: rawTeachers.map(t => t.element?.longName || t.element?.name || t.longname || t.name || t.id),
-              code: lesson.code,
-              type: lesson.lstext,
-            };
-          });
-        } catch (err) {
-          if (err.message && err.message.includes("Server didn't return any result")) {
-              return [];
-          }
-          console.error(`Failed to fetch chunk for class ${classId}:`, err.message);
-          return [];
-        }
-      };
-
-      let current = new Date(startRange);
-      const chunks = [];
-      while (current < endRange) {
-        let next = new Date(current);
-        next.setDate(next.getDate() + 30);
-        if (next > endRange) next = new Date(endRange);
-        
-        chunks.push(fetchChunk(new Date(current), new Date(next)));
-        current = new Date(next);
-      }
-      
-      const results = await Promise.all(chunks);
-      allTimetables = allTimetables.concat(results.flat());
+    // Adjust start and end ranges to be strictly within the target school year
+    // This prevents the WebUntis bug where requesting dates outside the active school year throws an error
+    const targetSy = schoolyears.find(sy => new Date(sy.endDate).getFullYear() === endRange.getFullYear());
+    if (targetSy) {
+      if (startRange < new Date(targetSy.startDate)) startRange = new Date(targetSy.startDate);
+      if (endRange > new Date(targetSy.endDate)) endRange = new Date(targetSy.endDate);
     }
+
+    const promises = classIds.filter(Boolean).map(async (classId) => {
+      try {
+        const tt = await untis.getTimetableForRange(startRange, endRange, classId, WebUntisElementType.CLASS);
+        return tt.map(lesson => {
+          const rawSubjects = lesson.subjects || lesson.su || [];
+          const rawRooms = lesson.rooms || lesson.ro || [];
+          const rawTeachers = lesson.teachers || lesson.te || [];
+          
+          return {
+            id: lesson.id,
+            date: lesson.date,
+            startTime: lesson.startTime,
+            endTime: lesson.endTime,
+            classId: classId,
+            subjects: rawSubjects.map(s => s.element?.longName || s.element?.name || s.longname || s.name || s.id),
+            subjectShortNames: rawSubjects.map(s => s.element?.name || s.name || ''),
+            subjectIds: rawSubjects.map(s => s.id),
+            rooms: rawRooms.map(r => r.element?.longName || r.element?.name || r.longname || r.name || r.id),
+            teachers: rawTeachers.map(t => t.element?.longName || t.element?.name || t.longname || t.name || t.id),
+            code: lesson.code,
+            type: lesson.lstext,
+          };
+        });
+      } catch (err) {
+        if (err.message && err.message.includes("Server didn't return any result")) {
+            return [];
+        }
+        console.error(`Failed to fetch timetable for class ${classId}:`, err.message);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(promises);
+    allTimetables = results.flat();
 
     // Merge consecutive 30-min blocks from same lesson
     const mergedTimetables = mergeConsecutiveBlocks(allTimetables);
