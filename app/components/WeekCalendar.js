@@ -199,14 +199,14 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                             <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 14, WebkitLineClamp: maxLines, marginBottom: '4px' }}>
                               {displayName}
                             </div>
-                            {!isShort && lesson.teachers?.[0] && (
-                              <div style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, marginBottom: '2px' }}>
-                                {formatTeacher(lesson.teachers[0])}
+                            {!isShort && lesson.rooms?.[0] && (
+                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500, marginBottom: '2px' }}>
+                                {lesson.rooms[0].replace(/\s+/g, '')}
                               </div>
                             )}
-                            {!isShort && lesson.rooms?.[0] && (
-                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500 }}>
-                                {lesson.rooms[0].replace(/\s+/g, '')}
+                            {!isShort && lesson.teachers?.[0] && (
+                              <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+                                {formatTeacher(lesson.teachers[0])}
                               </div>
                             )}
                           </>
