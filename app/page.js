@@ -123,9 +123,14 @@ export default function Home() {
   selectedGroups.forEach(g => {
     const key = groupKey(g);
     const seen = new Map();
-    timetable
-      .filter(l => l.classId === (Array.isArray(g.id) ? g.id[0] : g.id))
-      .forEach(lesson => {
+    timetable.forEach(lesson => {
+      // Check if this lesson belongs to this group
+      const belongsToGroup = lesson.classIds?.some(id => {
+        const gIds = Array.isArray(g.id) ? g.id : [g.id];
+        return gIds.includes(id);
+      }) || (lesson.classId && (Array.isArray(g.id) ? g.id : [g.id]).includes(lesson.classId));
+
+      if (belongsToGroup) {
         (lesson.subjectIds || []).forEach((id, idx) => {
           if (!seen.has(id)) {
             seen.set(id, {
@@ -135,21 +140,27 @@ export default function Home() {
             });
           }
         });
-      });
+      }
+    });
     timetableByGroup[key] = Array.from(seen.values());
   });
 
   // ── Filtered timetable ────────────────────────────────────────────────────
   const filteredTimetable = timetable.filter(lesson => {
-    // Find which group this lesson belongs to
-    const ownerGroup = selectedGroups.find(g => {
+    // A lesson might belong to multiple groups. It is shown if it is NOT disabled in AT LEAST ONE of its owner groups.
+    const ownerGroups = selectedGroups.filter(g => {
       const gIds = Array.isArray(g.id) ? g.id : [g.id];
-      return gIds.includes(lesson.classId);
+      return lesson.classIds?.some(id => gIds.includes(id)) || (lesson.classId && gIds.includes(lesson.classId));
     });
-    if (!ownerGroup) return true;
-    const key = groupKey(ownerGroup);
-    const disabled = disabledSubjectsByGroup[key] || [];
-    return !lesson.subjectIds?.some(id => disabled.includes(id));
+    
+    if (ownerGroups.length === 0) return true;
+    
+    return ownerGroups.some(g => {
+      const key = groupKey(g);
+      const disabled = disabledSubjectsByGroup[key] || [];
+      // If none of the lesson's subjects are in the disabled list for this group, then it is visible
+      return !lesson.subjectIds?.some(id => disabled.includes(id));
+    });
   });
 
   // ── Group management ───────────────────────────────────────────────────────
@@ -218,7 +229,6 @@ export default function Home() {
           {buildHeaderLabel(selectedGroups)}
           <span className="header-chevron">▾</span>
         </button>
-        <button className="header-menu-btn" aria-label="Menú">⋯</button>
       </header>
 
       {/* Content */}

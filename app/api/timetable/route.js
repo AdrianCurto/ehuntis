@@ -7,41 +7,60 @@ import { WebUntisAnonymousAuth, WebUntisElementType } from 'webuntis';
  * and the endTime of one equals the startTime of the next.
  */
 function mergeConsecutiveBlocks(lessons) {
-  if (lessons.length === 0) return [];
+  if (!lessons || lessons.length === 0) return [];
 
-  // Sort by date, then startTime
-  const sorted = [...lessons].sort((a, b) => {
+  // Helper to get a stable sorted string representation of an array
+  const stableStringify = (arr) => JSON.stringify([...(arr || [])].sort());
+
+  // Pass 1: Deduplicate identical blocks (same time, subject, room) that come from different classIds
+  const deduplicated = [];
+  const seen = new Map();
+  for (const lesson of lessons) {
+    const key = `${lesson.date}_${lesson.startTime}_${lesson.endTime}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}`;
+    if (seen.has(key)) {
+      const existing = seen.get(key);
+      if (!existing.classIds.includes(lesson.classId)) {
+        existing.classIds.push(lesson.classId);
+      }
+      if (lesson.code) existing.code = lesson.code;
+    } else {
+      const newLesson = { ...lesson, classIds: [lesson.classId] };
+      seen.set(key, newLesson);
+      deduplicated.push(newLesson);
+    }
+  }
+
+  // Pass 2: Merge consecutive blocks
+  // Sort by date, then startTime, then subjectIds
+  deduplicated.sort((a, b) => {
     if (a.date !== b.date) return a.date - b.date;
-    return a.startTime - b.startTime;
+    if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+    return stableStringify(a.subjectIds).localeCompare(stableStringify(b.subjectIds));
   });
 
   const merged = [];
-  let current = { ...sorted[0] };
+  let current = { ...deduplicated[0] };
 
-  for (let i = 1; i < sorted.length; i++) {
-    const next = sorted[i];
+  for (let i = 1; i < deduplicated.length; i++) {
+    const next = deduplicated[i];
 
-    // Same day, same subjects, same room, consecutive times?
     const sameDay = current.date === next.date;
     const consecutive = current.endTime === next.startTime;
-    const sameSubjects = JSON.stringify(current.subjectIds) === JSON.stringify(next.subjectIds);
-    const sameRoom = JSON.stringify(current.rooms) === JSON.stringify(next.rooms);
-    const sameClass = current.classId === next.classId;
+    const sameSubjects = stableStringify(current.subjectIds) === stableStringify(next.subjectIds);
+    const sameRoom = stableStringify(current.rooms) === stableStringify(next.rooms);
+    const sameClassIds = stableStringify(current.classIds) === stableStringify(next.classIds);
 
-    if (sameDay && consecutive && sameSubjects && sameRoom && sameClass) {
-      // Extend the current block
-      current = {
-        ...current,
-        endTime: next.endTime,
-        // Keep the most severe code (cancelled wins over normal)
-        code: next.code || current.code,
-      };
+    if (sameDay && consecutive && sameSubjects && sameRoom && sameClassIds) {
+      current.endTime = next.endTime;
+      if (next.code) current.code = next.code;
     } else {
       merged.push(current);
       current = { ...next };
     }
   }
-  merged.push(current);
+  if (current) {
+    merged.push(current);
+  }
 
   return merged;
 }

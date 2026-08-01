@@ -73,7 +73,7 @@ html, body {
 .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0 16px;
   height: var(--header-h);
   background: var(--surface);
@@ -85,7 +85,7 @@ html, body {
 .header-group-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
@@ -107,20 +107,8 @@ html, body {
 .header-chevron.open { transform: rotate(180deg); }
 
 .header-menu-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 20px;
-  transition: background 0.15s;
+  display: none;
 }
-.header-menu-btn:active { background: var(--bg-secondary); }
 
 /* ─── Week Navigator ─────────────────────────────────────── */
 .week-nav {
@@ -233,6 +221,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 100px;
 }
 
 .calendar-grid {
@@ -282,9 +271,9 @@ html, body {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0px,
-    transparent 59px,
-    var(--border-light) 59px,
-    var(--border-light) 60px
+    transparent 29px,
+    var(--border-light) 29px,
+    var(--border-light) 30px
   );
 }
 
@@ -299,7 +288,8 @@ html, body {
   left: 2px;
   right: 2px;
   border-radius: var(--radius-md);
-  padding: 5px 7px;
+  padding: 5px 6px;
+  border: 1px solid rgba(0,0,0,0.1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -321,13 +311,10 @@ html, body {
 }
 
 .lesson-block-name {
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 .lesson-block-room {
@@ -473,13 +460,18 @@ html, body {
 .tab-bar {
   display: flex;
   height: var(--tab-bar-h);
-  background: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  border-radius: 40px;
+  margin: 0 20px 20px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 30;
+  padding: 4px;
 }
 
 .tab-btn {
@@ -488,18 +480,20 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   background: none;
   border: none;
+  border-radius: 36px;
   cursor: pointer;
-  padding: 8px 0 4px;
+  padding: 6px 0;
   -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s;
+  transition: all 0.2s;
   color: var(--text-muted);
 }
 
 .tab-btn.active {
-  color: var(--accent);
+  background: rgba(0,0,0,0.05);
+  color: var(--text-primary);
 }
 
 .tab-icon {
@@ -841,64 +835,53 @@ html, body {
 .profile-view {
   flex: 1;
   overflow-y: auto;
-  background: var(--bg-secondary);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 24px;
-  gap: 24px;
+  padding: 60px 24px;
+  gap: 16px;
 }
 
-.profile-avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: var(--accent-light);
+.profile-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: 36px;
+  gap: 8px;
+  margin-bottom: 24px;
 }
 
-.profile-name {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.profile-sub {
+.profile-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
-  text-align: center;
-  margin-top: -16px;
+  margin: 0;
 }
 
-.profile-link-btn {
+.profile-content {
+  width: 100%;
+  max-width: 400px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  background: var(--surface);
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-card {
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--accent);
-  font-family: var(--font-body);
-  cursor: pointer;
-  text-decoration: none;
-  width: 100%;
-  justify-content: center;
-  transition: background 0.15s;
+  padding: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  text-align: center;
 }
-.profile-link-btn:active { background: var(--bg-secondary); }
 
-.profile-version {
+.profile-footer {
+  text-align: center;
   font-size: 12px;
   color: var(--text-muted);
-  text-align: center;
+  line-height: 1.5;
+  margin-top: 20px;
 }
 
 /* ─── Loading Spinner ────────────────────────────────────── */

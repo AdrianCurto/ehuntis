@@ -17,21 +17,8 @@ export function subjectColor(subjectId) {
   return PALETTE[Math.abs(id) % PALETTE.length];
 }
 
-/**
- * Smart display name for a lesson block.
- * Priority: use the WebUntis short name (e.g. "TeoMecVibMec") → strip trailing "_NNNN" codes
- * → fall back to first 2 words of long name.
- */
 function blockDisplayName(lesson) {
-  const shortRaw = lesson.subjectShortNames?.[0] || '';
-  // Strip year-suffix codes like "_27315" or "_2627"
-  const shortClean = shortRaw.replace(/_\d{4,}$/, '').trim();
-  if (shortClean && shortClean.length <= 20) return shortClean;
-
-  // Fall back to first 2 significant words of long name
-  const longName = lesson.subjects?.[0] || '';
-  const words = longName.split(' ').filter(w => w.length > 2);
-  return words.slice(0, 2).join(' ') || longName.substring(0, 16);
+  return lesson.subjects?.[0] || '';
 }
 
 const START_HOUR = 7;
@@ -68,7 +55,9 @@ function arrangeColumns(lessons) {
   const result = new Map();
   columns.forEach((col, colIdx) => {
     col.forEach(lesson => {
-      result.set(lesson.id + '_' + lesson.startTime + '_' + lesson.classId, {
+      // Use startTime + subjectIds as a stable key since classIds is now an array
+      const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
+      result.set(key, {
         colIdx,
         total: columns.length,
       });
@@ -118,7 +107,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const top = (startMin / 60) * SLOT_HEIGHT;
                     const height = Math.max(((endMin - startMin) / 60) * SLOT_HEIGHT - 2, 22);
 
-                    const key = lesson.id + '_' + lesson.startTime + '_' + lesson.classId;
+                    const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
                     const col = layout.get(key) || { colIdx: 0, total: 1 };
                     const widthPct = 100 / col.total;
                     const leftPct = col.colIdx * widthPct;
