@@ -241,11 +241,14 @@ html, body {
 
 .time-label {
   height: 60px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding-right: 8px;
-  padding-top: 0px;
+  position: relative;
+}
+
+.time-label span {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  transform: translateY(-50%);
   font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
@@ -315,6 +318,9 @@ html, body {
   font-weight: 600;
   line-height: 1.2;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
 
 .lesson-block-room {

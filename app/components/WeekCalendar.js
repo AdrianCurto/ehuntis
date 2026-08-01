@@ -1,20 +1,33 @@
 'use client';
 
-// Palette of 8 curated colors (same as CSS vars)
+// Palette of 11 distinct colors
 const PALETTE = [
-  { bg: '#EF476F', text: '#FFFFFF' }, // vibrant pink/red
-  { bg: '#06D6A0', text: '#003326' }, // bright mint/green
-  { bg: '#118AB2', text: '#FFFFFF' }, // bright blue
-  { bg: '#FFD166', text: '#4D3E00' }, // bright yellow
-  { bg: '#B5179E', text: '#FFFFFF' }, // purple/magenta
-  { bg: '#F77F00', text: '#FFFFFF' }, // vibrant orange
-  { bg: '#4CC9F0', text: '#003A4D' }, // light bright blue
-  { bg: '#00A896', text: '#FFFFFF' }, // teal
+  { bg: '#3B82F6', text: '#FFFFFF' }, // Azul
+  { bg: '#10B981', text: '#FFFFFF' }, // Verde
+  { bg: '#F59E0B', text: '#FFFFFF' }, // Amarillo-Naranja oscuro
+  { bg: '#F97316', text: '#FFFFFF' }, // Naranja
+  { bg: '#EF4444', text: '#FFFFFF' }, // Rojo
+  { bg: '#EC4899', text: '#FFFFFF' }, // Rosa
+  { bg: '#8B5CF6', text: '#FFFFFF' }, // Morado
+  { bg: '#14B8A6', text: '#FFFFFF' }, // Teal
+  { bg: '#06B6D4', text: '#FFFFFF' }, // Cyan
+  { bg: '#6366F1', text: '#FFFFFF' }, // Indigo
+  { bg: '#84CC16', text: '#FFFFFF' }, // Lime
 ];
+
+// Helper to assign a color index dynamically based on a unique list of subjects
+let subjectColorMap = new Map();
+export function updateSubjectColors(lessons) {
+  const uniqueIds = Array.from(new Set(lessons.map(l => l.subjectIds?.[0] || 0))).sort();
+  subjectColorMap = new Map();
+  uniqueIds.forEach((id, i) => {
+    subjectColorMap.set(id, PALETTE[i % PALETTE.length]);
+  });
+}
 
 export function subjectColor(subjectId) {
   const id = typeof subjectId === 'number' ? subjectId : parseInt(subjectId, 10) || 0;
-  return PALETTE[Math.abs(id) % PALETTE.length];
+  return subjectColorMap.get(id) || PALETTE[0];
 }
 
 function blockDisplayName(lesson) {
@@ -98,6 +111,9 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
     return lessons.filter(l => l.date === dateNum);
   });
 
+  // Assign distinct colors to the unique subjects in this week's timetable
+  updateSubjectColors(lessons);
+
   const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
 
   return (
@@ -107,7 +123,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
         <div className="time-col">
           {hours.map(h => (
             <div key={h} className="time-label">
-              {h < END_HOUR ? `${h}:00` : ''}
+              {h < END_HOUR ? <span>{h}:00</span> : ''}
             </div>
           ))}
         </div>
@@ -138,6 +154,9 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const color = subjectColor(lesson.subjectIds?.[0] || 0);
                     const displayName = blockDisplayName(lesson);
                     const isShort = height < 40; // very small block
+                    
+                    // 10px padding total vertically, ~14px line height (11px font * 1.2)
+                    const maxLines = Math.max(1, Math.floor((height - (isShort ? 10 : 25)) / 14));
 
                     return (
                       <div
@@ -154,7 +173,13 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                         }}
                         onClick={() => onLessonClick(lesson)}
                       >
-                        <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12 }}>
+                        <div 
+                          className="lesson-block-name" 
+                          style={{ 
+                            fontSize: isShort ? 10 : 12,
+                            WebkitLineClamp: maxLines
+                          }}
+                        >
                           {displayName}
                         </div>
                         {!isShort && lesson.rooms?.[0] && (
