@@ -2,17 +2,13 @@
 
 // Palette of 11 distinct colors
 const PALETTE = [
-  { bg: '#BAE6FD', text: '#0369A1' }, // Pastel Blue (Sky 200 / 700)
-  { bg: '#BBF7D0', text: '#15803D' }, // Pastel Green (Green 200 / 700)
-  { bg: '#FEF08A', text: '#A16207' }, // Pastel Yellow (Yellow 200 / 700)
-  { bg: '#FED7AA', text: '#C2410C' }, // Pastel Orange (Orange 200 / 700)
-  { bg: '#FECDD3', text: '#BE123C' }, // Pastel Red/Rose (Rose 200 / 700)
-  { bg: '#FBCFE8', text: '#BE185D' }, // Pastel Pink (Pink 200 / 700)
-  { bg: '#E9D5FF', text: '#7E22CE' }, // Pastel Purple (Purple 200 / 700)
-  { bg: '#A5F3FC', text: '#0E7490' }, // Pastel Cyan (Cyan 200 / 700)
-  { bg: '#D9F99D', text: '#4D7C0F' }, // Pastel Lime (Lime 200 / 700)
-  { bg: '#99F6E4', text: '#0F766E' }, // Pastel Teal (Teal 200 / 700)
-  { bg: '#C7D2FE', text: '#4338CA' }, // Pastel Indigo (Indigo 200 / 700)
+  { bg: '#FFB3BA', text: '#0F172A' }, // Pastel Pink/Red
+  { bg: '#FFDFBA', text: '#0F172A' }, // Pastel Orange
+  { bg: '#FFF6BA', text: '#0F172A' }, // Pastel Yellow
+  { bg: '#BAFFC9', text: '#0F172A' }, // Pastel Green
+  { bg: '#BAFFFF', text: '#0F172A' }, // Pastel Cyan
+  { bg: '#BAE1FF', text: '#0F172A' }, // Pastel Blue
+  { bg: '#D9BAFF', text: '#0F172A' }, // Pastel Purple
 ];
 
 // Helper to assign a color index dynamically based on a unique list of subjects
