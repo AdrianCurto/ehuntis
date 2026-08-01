@@ -6,7 +6,28 @@ export async function GET() {
   
   try {
     await untis.login();
-    const classes = await untis.getClasses();
+    // Determinar la fecha objetivo (si es verano, saltar a septiembre)
+    let targetDate = new Date();
+    const currentMonth = targetDate.getMonth(); // 0 = Jan, 6 = Jul, 7 = Aug, 8 = Sep
+    if (currentMonth === 6 || currentMonth === 7 || (currentMonth === 8 && targetDate.getDate() < 7)) {
+        targetDate = new Date(targetDate.getFullYear(), 8, 7);
+    }
+
+    // Buscar el schoolyear que contiene la targetDate
+    const schoolyears = await untis.getSchoolyears();
+    const targetYear = schoolyears.find(y => {
+        const start = new Date(y.startDate);
+        const end = new Date(y.endDate);
+        return targetDate >= start && targetDate <= end;
+    });
+
+    // Pedir las clases de ese schoolyear concreto
+    let classes;
+    if (targetYear) {
+        classes = await untis.getClasses(true, targetYear.id);
+    } else {
+        classes = await untis.getClasses();
+    }
     
     // Deduplicate classes with same name and longName, merging their IDs
     const classMap = new Map();
