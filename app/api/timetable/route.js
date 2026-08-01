@@ -103,20 +103,26 @@ export async function GET(request) {
       try {
         const tt = await untis.getTimetableForRange(startOfWeek, endOfWeek, classId, WebUntisElementType.CLASS);
         
-        const mappedTt = tt.map(lesson => ({
-          id: lesson.id,
-          date: lesson.date,
-          startTime: lesson.startTime,
-          endTime: lesson.endTime,
-          classId: classId,
-          subjects: (lesson.subjects || []).map(s => s.element?.longName || s.element?.name || s.id),
-          subjectShortNames: (lesson.subjects || []).map(s => s.element?.name || ''),
-          subjectIds: (lesson.subjects || []).map(s => s.id),
-          rooms: (lesson.rooms || []).map(r => r.element?.longName || r.element?.name || r.id),
-          teachers: (lesson.teachers || []).map(t => t.element?.longName || t.element?.name || t.id),
-          code: lesson.code,
-          type: lesson.lstext,
-        }));
+        const mappedTt = tt.map(lesson => {
+          const rawSubjects = lesson.subjects || lesson.su || [];
+          const rawRooms = lesson.rooms || lesson.ro || [];
+          const rawTeachers = lesson.teachers || lesson.te || [];
+          
+          return {
+            id: lesson.id,
+            date: lesson.date,
+            startTime: lesson.startTime,
+            endTime: lesson.endTime,
+            classId: classId,
+            subjects: rawSubjects.map(s => s.element?.longName || s.element?.name || s.longname || s.name || s.id),
+            subjectShortNames: rawSubjects.map(s => s.element?.name || s.name || ''),
+            subjectIds: rawSubjects.map(s => s.id),
+            rooms: rawRooms.map(r => r.element?.longName || r.element?.name || r.longname || r.name || r.id),
+            teachers: rawTeachers.map(t => t.element?.longName || t.element?.name || t.longname || t.name || t.id),
+            code: lesson.code,
+            type: lesson.lstext,
+          };
+        });
         
         allTimetables = allTimetables.concat(mappedTt);
       } catch (err) {
