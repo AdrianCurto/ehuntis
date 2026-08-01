@@ -1,0 +1,757 @@
+125 Máster Nutrición y Salud
+125 Máster Nutrición y Salud.
+125-X1 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X1 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-X1 Doble Grado en Farmacia +  Nutrición Humana y Dietética Inglés
+125-X1 Grado en Ciencia y Tecnología de los Alimentos Castellano
+125-X1 Grado en Ciencia y Tecnología de los Alimentos Euskera
+125-X1 Grado en Ciencias Ambientales (Plan nuevo) Castellano
+125-X1 Grado en Ciencias Ambientales (Plan nuevo) Euskera
+125-X1 Grado en Farmacia Castellano
+125-X1 Grado en Farmacia Euskera
+125-X1 Grado en Farmacia Inglés
+125-X1 Grado en Nutrición Humana y Dietética Castellano
+125-X1 Grado en Nutrición Humana y Dietética Euskera
+125-X1 Grado en Nutrición Humana y Dietética Inglés
+125-X2 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X2 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-X2 Grado en Ciencia y Tecnología de los Alimentos Castellano
+125-X2 Grado en Ciencia y Tecnología de los Alimentos Euskera
+125-X2 Grado en Ciencias Ambientales (Plan nuevo) Castellano
+125-X2 Grado en Ciencias Ambientales (Plan nuevo) Euskera
+125-X2 Grado en Ciencias Ambientales (Plan nuevo) Inglés
+125-X2 Grado en Farmacia Castellano
+125-X2 Grado en Farmacia Euskera
+125-X2 Grado en Nutrición Humana y Dietética Castellano
+125-X2 Grado en Nutrición Humana y Dietética Euskera
+125-X3 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X3 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-X3 Grado en Ciencia y Tecnología de los Alimentos Castellano
+125-X3 Grado en Ciencia y Tecnología de los Alimentos Euskera
+125-X3 Grado en Ciencias Ambientales (Plan nuevo) Castellano
+125-X3 Grado en Ciencias Ambientales (Plan nuevo) Euskera
+125-X3 Grado en Ciencias Ambientales (Plan nuevo) Inglés
+125-X3 Grado en Farmacia Castellano
+125-X3 Grado en Farmacia Euskera
+125-X3 Grado en Nutrición Humana y Dietética Castellano
+125-X3 Grado en Nutrición Humana y Dietética Euskera
+125-X4 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X4 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-X4 Grado en Ciencia y Tecnología de los Alimentos Castellano
+125-X4 Grado en Ciencia y Tecnología de los Alimentos Euskera
+125-X4 Grado en Ciencia y Tecnología de los Alimentos Inglés
+125-X4 Grado en Ciencias Ambientales (Plan nuevo) Castellano
+125-X4 Grado en Ciencias Ambientales (Plan nuevo) Euskera
+125-X4 Grado en Ciencias Ambientales Castellano
+125-X4 Grado en Ciencias Ambientales Euskera
+125-X4 Grado en Farmacia Castellano
+125-X4 Grado en Farmacia Euskera
+125-X4 Grado en Nutrición Humana y Dietética Castellano
+125-X4 Grado en Nutrición Humana y Dietética Euskera
+125-X5 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X5 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-X5 Grado en Farmacia Castellano
+125-X5 Grado en Farmacia Euskera
+125-X6 Doble Grado en Farmacia +  Nutrición Humana y Dietética Castellano
+125-X6 Doble Grado en Farmacia +  Nutrición Humana y Dietética Euskera
+125-XX Grado en Nutrición Humana y Dietética Castellano
+125-XX Grado en Nutrición Humana y Dietética Euskera
+125-XX Máster Universitario en Análisis Forense Castellano
+125-XX Máster Universitario en Calidad y Seguridad Alimentaria Castellano
+125-XX Máster Universitario en Enología Innovadora Castellano
+125-XY Máster Universitario en Enología Innovadora Castellano
+130-X1 Grado en Estudios Ingleses Inglés
+130-X1 Grado en Estudios Vascos Euskera
+130-X1 Grado en Filología Alemán
+130-X1 Grado en Filología Castellano
+130-X1 Grado en Filología Euskera
+130-X1 Grado en Filología Francés
+130-X1 Grado en Geografía y Ordenación del Territorio Castellano
+130-X1 Grado en Geografía y Ordenación del Territorio Euskera
+130-X1 Grado en Geografía y Ordenación del Territorio Inglés
+130-X1 Grado en Historia Castellano
+130-X1 Grado en Historia Euskera
+130-X1 Grado en Historia Inglés
+130-X1 Grado en Historia del Arte Castellano
+130-X1 Grado en Historia del Arte Euskera
+130-X1 Grado en Historia del Arte Inglés
+130-X1 Grado en Traducción e Interpretación Alemán
+130-X1 Grado en Traducción e Interpretación Castellano
+130-X1 Grado en Traducción e Interpretación Euskera
+130-X1 Grado en Traducción e Interpretación Inglés
+130-X1 Grado en Traducción e Interpretación Ruso
+130-X2 Grado en Estudios Ingleses Alemán
+130-X2 Grado en Estudios Ingleses Castellano
+130-X2 Grado en Estudios Ingleses Euskera
+130-X2 Grado en Estudios Ingleses Francés
+130-X2 Grado en Estudios Ingleses Inglés
+130-X2 Grado en Estudios Ingleses Ruso
+130-X2 Grado en Estudios Vascos Euskera
+130-X2 Grado en Filología Alemán
+130-X2 Grado en Filología Castellano
+130-X2 Grado en Filología Euskera
+130-X2 Grado en Filología Francés
+130-X2 Grado en Filología Inglés
+130-X2 Grado en Geografía y Ordenación del Territorio Euskera
+130-X2 Grado en Geografía y Ordenación del Territorio Inglés
+130-X2 Grado en Historia Castellano
+130-X2 Grado en Historia Euskera
+130-X2 Grado en Historia Inglés
+130-X2 Grado en Historia del Arte Castellano
+130-X2 Grado en Historia del Arte Euskera
+130-X2 Grado en Historia del Arte Inglés
+130-X2 Grado en Traducción e Interpretación Alemán
+130-X2 Grado en Traducción e Interpretación Castellano
+130-X2 Grado en Traducción e Interpretación Euskera
+130-X2 Grado en Traducción e Interpretación Francés
+130-X2 Grado en Traducción e Interpretación Inglés
+130-X3 Grado en Estudios Ingleses Alemán
+130-X3 Grado en Estudios Ingleses Castellano
+130-X3 Grado en Estudios Ingleses Euskera
+130-X3 Grado en Estudios Ingleses Francés
+130-X3 Grado en Estudios Ingleses Inglés
+130-X3 Grado en Estudios Ingleses Ruso
+130-X3 Grado en Estudios Vascos Alemán
+130-X3 Grado en Estudios Vascos Castellano
+130-X3 Grado en Estudios Vascos Euskera
+130-X3 Grado en Estudios Vascos Francés
+130-X3 Grado en Estudios Vascos Inglés
+130-X3 Grado en Estudios Vascos Ruso
+130-X3 Grado en Filología Alemán
+130-X3 Grado en Filología Castellano
+130-X3 Grado en Filología Euskera
+130-X3 Grado en Filología Francés
+130-X3 Grado en Filología Inglés
+130-X3 Grado en Filología Ruso
+130-X3 Grado en Geografía y Ordenación del Territorio Castellano
+130-X3 Grado en Geografía y Ordenación del Territorio Euskera
+130-X3 Grado en Geografía y Ordenación del Territorio Inglés
+130-X3 Grado en Historia Castellano
+130-X3 Grado en Historia Euskera
+130-X3 Grado en Historia Inglés
+130-X3 Grado en Historia del Arte Castellano
+130-X3 Grado en Historia del Arte Euskera
+130-X3 Grado en Traducción e Interpretación Alemán
+130-X3 Grado en Traducción e Interpretación Castellano
+130-X3 Grado en Traducción e Interpretación Euskera
+130-X3 Grado en Traducción e Interpretación Inglés
+130-X4 Grado en Estudios Ingleses Alemán
+130-X4 Grado en Estudios Ingleses Castellano
+130-X4 Grado en Estudios Ingleses Euskera
+130-X4 Grado en Estudios Ingleses Francés
+130-X4 Grado en Estudios Ingleses Inglés
+130-X4 Grado en Estudios Vascos Alemán
+130-X4 Grado en Estudios Vascos Castellano
+130-X4 Grado en Estudios Vascos Euskera
+130-X4 Grado en Estudios Vascos Francés
+130-X4 Grado en Estudios Vascos Inglés
+130-X4 Grado en Filología Alemán
+130-X4 Grado en Filología Castellano
+130-X4 Grado en Filología Euskera
+130-X4 Grado en Filología Francés
+130-X4 Grado en Filología Inglés
+130-X4 Grado en Geografía y Ordenación del Territorio Euskera
+130-X4 Grado en Historia Castellano
+130-X4 Grado en Historia Euskera
+130-X4 Grado en Historia Inglés
+130-X4 Grado en Historia del Arte Castellano
+130-X4 Grado en Historia del Arte Euskera
+130-X4 Grado en Historia del Arte Inglés
+130-X4 Grado en Traducción e Interpretación Castellano
+130-X4 Grado en Traducción e Interpretación Euskera
+130-XX Grado en Estudios Ingleses Arabe
+130-XX Grado en Estudios Ingleses Castellano
+130-XX Grado en Estudios Ingleses Catalán
+130-XX Grado en Estudios Ingleses Euskera
+130-XX Grado en Estudios Ingleses Gallego
+130-XX Grado en Estudios Ingleses Griego moderno
+130-XX Grado en Estudios Ingleses Inglés
+130-XX Grado en Estudios Ingleses Italiano
+130-XX Grado en Estudios Ingleses Ruso
+130-XX Grado en Estudios Vascos Arabe
+130-XX Grado en Estudios Vascos Castellano
+130-XX Grado en Estudios Vascos Catalán
+130-XX Grado en Estudios Vascos Euskera
+130-XX Grado en Estudios Vascos Gallego
+130-XX Grado en Estudios Vascos Griego moderno
+130-XX Grado en Estudios Vascos Inglés
+130-XX Grado en Estudios Vascos Italiano
+130-XX Grado en Estudios Vascos Ruso
+130-XX Grado en Filología Arabe
+130-XX Grado en Filología Castellano
+130-XX Grado en Filología Catalán
+130-XX Grado en Filología Euskera
+130-XX Grado en Filología Gallego
+130-XX Grado en Filología Griego moderno
+130-XX Grado en Filología Inglés
+130-XX Grado en Filología Italiano
+130-XX Grado en Filología Ruso
+130-XX Grado en Geografía y Ordenación del Territorio Castellano
+130-XX Grado en Geografía y Ordenación del Territorio Euskera
+130-XX Grado en Geografía y Ordenación del Territorio Inglés
+130-XX Grado en Historia Castellano
+130-XX Grado en Historia Euskera
+130-XX Grado en Historia Inglés
+130-XX Grado en Historia del Arte Castellano
+130-XX Grado en Historia del Arte Euskera
+130-XX Grado en Historia del Arte Inglés
+130-XX Grado en Traducción e Interpretación Alemán
+130-XX Grado en Traducción e Interpretación Arabe
+130-XX Grado en Traducción e Interpretación Castellano
+130-XX Grado en Traducción e Interpretación Catalán
+130-XX Grado en Traducción e Interpretación Euskera
+130-XX Grado en Traducción e Interpretación Francés
+130-XX Grado en Traducción e Interpretación Gallego
+130-XX Grado en Traducción e Interpretación Griego moderno
+130-XX Grado en Traducción e Interpretación Inglés
+130-XX Grado en Traducción e Interpretación Italiano
+130-XX Grado en Traducción e Interpretación Ruso
+130-XX Máster Universitario en Adquisición de Lenguas en Contextos Multilingües (ALCM)/Language Acqu
+130-XX Máster Universitario en Lingüística Teórica y Experimental Castellano
+130-XX Máster Universitario en Lingüística Teórica y Experimental Inglés
+130-XX Máster Universitario en Lingüística y Filología Vascas / Euskal Hizkuntzalaritza eta Filologi
+130-XX Máster Universitario en Literatura Comparada y Estudios Literarios Castellano
+130-XX Máster Universitario en Literatura Comparada y Estudios Literarios Euskera
+130-XX Máster Universitario en Literatura Comparada y Estudios Literarios Inglés
+151-X1 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X1 Doble Grado en ADE + Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X1 Grado en Administración y Dirección de Empresas (ADE) Inglés
+151-X2 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información (en extinci
+151-X2 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X2 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Euskera
+151-X3 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información (en extinci
+151-X3 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X4 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información (en extinci
+151-X4 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X5 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información (en extinci
+151-X5 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Castellano
+151-X5 Doble Grado en ADE +  Ingeniería Informática de Gestión y Sistemas de Información Euskera
+151-XX Grado en Administración y Dirección de Empresas (ADE) Euskera
+154-X1 Grado en Educación Infantil (Euskera) Euskera
+154-X1 Grado en Educación Primaria (Euskera) Euskera
+154-X1 Grado en Educación Primaria (Trilingüe) Castellano
+154-X2 Grado en Educación Infantil (Euskera) Euskera
+154-X2 Grado en Educación Primaria (Euskera) Euskera
+154-X2 Grado en Educación Primaria (Trilingüe) Castellano
+154-X3 Grado en Educación Infantil (Euskera) Euskera
+154-X3 Grado en Educación Primaria (Euskera) Euskera
+154-X3 Grado en Educación Primaria (Trilingüe) Euskera
+154-X4 Grado en Educación Infantil (Euskera) Castellano
+154-X4 Grado en Educación Infantil (Euskera) Euskera
+154-X4 Grado en Educación Primaria (Euskera) Castellano
+154-X4 Grado en Educación Primaria (Euskera) Euskera
+154-X4 Grado en Educación Primaria (Trilingüe) Castellano
+154-X4 Grado en Educación Primaria (Trilingüe) Euskera
+160-X3 Grado en Trabajo Social Euskera
+160-X4 Grado en Trabajo Social Euskera
+163-X1 Doble Grado en Ingeniería Mecánica + ADE Castellano
+163-X1 Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-X1 Doble Grado en Ingeniería Mecánica + ADE Inglés
+163-X1 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Castellan
+163-X1 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Euskera
+163-X1 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Inglés
+163-X1 Grado en Ingeniería Electrónica Industrial y Automática Castellano
+163-X1 Grado en Ingeniería Electrónica Industrial y Automática Euskera
+163-X1 Grado en Ingeniería Electrónica Industrial y Automática Inglés
+163-X1 Grado en Ingeniería Informática de Gestión y Sistemas de Información Castellano
+163-X1 Grado en Ingeniería Informática de Gestión y Sistemas de Información Euskera
+163-X1 Grado en Ingeniería Mecánica Castellano
+163-X1 Grado en Ingeniería Mecánica Euskera
+163-X1 Grado en Ingeniería Mecánica Inglés
+163-X1 Grado en Ingeniería Química Industrial Castellano
+163-X1 Grado en Ingeniería Química Industrial Euskera
+163-X1 Grado en Ingeniería Química Industrial Inglés
+163-X1 Grado en Ingeniería en Automoción - DUAL Castellano
+163-X1 Grado en Ingeniería en Automoción - DUAL Euskera
+163-X1 Grado en Ingeniería en Automoción - DUAL Inglés
+163-X1 Grado en Ingeniería en Automoción Inglés
+163-X2 Doble Grado en Ingeniería Mecánica + ADE Castellano
+163-X2 Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-X2 Doble Grado en Ingeniería Mecánica + ADE Inglés
+163-X2 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Castellan
+163-X2 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Euskera
+163-X2 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Inglés
+163-X2 Grado en Ingeniería Electrónica Industrial y Automática Castellano
+163-X2 Grado en Ingeniería Electrónica Industrial y Automática Euskera
+163-X2 Grado en Ingeniería Electrónica Industrial y Automática Inglés
+163-X2 Grado en Ingeniería Informática de Gestión y Sistemas de Información Castellano
+163-X2 Grado en Ingeniería Informática de Gestión y Sistemas de Información Euskera
+163-X2 Grado en Ingeniería Informática de Gestión y Sistemas de Información Inglés
+163-X2 Grado en Ingeniería Mecánica Castellano
+163-X2 Grado en Ingeniería Mecánica Euskera
+163-X2 Grado en Ingeniería Mecánica Inglés
+163-X2 Grado en Ingeniería Química Industrial Castellano
+163-X2 Grado en Ingeniería Química Industrial Euskera
+163-X2 Grado en Ingeniería Química Industrial Inglés
+163-X2 Grado en Ingeniería en Automoción - DUAL Castellano
+163-X2 Grado en Ingeniería en Automoción - DUAL Euskera
+163-X3 Doble Grado en Ingeniería Mecánica + ADE Castellano
+163-X3 Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-X3 Doble Grado en Ingeniería Mecánica + ADE Inglés
+163-X3 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Castellan
+163-X3 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Euskera
+163-X3 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Inglés
+163-X3 Grado en Ingeniería Electrónica Industrial y Automática Castellano
+163-X3 Grado en Ingeniería Informática de Gestión y Sistemas de Información Castellano
+163-X3 Grado en Ingeniería Informática de Gestión y Sistemas de Información Euskera
+163-X3 Grado en Ingeniería Mecánica Castellano
+163-X3 Grado en Ingeniería Mecánica Euskera
+163-X3 Grado en Ingeniería Mecánica Inglés
+163-X3 Grado en Ingeniería Química Industrial Castellano
+163-X3 Grado en Ingeniería en Automoción - DUAL Castellano
+163-X3 Grado en Ingeniería en Automoción - DUAL Euskera
+163-X4 Doble Grado en Ingeniería Mecánica + ADE Castellano
+163-X4 Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-X4 Doble Grado en Ingeniería Mecánica + ADE Inglés
+163-X4 Doble Grado en Ingeniería Mecánica + Ingeniería Electrónica Industrial y Automática Castellan
+163-X4 Grado en Ingeniería Electrónica Industrial y Automática Castellano
+163-X4 Grado en Ingeniería Electrónica Industrial y Automática Euskera
+163-X4 Grado en Ingeniería Electrónica Industrial y Automática Inglés
+163-X4 Grado en Ingeniería Informática de Gestión y Sistemas de Información Castellano
+163-X4 Grado en Ingeniería Informática de Gestión y Sistemas de Información Euskera
+163-X4 Grado en Ingeniería Informática de Gestión y Sistemas de Información Inglés
+163-X4 Grado en Ingeniería Mecánica Castellano
+163-X4 Grado en Ingeniería Mecánica Euskera
+163-X4 Grado en Ingeniería Mecánica Inglés
+163-X4 Grado en Ingeniería Química Industrial Castellano
+163-X4 Grado en Ingeniería Química Industrial Euskera
+163-X4 Grado en Ingeniería Química Industrial Inglés
+163-X4 Grado en Ingeniería en Automoción - DUAL Castellano
+163-X4 Grado en Ingeniería en Automoción - DUAL Euskera
+163-X4 Grado en Ingeniería en Automoción - DUAL Inglés
+163-X4 Grado en Ingeniería en Geomática y Topografía (en extinción) Euskera
+163-X5 Doble Grado en Ingeniería Mecánica + ADE Castellano
+163-X5 Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-XX Doble Grado en Ingeniería Mecánica + ADE Euskera
+163-XX Máster Universitario en Ingeniería en Organización Industrial Castellano
+163-XX Máster Universitario en Inteligencia Artificial Aplicada a la Industria e Ingeniería Asistida
+215-13 Licenciatura en Química Castellano
+215-13 Licenciatura en Química Euskera
+215-24 Licenciatura en Química Castellano
+215-24 Licenciatura en Química Euskera
+215-24 Licenciatura en Química Inglés
+215-25 Licenciatura en Química Castellano
+215-25 Licenciatura en Química Euskera
+215-2X Licenciatura en Química Castellano
+215-2X Licenciatura en Química Euskera
+215-X1 Grado en Química Castellano
+215-X1 Grado en Química Euskera
+215-X1 Máster Universitario en Química Teórica y Modelización Computacional Inglés
+215-X2 Grado en Química Castellano
+215-X2 Grado en Química Euskera
+215-X2 Grado en Química Inglés
+215-X2 Máster Universitario en Química Teórica y Modelización Computacional Inglés
+215-X3 Grado en Química Castellano
+215-X3 Grado en Química Euskera
+215-X3 Grado en Química Inglés
+215-X4 Grado en Química Castellano
+215-X4 Grado en Química Euskera
+215-X4 Grado en Química Inglés
+215-XX Máster Universitario en Nanociencia/Master in Nanosciencie Inglés
+215-XX Máster Universitario en Química y Polímeros Castellano
+215-XX Máster Universitario en Química y Polímeros Inglés
+215-XX Plan general de Libre Elección Castellano
+230-X1 Grado en Antropología Social Castellano
+230-X1 Grado en Antropología Social Euskera
+230-X1 Grado en Antropología Social Inglés
+230-X1 Grado en Educación Social Castellano
+230-X1 Grado en Educación Social Euskera
+230-X1 Grado en Educación Social Inglés
+230-X1 Grado en Filosofía Castellano
+230-X1 Grado en Filosofía Euskera
+230-X1 Grado en Filosofía Inglés
+230-X1 Grado en Pedagogía Castellano
+230-X1 Grado en Pedagogía Euskera
+230-X1 Grado en Pedagogía Inglés
+230-X2 Grado en Antropología Social Castellano
+230-X2 Grado en Antropología Social Euskera
+230-X2 Grado en Educación Social Castellano
+230-X2 Grado en Educación Social Euskera
+230-X2 Grado en Filosofía Castellano
+230-X2 Grado en Filosofía Euskera
+230-X2 Grado en Filosofía Inglés
+230-X2 Grado en Pedagogía Castellano
+230-X2 Grado en Pedagogía Euskera
+230-X3 Grado en Antropología Social Castellano
+230-X3 Grado en Antropología Social Euskera
+230-X3 Grado en Antropología Social Inglés
+230-X3 Grado en Educación Social Castellano
+230-X3 Grado en Educación Social Euskera
+230-X3 Grado en Educación Social Inglés
+230-X3 Grado en Filosofía Castellano
+230-X3 Grado en Filosofía Euskera
+230-X3 Grado en Filosofía Inglés
+230-X3 Grado en Pedagogía Castellano
+230-X3 Grado en Pedagogía Euskera
+230-X4 Grado en Antropología Social Castellano
+230-X4 Grado en Antropología Social Euskera
+230-X4 Grado en Educación Social Castellano
+230-X4 Grado en Educación Social Euskera
+230-X4 Grado en Filosofía Castellano
+230-X4 Grado en Filosofía Euskera
+230-X4 Grado en Pedagogía Castellano
+230-X4 Grado en Pedagogía Euskera
+231-X1 Grado en Logopedia Castellano
+231-X1 Grado en Logopedia Inglés
+231-X1 Grado en Psicología (Nuevo plan 2024) Castellano
+231-X1 Grado en Psicología (Nuevo plan 2024) Euskera
+231-X1 Grado en Psicología (Nuevo plan 2024) Inglés
+231-X1 Grado en Psicología (Plan anterior) Castellano
+231-X2 Grado en Logopedia Euskera
+231-X2 Grado en Psicología (Nuevo plan 2024) Castellano
+231-X2 Grado en Psicología (Nuevo plan 2024) Euskera
+231-X2 Grado en Psicología (Nuevo plan 2024) Inglés
+231-X3 Grado en Psicología (Plan anterior) Castellano
+231-X3 Grado en Psicología (Plan anterior) Euskera
+231-X3 Grado en Psicología Inglés
+231-X4 Grado en Psicología (Plan anterior) Castellano
+231-X4 Grado en Psicología (Plan anterior) Euskera
+231-XX Grado en Psicología (Plan anterior) Castellano
+231-XX Grado en Psicología (Plan anterior) Euskera
+231-XX Grado en Psicología (Plan anterior) Inglés
+231-XX Grado en Psicología Francés
+231-XX Máster Universitario en Psicología General Sanitaria Castellano
+231-XX Máster Universitario en Psicología General Sanitaria Euskera
+240-X1 Grado en Fundamentos de Arquitectura Castellano
+240-X1 Grado en Fundamentos de Arquitectura Euskera
+240-X2 Grado en Fundamentos de Arquitectura Castellano
+240-X2 Grado en Fundamentos de Arquitectura Euskera
+240-X2 Grado en Fundamentos de Arquitectura Inglés
+240-X3 Grado en Fundamentos de Arquitectura Castellano
+240-X3 Grado en Fundamentos de Arquitectura Euskera
+240-X3 Grado en Fundamentos de Arquitectura Inglés
+240-X4 Grado en Fundamentos de Arquitectura Castellano
+240-X4 Grado en Fundamentos de Arquitectura Euskera
+240-X4 Grado en Fundamentos de Arquitectura Inglés
+240-X5 Grado en Fundamentos de Arquitectura Castellano
+240-X5 Grado en Fundamentos de Arquitectura Euskera
+240-X5 Grado en Fundamentos de Arquitectura Inglés
+254-X1 Doble Grado en Educación Primaria + Educación Infantil Inglés
+254-X1 Grado en Educación Infantil (Euskera) Castellano
+254-X1 Grado en Educación Infantil (Euskera) Inglés
+254-X1 Grado en Educación Primaria (Euskera) Euskera
+254-X1 Grado en Educación Primaria (Euskera) Inglés
+254-X2 Doble Grado en Educación Primaria + Educación Infantil Euskera
+254-X2 Grado en Educación Infantil (Euskera) Castellano
+254-X2 Grado en Educación Primaria (Euskera) Castellano
+254-X3 Doble Grado en Educación Primaria + Educación Infantil Castellano
+254-X3 Grado en Educación Infantil (Euskera) Euskera
+254-X3 Grado en Educación Primaria (Euskera) Euskera
+254-X3 Grado en Educación Primaria (Euskera) Francés
+254-X3 Grado en Educación Primaria (Euskera) Inglés
+254-X4 Grado en Educación Infantil (Euskera) Euskera
+254-X4 Grado en Educación Infantil (Euskera) Inglés
+254-X4 Grado en Educación Primaria (Euskera) Euskera
+254-X4 Grado en Educación Primaria (Euskera) Inglés
+263-X1 Doble Grado en Ingeniería Civil + Arquitectura Técnica Castellano
+263-X1 Doble Grado en Ingeniería Civil + Arquitectura Técnica Euskera
+263-X1 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Castella
+263-X1 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Euskera
+263-X1 Doble Grado en Ingeniería Mecánica e Ingeniería Electrónica Industrial y Automática Castellan
+263-X1 Doble Grado en Ingeniería Mecánica e Ingeniería Electrónica Industrial y Automática Euskera
+263-X1 Grado en Arquitectura Técnica Castellano
+263-X1 Grado en Arquitectura Técnica Euskera
+263-X1 Grado en Ingenieria Electrónica Industrial y Automática Castellano
+263-X1 Grado en Ingenieria Electrónica Industrial y Automática Euskera
+263-X1 Grado en Ingeniería Civil Castellano
+263-X1 Grado en Ingeniería Civil Euskera
+263-X1 Grado en Ingeniería Eléctrica Castellano
+263-X1 Grado en Ingeniería Eléctrica Euskera
+263-X1 Grado en Ingeniería Mecánica Castellano
+263-X1 Grado en Ingeniería Mecánica Euskera
+263-X2 Doble Grado en Ingeniería Civil + Arquitectura Técnica Castellano
+263-X2 Doble Grado en Ingeniería Civil + Arquitectura Técnica Euskera
+263-X2 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Castella
+263-X2 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Euskera
+263-X2 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Inglés
+263-X2 Grado en Arquitectura Técnica Castellano
+263-X2 Grado en Arquitectura Técnica Euskera
+263-X2 Grado en Ingenieria Electrónica Industrial y Automática Castellano
+263-X2 Grado en Ingenieria Electrónica Industrial y Automática Euskera
+263-X2 Grado en Ingenieria Electrónica Industrial y Automática Inglés
+263-X2 Grado en Ingeniería Civil Castellano
+263-X2 Grado en Ingeniería Civil Euskera
+263-X2 Grado en Ingeniería Civil Inglés
+263-X2 Grado en Ingeniería Eléctrica Castellano
+263-X2 Grado en Ingeniería Eléctrica Euskera
+263-X2 Grado en Ingeniería Eléctrica Inglés
+263-X2 Grado en Ingeniería Mecánica Castellano
+263-X2 Grado en Ingeniería Mecánica Euskera
+263-X2 Grado en Ingeniería Mecánica Inglés
+263-X3 Doble Grado en Ingeniería Civil + Arquitectura Técnica Castellano
+263-X3 Doble Grado en Ingeniería Civil + Arquitectura Técnica Euskera
+263-X3 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Castella
+263-X3 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Euskera
+263-X3 Grado en Arquitectura Técnica Castellano
+263-X3 Grado en Arquitectura Técnica Euskera
+263-X3 Grado en Ingenieria Electrónica Industrial y Automática Castellano
+263-X3 Grado en Ingenieria Electrónica Industrial y Automática Euskera
+263-X3 Grado en Ingenieria Electrónica Industrial y Automática Inglés
+263-X3 Grado en Ingeniería Civil Castellano
+263-X3 Grado en Ingeniería Civil Euskera
+263-X3 Grado en Ingeniería Eléctrica Castellano
+263-X3 Grado en Ingeniería Eléctrica Euskera
+263-X3 Grado en Ingeniería Mecánica Castellano
+263-X3 Grado en Ingeniería Mecánica Euskera
+263-X4 Doble Grado en Ingeniería Civil + Arquitectura Técnica Castellano
+263-X4 Doble Grado en Ingeniería Civil + Arquitectura Técnica Euskera
+263-X4 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Castella
+263-X4 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Euskera
+263-X4 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Inglés
+263-X4 Grado en Arquitectura Técnica Castellano
+263-X4 Grado en Arquitectura Técnica Euskera
+263-X4 Grado en Arquitectura Técnica Inglés
+263-X4 Grado en Ingenieria Electrónica Industrial y Automática Castellano
+263-X4 Grado en Ingenieria Electrónica Industrial y Automática Euskera
+263-X4 Grado en Ingenieria Electrónica Industrial y Automática Inglés
+263-X4 Grado en Ingeniería Civil Castellano
+263-X4 Grado en Ingeniería Civil Euskera
+263-X4 Grado en Ingeniería Civil Inglés
+263-X4 Grado en Ingeniería Eléctrica Castellano
+263-X4 Grado en Ingeniería Eléctrica Euskera
+263-X4 Grado en Ingeniería Eléctrica Inglés
+263-X4 Grado en Ingeniería Mecánica Castellano
+263-X4 Grado en Ingeniería Mecánica Euskera
+263-X4 Grado en Ingeniería Mecánica Inglés
+263-X5 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Castella
+263-X5 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Euskera
+263-X5 Doble Grado en Ingeniería Mecánica +  Ingeniería Electrónica Industrial y Automática Inglés
+263-XX Máster Universitario en Control en Redes Eléctricas Inteligentes y Generación Distribuida Ing
+263-XX Máster Universitario en Ingeniería de Infraestructuras y Construcción Sostenibles Castellano
+263-XX Máster Universitario en Ingeniería de Materiales Renovables Castellano
+263-XX Máster Universitario en Tecnologías Avanzadas en la Industria Castellano
+305 Exámenes de Grado
+305 Reserva de locales
+305 Trabajos de Fin de Grado
+305-X1 Doble Grado en ADE + Derecho Castellano
+305-X1 Doble Grado en ADE + Derecho Euskera
+305-X1 Doble Grado en ADE + Derecho Inglés
+305-X1 Double Bachelors degree in Business and Economics Inglés
+305-X1 Grado en Administración y Dirección de Empresas (ADE) Castellano
+305-X1 Grado en Administración y Dirección de Empresas (ADE) Euskera
+305-X1 Grado en Administración y Dirección de Empresas (ADE) Inglés
+305-X1 Grado en Economía Castellano
+305-X1 Grado en Economía Euskera
+305-X1 Grado en Economía Inglés
+305-X1 Grado en Fiscalidad y Administración Pública Castellano
+305-X1 Grado en Fiscalidad y Administración Pública Euskera
+305-X1 Grado en Fiscalidad y Administración Pública Inglés
+305-X1 Grado en Marketing Castellano
+305-X1 Grado en Marketing Euskera
+305-X1 Grado en Marketing Inglés
+305-X1 Master propio en Mercados Financieros y Banca Privada
+305-X1 Máster de Derechos Fundamentales y Poderes Públicos
+305-X1 Máster en Auditoría de Cuentas y Contabilidad Superior
+305-X1 Máster en Banca y Finanzas Cuantitativas
+305-X1 Máster en CC Actuariales y Financieras 1º Curso
+305-X1 Máster en Desarrollo y Cooperación (HEGOA) (E)
+305-X1 Máster en Dirección Empresarial desde la Innovación y la Internacionalización
+305-X1 Máster en Economía: Instrumentos del Análisis Económico
+305-X1 Máster en Finanzas y Dirección Financiera
+305-X1 Máster in Economics: Empirical Applications and Policies
+305-X1 Máster propio en Dirección y Gestión de Empresas (executive MBA)
+305-X1 Máster propio en Emprendimiento y Dirección de Empresas (MBAe3)
+305-X1 Máster propio en Marketing y Ventas
+305-X1 Máster propio en Tributación y Asesoría Fiscal
+305-X1 Título de Experto en Estrategias de Internacionalización Corporativa
+305-X2 Doble Grado en ADE + Derecho Castellano
+305-X2 Doble Grado en ADE + Derecho Euskera
+305-X2 Doble Grado en ADE + Derecho Inglés
+305-X2 Double Bachelors degree in Business and Economics Inglés
+305-X2 Grado en Administración y Dirección de Empresas (ADE) Castellano
+305-X2 Grado en Administración y Dirección de Empresas (ADE) Euskera
+305-X2 Grado en Administración y Dirección de Empresas (ADE) Inglés
+305-X2 Grado en Economía Castellano
+305-X2 Grado en Economía Euskera
+305-X2 Grado en Economía Inglés
+305-X2 Grado en Fiscalidad y Administración Pública (no se oferta en el curso 2025/26) Inglés
+305-X2 Grado en Fiscalidad y Administración Pública Castellano
+305-X2 Grado en Fiscalidad y Administración Pública Euskera
+305-X2 Grado en Marketing Castellano
+305-X2 Grado en Marketing Euskera
+305-X2 Grado en Marketing Inglés
+305-X2 Máster en CC Actuariales y Financieras 2º Curso
+305-X2 Máster en Globalización y Desarrollo (C)
+305-X3 Doble Grado en ADE + Derecho Castellano
+305-X3 Doble Grado en ADE + Derecho Euskera
+305-X3 Doble Grado en ADE + Derecho Inglés
+305-X3 Double Bachelors degree in Business and Economics Inglés
+305-X3 Grado en Administración y Dirección de Empresas (ADE) Castellano
+305-X3 Grado en Administración y Dirección de Empresas (ADE) Euskera
+305-X3 Grado en Administración y Dirección de Empresas (ADE) Inglés
+305-X3 Grado en Economía Castellano
+305-X3 Grado en Economía Euskera
+305-X3 Grado en Economía Inglés
+305-X3 Grado en Fiscalidad y Administración Pública (no se oferta en el curso 2025/26) Castellano
+305-X3 Grado en Fiscalidad y Administración Pública Castellano
+305-X3 Grado en Fiscalidad y Administración Pública Euskera
+305-X3 Grado en Fiscalidad y Administración Pública Inglés
+305-X3 Grado en Marketing Castellano
+305-X3 Grado en Marketing Euskera
+305-X3 Grado en Marketing Inglés
+305-X4 Doble Grado en ADE + Derecho Castellano
+305-X4 Doble Grado en ADE + Derecho Euskera
+305-X4 Doble Grado en ADE + Derecho Inglés
+305-X4 Double Bachelors degree in Business and Economics Inglés
+305-X4 Grado en Administración y Dirección de Empresas (ADE) Castellano
+305-X4 Grado en Administración y Dirección de Empresas (ADE) Euskera
+305-X4 Grado en Administración y Dirección de Empresas (ADE) Inglés
+305-X4 Grado en Fiscalidad y Administración Pública Castellano
+305-X4 Grado en Fiscalidad y Administración Pública Euskera
+305-X4 Grado en Marketing Castellano
+305-X4 Grado en Marketing Euskera
+305-X4 Grado en Marketing Inglés
+305-X5 Doble Grado en ADE + Derecho Castellano
+305-X5 Doble Grado en ADE + Derecho Euskera
+305-X5 Doble Grado en ADE + Derecho Inglés
+305-X5 Double Bachelors degree in Business and Economics Inglés
+305-XX Grado en Administración y Dirección de Empresas (ADE) Castellano
+305-XX Grado en Administración y Dirección de Empresas (ADE) Euskera
+305-XX Grado en Administración y Dirección de Empresas (ADE) Inglés
+305-XX Grado en Economía Castellano
+305-XX Grado en Economía Euskera
+305-XX Grado en Economía Inglés
+305-XX Grado en Fiscalidad y Administración Pública (no se oferta en el curso 2025/26) Euskera
+305-XX Grado en Fiscalidad y Administración Pública Castellano
+306-X1 Grado en Ingeniería en Tecnología de Telecomunicación Castellano
+306-X1 Grado en Ingeniería en Tecnología de Telecomunicación Euskera
+306-X1 Grado en Ingeniería en Tecnología de Telecomunicación Inglés
+306-X1 Grado en Marina Castellano
+306-X1 Grado en Marina Euskera
+306-X1 Grado en Náutica y Transporte Marítimo Castellano
+306-X1 Grado en Náutica y Transporte Marítimo Euskera
+306-X2 Grado en Ingeniería en Tecnología de Telecomunicación Castellano
+306-X2 Grado en Ingeniería en Tecnología de Telecomunicación Euskera
+306-X2 Grado en Marina Castellano
+306-X2 Grado en Náutica y Transporte Marítimo Castellano
+306-X3 Grado en Ingeniería en Tecnología Industrial Euskera
+306-X3 Grado en Ingeniería en Tecnología de Telecomunicación Castellano
+306-X3 Grado en Ingeniería en Tecnología de Telecomunicación Euskera
+306-X3 Grado en Ingeniería en Tecnología de Telecomunicación Inglés
+306-X3 Grado en Marina Castellano
+306-X3 Grado en Marina Euskera
+306-X3 Grado en Náutica y Transporte Marítimo Castellano
+306-X3 Grado en Náutica y Transporte Marítimo Euskera
+306-X4 Grado en Ingeniería en Tecnología de Telecomunicación Castellano
+306-X4 Grado en Ingeniería en Tecnología de Telecomunicación Euskera
+306-X4 Grado en Marina Castellano
+306-X4 Grado en Marina Euskera
+306-X4 Grado en Náutica y Transporte Marítimo Castellano
+306-X4 Grado en Náutica y Transporte Marítimo Euskera
+306-XX Grado en Ingeniería en Tecnología de Telecomunicación Castellano
+306-XX Grado en Ingeniería en Tecnología de Telecomunicación Euskera
+306-XX Máster Universitario en Ingeniería Mecánica Castellano
+306-XX Máster Universitario en Ingeniería Mecánica Inglés
+309-X1 Grado en Fisioterapia Castellano
+309-X1 Grado en Fisioterapia Euskera
+309-X1 Grado en Medicina (Euskera) Euskera
+309-X1 Grado en Medicina (Euskera) Inglés
+309-X1 Grado en Medicina Castellano
+309-X1 Grado en Medicina Euskera
+309-X1 Grado en Medicina Inglés
+309-X1 Grado en Odontología Castellano
+309-X1 Grado en Odontología Euskera
+309-X2 Grado en Fisioterapia Castellano
+309-X2 Grado en Fisioterapia Euskera
+309-X2 Grado en Medicina (Euskera) Euskera
+309-X2 Grado en Medicina (Euskera) Inglés
+309-X2 Grado en Medicina Castellano
+309-X2 Grado en Medicina Euskera
+309-X2 Grado en Medicina Inglés
+309-X2 Grado en Odontología Castellano
+309-X2 Grado en Odontología Euskera
+309-X3 Grado en Fisioterapia Castellano
+309-X3 Grado en Fisioterapia Euskera
+309-X3 Grado en Medicina (Euskera) Castellano
+309-X3 Grado en Medicina (Euskera) Euskera
+309-X3 Grado en Medicina Castellano
+309-X3 Grado en Medicina Euskera
+309-X3 Grado en Odontología Castellano
+309-X3 Grado en Odontología Euskera
+309-X4 Grado en Fisioterapia Castellano
+309-X4 Grado en Fisioterapia Euskera
+309-X4 Grado en Odontología Castellano
+309-X4 Grado en Odontología Euskera
+309-X5 Grado en Odontología Castellano
+309-X5 Grado en Odontología Euskera
+309-XX Grado en Odontología Castellano
+309-XX Máster Universitario en Salud Pública Castellano
+327-X3 Grado en Medicina (Euskera) Euskera
+352-X1 Grado en Enfermería Castellano
+352-X1 Grado en Enfermería Euskera
+352-X1 Grado en Enfermería Inglés
+352-X2 Grado en Enfermería Castellano
+352-X2 Grado en Enfermería Euskera
+352-X2 Grado en Enfermería Inglés
+352-X3 Grado en Enfermería Castellano
+352-X3 Grado en Enfermería Euskera
+354-X1 Grado en Educación Infantil (Euskera) Euskera
+354-X1 Grado en Educación Infantil (Trilingüe) Castellano
+354-X1 Grado en Educación Primaria (Euskera) Euskera
+354-X1 Grado en Educación Primaria (Trilingüe) Castellano
+354-X1 Grado en Educación Social Castellano
+354-X1 Grado en Educación Social Euskera
+354-X1 Máster Universitario en Tecnología, Aprendizaje y Educación Castellano
+354-X2 Grado en Educación Infantil (Euskera) Euskera
+354-X2 Grado en Educación Infantil (Trilingüe) Euskera
+354-X2 Grado en Educación Primaria (Euskera) Euskera
+354-X2 Grado en Educación Primaria (Trilingüe) Euskera
+354-X2 Grado en Educación Social Castellano
+354-X2 Grado en Educación Social Euskera
+354-X2 Máster Universitario en Tecnología, Aprendizaje y Educación Castellano
+354-X3 Grado en Educación Infantil (Euskera)
+354-X3 Grado en Educación Infantil (Euskera) Euskera
+354-X3 Grado en Educación Infantil (Trilingüe) Castellano
+354-X3 Grado en Educación Primaria (Euskera) Inglés
+354-X3 Grado en Educación Primaria (Trilingüe) Euskera
+354-X3 Grado en Educación Primaria (Trilingüe) Francés
+354-X3 Grado en Educación Primaria (Trilingüe) Inglés
+354-X3 Grado en Educación Social Castellano
+354-X3 Grado en Educación Social Euskera
+354-X4 Grado en Educación Infantil (Euskera) Castellano
+354-X4 Grado en Educación Infantil (Euskera) Euskera
+354-X4 Grado en Educación Infantil (Euskera) Francés
+354-X4 Grado en Educación Infantil (Euskera) Inglés
+354-X4 Grado en Educación Infantil (Trilingüe) Castellano
+354-X4 Grado en Educación Infantil (Trilingüe) Euskera
+354-X4 Grado en Educación Infantil (Trilingüe) Francés
+354-X4 Grado en Educación Infantil (Trilingüe) Inglés
+354-X4 Grado en Educación Primaria (Euskera) Castellano
+354-X4 Grado en Educación Primaria (Euskera) Euskera
+354-X4 Grado en Educación Primaria (Euskera) Francés
+354-X4 Grado en Educación Primaria (Euskera) Inglés
+354-X4 Grado en Educación Primaria (Trilingüe) Castellano
+354-X4 Grado en Educación Primaria (Trilingüe) Euskera
+354-X4 Grado en Educación Primaria (Trilingüe) Francés
+354-X4 Grado en Educación Primaria (Trilingüe) Inglés
+354-X4 Grado en Educación Social Castellano
+354-X4 Grado en Educación Social Euskera
+354-XX Máster Universitario en Psicodidáctica: Psicología de la Educación y Didácticas Específicas C
+354-XX Máster Universitario en Psicodidáctica: Psicología de la Educación y Didácticas Específicas E
+3º+OPT_01_231
+3º+OPT_02_231
+3º+OPT_31_231
+410-11 Título Universitario en Ciencias Humanas Castellano
+410-12 Título Universitario en Ciencias Humanas Castellano
+410-13 Título Universitario en Ciencias Humanas Castellano
+410-1X Título Universitario en Ciencias Humanas Castellano
+410-X1 Cursos universitarios para mayores Alemán
+410-X1 Cursos universitarios para mayores Arabe
+410-X1 Cursos universitarios para mayores Castellano
+410-X1 Cursos universitarios para mayores Euskera
+410-X1 Cursos universitarios para mayores Inglés
+410-X1 Cursos universitarios para mayores Ruso
+420-X1 Cursos universitarios para mayores Castellano
+420-X1 Cursos universitarios para mayores Euskera
+908-XX Máster Universitario en Control en Redes Eléctricas Inteligentes y Generación Distribuida Ing
+ENGLISH_61_231
+EUSKPLAN_HAUTAZ_31_231
+FIC
+G21ARX3-240
+GPSICX2-231
+Grupo ficticio de reservas
+LOGOPEDIA 1º CURSO
+MASTER BCBL
+MASTER EN PSICOLOGIA ORGANIZACIONAL E INTERVENCIÓN PSICOSOCIAL
+Reservas-327
+USAC

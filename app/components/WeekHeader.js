@@ -1,0 +1,53 @@
+'use client';
+
+const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI'];
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrevWeek, onNextWeek }) {
+  const today = new Date();
+  const firstDay = weekDates[0];
+  const lastDay = weekDates[weekDates.length - 1];
+
+  const month = MONTHS_SHORT[firstDay.getMonth()];
+  const rangeStart = firstDay.getDate();
+  const rangeEnd = lastDay.getDate();
+  const rangeLabel = `${rangeStart} – ${rangeEnd}`;
+
+  return (
+    <div className="week-nav">
+      {/* Month + range */}
+      <div className="week-nav-range">
+        <span className="week-nav-month">{month}</span>
+        <span className="week-nav-days-range">{rangeLabel}</span>
+      </div>
+
+      {/* Day buttons */}
+      <div className="week-nav-days">
+        {weekDates.map((date, i) => {
+          const isToday = isSameDay(date, today);
+          const isSelected = isSameDay(date, selectedDay);
+          return (
+            <button
+              key={i}
+              className={`week-day-btn${isToday ? ' today' : ''}${isSelected && !isToday ? ' selected' : ''}`}
+              onClick={() => onSelectDay(date)}
+            >
+              <span className="week-day-name">{DAYS_SHORT[i]}</span>
+              <span className="week-day-num">{date.getDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Prev/Next */}
+      <button className="week-nav-arrow" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
+      <button className="week-nav-arrow" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
+    </div>
+  );
+}
