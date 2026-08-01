@@ -13,6 +13,13 @@ const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: fal
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
+function isSameDay(a, b) {
+  if (!a || !b) return false;
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
 function getWeekMonday(date) {
   const d = new Date(date);
   const day = d.getDay();
