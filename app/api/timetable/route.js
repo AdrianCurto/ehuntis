@@ -108,38 +108,51 @@ export async function GET(request) {
     for (const classId of classIds) {
       if (!classId) continue;
       
-      try {
-        const tt = await untis.getTimetableForRange(startRange, endRange, classId, WebUntisElementType.CLASS);
-        
-        const mappedTt = tt.map(lesson => {
-          const rawSubjects = lesson.subjects || lesson.su || [];
-          const rawRooms = lesson.rooms || lesson.ro || [];
-          const rawTeachers = lesson.teachers || lesson.te || [];
-          
-          return {
-            id: lesson.id,
-            date: lesson.date,
-            startTime: lesson.startTime,
-            endTime: lesson.endTime,
-            classId: classId,
-            subjects: rawSubjects.map(s => s.element?.longName || s.element?.name || s.longname || s.name || s.id),
-            subjectShortNames: rawSubjects.map(s => s.element?.name || s.name || ''),
-            subjectIds: rawSubjects.map(s => s.id),
-            rooms: rawRooms.map(r => r.element?.longName || r.element?.name || r.longname || r.name || r.id),
-            teachers: rawTeachers.map(t => t.element?.longName || t.element?.name || t.longname || t.name || t.id),
-            code: lesson.code,
-            type: lesson.lstext,
-          };
-        });
-        
-        allTimetables = allTimetables.concat(mappedTt);
-      } catch (err) {
-        if (err.message && err.message.includes("Server didn't return any result")) {
-            // No lessons in this date range, this is fine
-        } else {
-            console.error(`Failed to fetch timetable for class ${classId}:`, err.message);
+      const fetchChunk = async (s, e) => {
+        try {
+          const tt = await untis.getTimetableForRange(s, e, classId, WebUntisElementType.CLASS);
+          return tt.map(lesson => {
+            const rawSubjects = lesson.subjects || lesson.su || [];
+            const rawRooms = lesson.rooms || lesson.ro || [];
+            const rawTeachers = lesson.teachers || lesson.te || [];
+            
+            return {
+              id: lesson.id,
+              date: lesson.date,
+              startTime: lesson.startTime,
+              endTime: lesson.endTime,
+              classId: classId,
+              subjects: rawSubjects.map(s => s.element?.longName || s.element?.name || s.longname || s.name || s.id),
+              subjectShortNames: rawSubjects.map(s => s.element?.name || s.name || ''),
+              subjectIds: rawSubjects.map(s => s.id),
+              rooms: rawRooms.map(r => r.element?.longName || r.element?.name || r.longname || r.name || r.id),
+              teachers: rawTeachers.map(t => t.element?.longName || t.element?.name || t.longname || t.name || t.id),
+              code: lesson.code,
+              type: lesson.lstext,
+            };
+          });
+        } catch (err) {
+          if (err.message && err.message.includes("Server didn't return any result")) {
+              return [];
+          }
+          console.error(`Failed to fetch chunk for class ${classId}:`, err.message);
+          return [];
         }
+      };
+
+      let current = new Date(startRange);
+      const chunks = [];
+      while (current < endRange) {
+        let next = new Date(current);
+        next.setDate(next.getDate() + 30);
+        if (next > endRange) next = new Date(endRange);
+        
+        chunks.push(fetchChunk(new Date(current), new Date(next)));
+        current = new Date(next);
       }
+      
+      const results = await Promise.all(chunks);
+      allTimetables = allTimetables.concat(results.flat());
     }
 
     // Merge consecutive 30-min blocks from same lesson
