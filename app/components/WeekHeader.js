@@ -14,17 +14,19 @@ export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrev
   const firstDay = weekDates[0];
   const lastDay = weekDates[weekDates.length - 1];
 
-  const month = MONTHS_SHORT[firstDay.getMonth()];
-  const rangeStart = firstDay.getDate();
-  const rangeEnd = lastDay.getDate();
-  const rangeLabel = `${rangeStart} – ${rangeEnd}`;
+  const m1 = MONTHS_SHORT[firstDay.getMonth()].toUpperCase();
+  const m2 = MONTHS_SHORT[lastDay.getMonth()].toUpperCase();
+  const monthLabel = m1 === m2 ? m1 : `${m1}-${m2}`;
 
   return (
     <div className="week-nav">
-      {/* Month + range */}
+      {/* Month + Arrows */}
       <div className="week-nav-range">
-        <span className="week-nav-month">{month}</span>
-        <span className="week-nav-days-range">{rangeLabel}</span>
+        <span className="week-nav-month">{monthLabel}</span>
+        <div className="week-nav-arrows">
+          <button className="week-nav-arrow-mini" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
+          <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
+        </div>
       </div>
 
       {/* Day buttons */}
@@ -45,9 +47,6 @@ export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrev
         })}
       </div>
 
-      {/* Prev/Next */}
-      <button className="week-nav-arrow" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
-      <button className="week-nav-arrow" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
     </div>
   );
 }
