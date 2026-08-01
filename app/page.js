@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { extractSubgroupNumber } from './utils/subgroups';
 import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch } from 'lucide-react';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
@@ -52,8 +53,6 @@ function getDefaultDate() {
   }
   return now;
 }
-
-import { extractSubgroupNumber } from './utils/subgroups';
 
 // ─── Header label ─────────────────────────────────────────────────────────────
 

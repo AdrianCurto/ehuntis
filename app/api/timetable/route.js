@@ -89,11 +89,19 @@ export async function GET(request) {
     
     let allTimetables = [];
 
+    // Calculate start and end of the week for the given date
+    const d = new Date(date);
+    const day = d.getDay();
+    const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
+    const startOfWeek = new Date(d.setDate(diffToMonday));
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+
     for (const classId of classIds) {
       if (!classId) continue;
       
       try {
-        const tt = await untis.getTimetableForWeek(date, classId, WebUntisElementType.CLASS);
+        const tt = await untis.getTimetableForRange(startOfWeek, endOfWeek, classId, WebUntisElementType.CLASS);
         
         const mappedTt = tt.map(lesson => ({
           id: lesson.id,
