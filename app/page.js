@@ -32,9 +32,16 @@ function getWeekDates(monday) {
 
 function getDefaultDate() {
   const now = new Date();
+  
+  if (now.getDay() === 0) {
+    now.setDate(now.getDate() + 1);
+  } else if (now.getDay() === 6) {
+    now.setDate(now.getDate() + 2);
+  }
+
   const m = now.getMonth();
   if (m === 6 || m === 7 || (m === 8 && now.getDate() < 7)) {
-    return new Date(now.getFullYear() + (m >= 9 ? 1 : 0), 8, 7);
+    return new Date(now.getFullYear(), 8, 7);
   }
   return now;
 }
@@ -58,7 +65,7 @@ export default function Home() {
   const [loadingTimetable, setLoadingTimetable] = useState(false);
   const [initDone, setInitDone] = useState(false);
 
-  const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(new Date()));
+  const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(getDefaultDate()));
   const [selectedDay, setSelectedDay] = useState(null);
   const [isDayView, setIsDayView] = useState(false);
 
