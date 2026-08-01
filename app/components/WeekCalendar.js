@@ -186,30 +186,30 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                           ...(isDayView ? {
                             display: 'flex',
                             flexDirection: 'column',
-                            justifyContent: 'center',
+                            justifyContent: 'flex-start',
                             alignItems: 'center',
                             textAlign: 'center',
-                            padding: '10px'
+                            padding: '4px 8px'
                           } : {})
                         }}
                         onClick={() => onLessonClick(lesson)}
                       >
                         {isDayView ? (
-                          <>
-                            <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 14, WebkitLineClamp: maxLines, marginBottom: '4px' }}>
+                          <div style={{ margin: 'auto 0', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 13, WebkitLineClamp: maxLines, marginBottom: '2px', flexShrink: 0, width: '100%' }}>
                               {displayName}
                             </div>
                             {!isShort && lesson.rooms?.[0] && (
-                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500, marginBottom: '2px' }}>
+                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500, marginBottom: '1px', flexShrink: 0 }}>
                                 {lesson.rooms[0].replace(/\s+/g, '')}
                               </div>
                             )}
                             {!isShort && lesson.teachers?.[0] && (
-                              <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+                              <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600, flexShrink: 0 }}>
                                 {formatTeacher(lesson.teachers[0])}
                               </div>
                             )}
-                          </>
+                          </div>
                         ) : (
                           <>
                             <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12, WebkitLineClamp: maxLines }}>
