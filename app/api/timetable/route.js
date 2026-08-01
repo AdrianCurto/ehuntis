@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { WebUntisAnonymousAuth, WebUntisElementType } from 'webuntis';
 
-/**
- * Merges consecutive 30-min WebUntis blocks that belong to the same lesson.
- * Two blocks are merged if they share: same date, same subjectIds, same room, same teacher,
- * and the endTime of one equals the startTime of the next.
- */
 function mergeConsecutiveBlocks(lessons) {
   if (!lessons || lessons.length === 0) return [];
 
@@ -31,35 +26,35 @@ function mergeConsecutiveBlocks(lessons) {
   }
 
   // Pass 2: Merge consecutive blocks
-  // Sort by date, then startTime, then subjectIds
-  deduplicated.sort((a, b) => {
-    if (a.date !== b.date) return a.date - b.date;
-    if (a.startTime !== b.startTime) return a.startTime - b.startTime;
-    return stableStringify(a.subjectIds).localeCompare(stableStringify(b.subjectIds));
-  });
+  // Instead of simple sorting which interleaves different subjects, we group by subject/room/classId first
+  const groups = new Map();
+  for (const lesson of deduplicated) {
+    const groupKey = `${lesson.date}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}_${stableStringify(lesson.classIds)}`;
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, []);
+    }
+    groups.get(groupKey).push(lesson);
+  }
 
   const merged = [];
-  let current = { ...deduplicated[0] };
+  for (const groupLessons of groups.values()) {
+    // Sort chronologically within the same logical lesson sequence
+    groupLessons.sort((a, b) => a.startTime - b.startTime);
+    let current = { ...groupLessons[0] };
 
-  for (let i = 1; i < deduplicated.length; i++) {
-    const next = deduplicated[i];
-
-    const sameDay = current.date === next.date;
-    const consecutive = current.endTime === next.startTime;
-    const sameSubjects = stableStringify(current.subjectIds) === stableStringify(next.subjectIds);
-    const sameRoom = stableStringify(current.rooms) === stableStringify(next.rooms);
-    const sameClassIds = stableStringify(current.classIds) === stableStringify(next.classIds);
-
-    if (sameDay && consecutive && sameSubjects && sameRoom && sameClassIds) {
-      current.endTime = next.endTime;
-      if (next.code) current.code = next.code;
-    } else {
-      merged.push(current);
-      current = { ...next };
+    for (let i = 1; i < groupLessons.length; i++) {
+      const next = groupLessons[i];
+      if (current.endTime === next.startTime) {
+        current.endTime = next.endTime;
+        if (next.code) current.code = next.code;
+      } else {
+        merged.push(current);
+        current = { ...next };
+      }
     }
-  }
-  if (current) {
-    merged.push(current);
+    if (current) {
+      merged.push(current);
+    }
   }
 
   return merged;

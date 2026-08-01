@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronRight, Trash2, Library } from 'lucide-react';
 
 function Toggle({ checked, onChange, id }) {
   return (
-    <label className="toggle" htmlFor={id}>
+    <label className="toggle" htmlFor={id} onClick={(e) => e.stopPropagation()}>
       <input id={id} type="checkbox" checked={checked} onChange={onChange} />
       <div className="toggle-track" />
       <div className="toggle-thumb" />
@@ -14,20 +15,20 @@ function Toggle({ checked, onChange, id }) {
 
 function ChevronIcon({ open }) {
   return (
-    <svg
-      width="16" height="16" viewBox="0 0 16 16" fill="none"
+    <ChevronRight
+      size={18}
       style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}
-    >
-      <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    />
   );
 }
 
 export default function SettingsView({
   selectedGroups,
+  disabledGroupIds,
   disabledSubjectsByGroup,
   timetableByGroup,
   onToggleSubjectForGroup,
+  onToggleGroupDisabled,
   onRemoveGroup,
   onAddGroup,
 }) {
@@ -56,7 +57,9 @@ export default function SettingsView({
         {selectedGroups.length === 0 ? (
           <div className="settings-card">
             <div style={{ padding: '24px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text-muted)' }}>
+                <Library size={48} strokeWidth={1.5} />
+              </div>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                 No tienes ningún grupo. Pulsa el botón para añadir.
               </div>
@@ -67,22 +70,32 @@ export default function SettingsView({
             {selectedGroups.map((g, gIdx) => {
               const key = groupKey(g);
               const isExpanded = expandedGroups[key];
+              const isGroupDisabled = disabledGroupIds.includes(key);
               const disabledForGroup = disabledSubjectsByGroup[key] || [];
               const subjectsForGroup = timetableByGroup[key] || [];
               const allEnabled = subjectsForGroup.every(s => !disabledForGroup.includes(s.id));
 
               return (
-                <div key={key}>
+                <div key={key} style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'opacity 0.2s ease' }}>
                   {/* Group row */}
                   <div
                     className="settings-row"
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', gap: '12px' }}
                     onClick={() => toggleExpanded(key)}
                   >
                     {/* Expand arrow */}
                     <span style={{ color: 'var(--text-muted)' }}>
                       <ChevronIcon open={isExpanded} />
                     </span>
+                    
+                    {/* Enable/Disable Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <Toggle
+                        id={`group-toggle-${key}`}
+                        checked={!isGroupDisabled}
+                        onChange={() => onToggleGroupDisabled(key)}
+                      />
+                    </div>
 
                     {/* Group info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -124,23 +137,24 @@ export default function SettingsView({
                         background: 'none',
                         border: 'none',
                         color: 'var(--text-muted)',
-                        fontSize: 18,
                         cursor: 'pointer',
-                        padding: '4px 8px',
+                        padding: '6px',
                         borderRadius: 6,
-                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         flexShrink: 0,
                       }}
                       onClick={(e) => { e.stopPropagation(); onRemoveGroup(g); }}
                       aria-label="Eliminar grupo"
                     >
-                      ×
+                      <Trash2 size={18} />
                     </button>
                   </div>
 
                   {/* Subjects expandable section */}
                   {isExpanded && (
-                    <div style={{ background: 'var(--bg-secondary)' }}>
+                    <div style={{ background: 'var(--bg-secondary)', pointerEvents: isGroupDisabled ? 'none' : 'auto' }}>
                       {subjectsForGroup.length === 0 ? (
                         <div style={{ padding: '12px 20px 12px 44px', fontSize: 13, color: 'var(--text-muted)' }}>
                           Carga el horario para ver las asignaturas

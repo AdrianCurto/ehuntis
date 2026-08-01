@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch } from 'lucide-react';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
@@ -40,12 +41,7 @@ function getDefaultDate() {
 
 // ─── Header label ─────────────────────────────────────────────────────────────
 
-function buildHeaderLabel(groups) {
-  if (groups.length === 0) return 'EHUntis';
-  if (groups.length === 1) return groups[0].name;
-  if (groups.length === 2) return `${groups[0].name} · ${groups[1].name}`;
-  return `${groups[0].name} +${groups.length - 1}`;
-}
+// Header label function removed
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
@@ -53,6 +49,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('horarios');
   const [allClasses, setAllClasses] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);
+  const [disabledGroupIds, setDisabledGroupIds] = useState([]);
 
   // Per-group disabled subjects: { [groupKey]: [subjectId, ...] }
   const [disabledSubjectsByGroup, setDisabledSubjectsByGroup] = useState({});
@@ -71,14 +68,17 @@ export default function Home() {
   const weekDates = getWeekDates(currentMonday);
 
   const groupKey = (g) => String(g.uniqueId || g.id);
+  const activeGroups = selectedGroups.filter(g => !disabledGroupIds.includes(groupKey(g)));
 
   // ── Persistence ────────────────────────────────────────────────────────────
   useEffect(() => {
     try {
       const sg = localStorage.getItem('ehuntis_groups_v2');
       const ds = localStorage.getItem('ehuntis_disabled_v2');
+      const dg = localStorage.getItem('ehuntis_disabled_groups_v2');
       if (sg) setSelectedGroups(JSON.parse(sg));
       if (ds) setDisabledSubjectsByGroup(JSON.parse(ds));
+      if (dg) setDisabledGroupIds(JSON.parse(dg));
     } catch (_) {}
     setInitDone(true);
 
@@ -96,14 +96,18 @@ export default function Home() {
     if (initDone) localStorage.setItem('ehuntis_disabled_v2', JSON.stringify(disabledSubjectsByGroup));
   }, [disabledSubjectsByGroup, initDone]);
 
+  useEffect(() => {
+    if (initDone) localStorage.setItem('ehuntis_disabled_groups_v2', JSON.stringify(disabledGroupIds));
+  }, [disabledGroupIds, initDone]);
+
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!initDone || selectedGroups.length === 0) {
+    if (!initDone || activeGroups.length === 0) {
       setTimetable([]);
       return;
     }
     setLoadingTimetable(true);
-    const ids = selectedGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).join(',');
+    const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).join(',');
     const dateStr = [
       currentMonday.getFullYear(),
       String(currentMonday.getMonth() + 1).padStart(2, '0'),
@@ -115,12 +119,12 @@ export default function Home() {
       .then(d => { if (!d.error) setTimetable(d); })
       .catch(console.error)
       .finally(() => setLoadingTimetable(false));
-  }, [selectedGroups, currentMonday, initDone]);
+  }, [selectedGroups, disabledGroupIds, currentMonday, initDone]);
 
   // ── Per-group subject index ───────────────────────────────────────────────
   // Build { [groupKey]: [{ id, name, shortName }] } from the timetable
   const timetableByGroup = {};
-  selectedGroups.forEach(g => {
+  activeGroups.forEach(g => {
     const key = groupKey(g);
     const seen = new Map();
     timetable.forEach(lesson => {
@@ -147,8 +151,8 @@ export default function Home() {
 
   // ── Filtered timetable ────────────────────────────────────────────────────
   const filteredTimetable = timetable.filter(lesson => {
-    // A lesson might belong to multiple groups. It is shown if it is NOT disabled in AT LEAST ONE of its owner groups.
-    const ownerGroups = selectedGroups.filter(g => {
+    // A lesson might belong to multiple groups. It is shown if it is NOT disabled in AT LEAST ONE of its active owner groups.
+    const ownerGroups = activeGroups.filter(g => {
       const gIds = Array.isArray(g.id) ? g.id : [g.id];
       return lesson.classIds?.some(id => gIds.includes(id)) || (lesson.classId && gIds.includes(lesson.classId));
     });
@@ -191,6 +195,10 @@ export default function Home() {
     });
   }, []);
 
+  const toggleGroupDisabled = useCallback((gKey) => {
+    setDisabledGroupIds(prev => prev.includes(gKey) ? prev.filter(id => id !== gKey) : [...prev, gKey]);
+  }, []);
+
   // ── Week navigation ────────────────────────────────────────────────────────
   const goToPrevWeek = () => {
     setCurrentMonday(prev => {
@@ -219,18 +227,6 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      {/* Header */}
-      <header className="app-header">
-        <button
-          className="header-group-btn"
-          onClick={() => setShowGroupSearch(true)}
-          aria-label="Seleccionar grupo"
-        >
-          {buildHeaderLabel(selectedGroups)}
-          <span className="header-chevron">▾</span>
-        </button>
-      </header>
-
       {/* Content */}
       {activeTab === 'horarios' && (
         <>
@@ -248,20 +244,24 @@ export default function Home() {
             </div>
           )}
 
-          {!loadingTimetable && selectedGroups.length === 0 && (
+          {!loadingTimetable && activeGroups.length === 0 && (
             <div className="empty-state">
-              <div className="empty-state-icon">📅</div>
+              <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
+                <CalendarSearch size={48} strokeWidth={1.5} />
+              </div>
               <div className="empty-state-title">Tu horario aquí</div>
               <div className="empty-state-body">
-                Busca y añade tu grupo para ver tu horario de la semana.
+                {selectedGroups.length === 0 
+                  ? 'Ve a ajustes para añadir tus grupos y asignaturas.' 
+                  : 'Todos tus grupos están ocultos. Ve a ajustes para activarlos.'}
               </div>
-              <button className="empty-cta-btn" onClick={() => setShowGroupSearch(true)}>
-                Añadir grupo
+              <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
+                Ir a Ajustes
               </button>
             </div>
           )}
 
-          {!loadingTimetable && selectedGroups.length > 0 && (
+          {!loadingTimetable && activeGroups.length > 0 && (
             <WeekCalendar
               lessons={filteredTimetable}
               onLessonClick={setActiveLesson}
@@ -274,9 +274,11 @@ export default function Home() {
       {activeTab === 'ajustes' && (
         <SettingsView
           selectedGroups={selectedGroups}
+          disabledGroupIds={disabledGroupIds}
           disabledSubjectsByGroup={disabledSubjectsByGroup}
           timetableByGroup={timetableByGroup}
           onToggleSubjectForGroup={toggleSubjectForGroup}
+          onToggleGroupDisabled={toggleGroupDisabled}
           onRemoveGroup={removeGroup}
           onAddGroup={() => setShowGroupSearch(true)}
         />
@@ -291,7 +293,7 @@ export default function Home() {
           onClick={() => setActiveTab('ajustes')}
           id="tab-ajustes"
         >
-          <span className="tab-icon">⚙️</span>
+          <span className="tab-icon" style={{ display: 'flex', alignItems: 'center' }}><SettingsIcon size={20} strokeWidth={2} /></span>
           <span className="tab-label">Ajustes</span>
         </button>
         <button
@@ -299,7 +301,7 @@ export default function Home() {
           onClick={() => setActiveTab('horarios')}
           id="tab-horarios"
         >
-          <span className="tab-icon">📅</span>
+          <span className="tab-icon" style={{ display: 'flex', alignItems: 'center' }}><CalendarIcon size={20} strokeWidth={2} /></span>
           <span className="tab-label">Horarios</span>
         </button>
         <button
@@ -307,7 +309,7 @@ export default function Home() {
           onClick={() => setActiveTab('perfil')}
           id="tab-perfil"
         >
-          <span className="tab-icon">👤</span>
+          <span className="tab-icon" style={{ display: 'flex', alignItems: 'center' }}><UserIcon size={20} strokeWidth={2} /></span>
           <span className="tab-label">Perfil</span>
         </button>
       </nav>

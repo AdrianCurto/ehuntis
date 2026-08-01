@@ -1,11 +1,13 @@
 'use client';
 
+import { GraduationCap, ExternalLink } from 'lucide-react';
+
 export default function ProfileView() {
   return (
     <div className="profile-view">
       <div className="profile-header">
-        <div className="profile-avatar">
-          🎓
+        <div className="profile-avatar" style={{ background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <GraduationCap size={40} strokeWidth={1.5} />
         </div>
         <h2 className="profile-name">EHUntis</h2>
         <p className="profile-subtitle">Horarios UPV/EHU · Versión 0.1</p>
@@ -13,12 +15,14 @@ export default function ProfileView() {
 
       <div className="profile-content">
         <a 
-          href="https://ehu.webuntis.com/" 
+          href="https://ehu.webuntis.com/WebUntis/#/basic/timetablePublic" 
           target="_blank" 
           rel="noopener noreferrer"
           className="profile-link-btn"
         >
-          <span className="profile-link-icon">🌐</span>
+          <span className="profile-link-icon" style={{ display: 'flex', alignItems: 'center', marginRight: '8px' }}>
+            <ExternalLink size={20} strokeWidth={2} />
+          </span>
           Abrir WebUntis oficial
         </a>
 
