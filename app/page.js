@@ -53,6 +53,8 @@ function getDefaultDate() {
   return now;
 }
 
+import { extractSubgroupNumber } from './utils/subgroups';
+
 // ─── Header label ─────────────────────────────────────────────────────────────
 
 // Header label function removed
@@ -67,6 +69,8 @@ export default function Home() {
 
   // Per-group disabled subjects: { [groupKey]: [subjectId, ...] }
   const [disabledSubjectsByGroup, setDisabledSubjectsByGroup] = useState({});
+  // Per-group disabled subgroup numbers: { [groupKey]: [1, 2, ...] }
+  const [disabledSubgroupNumbersByGroup, setDisabledSubgroupNumbersByGroup] = useState({});
 
   const [timetable, setTimetable] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
@@ -90,9 +94,11 @@ export default function Home() {
       const sg = localStorage.getItem('ehuntis_groups_v2');
       const ds = localStorage.getItem('ehuntis_disabled_v2');
       const dg = localStorage.getItem('ehuntis_disabled_groups_v2');
+      const dsub = localStorage.getItem('ehuntis_disabled_subgroups_v2');
       if (sg) setSelectedGroups(JSON.parse(sg));
       if (ds) setDisabledSubjectsByGroup(JSON.parse(ds));
       if (dg) setDisabledGroupIds(JSON.parse(dg));
+      if (dsub) setDisabledSubgroupNumbersByGroup(JSON.parse(dsub));
     } catch (_) {}
     setInitDone(true);
 
@@ -113,6 +119,10 @@ export default function Home() {
   useEffect(() => {
     if (initDone) localStorage.setItem('ehuntis_disabled_groups_v2', JSON.stringify(disabledGroupIds));
   }, [disabledGroupIds, initDone]);
+
+  useEffect(() => {
+    if (initDone) localStorage.setItem('ehuntis_disabled_subgroups_v2', JSON.stringify(disabledSubgroupNumbersByGroup));
+  }, [disabledSubgroupNumbersByGroup, initDone]);
 
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
@@ -138,9 +148,13 @@ export default function Home() {
   // ── Per-group subject index ───────────────────────────────────────────────
   // Build { [groupKey]: [{ id, name, shortName }] } from the timetable
   const timetableByGroup = {};
+  const availableSubgroupsByGroup = {};
+  
   activeGroups.forEach(g => {
     const key = groupKey(g);
     const seen = new Map();
+    const subgroupNums = new Set();
+    
     timetable.forEach(lesson => {
       // Check if this lesson belongs to this group
       const belongsToGroup = lesson.classIds?.some(id => {
@@ -158,9 +172,15 @@ export default function Home() {
             });
           }
         });
+        
+        const subNum = extractSubgroupNumber(lesson.type);
+        if (subNum !== null) {
+          subgroupNums.add(subNum);
+        }
       }
     });
     timetableByGroup[key] = Array.from(seen.values());
+    availableSubgroupsByGroup[key] = Array.from(subgroupNums).sort((a,b) => a - b);
   });
 
   // ── Filtered timetable ────────────────────────────────────────────────────
@@ -175,9 +195,21 @@ export default function Home() {
     
     return ownerGroups.some(g => {
       const key = groupKey(g);
-      const disabled = disabledSubjectsByGroup[key] || [];
-      // If none of the lesson's subjects are in the disabled list for this group, then it is visible
-      return !lesson.subjectIds?.some(id => disabled.includes(id));
+      const disabledSubjs = disabledSubjectsByGroup[key] || [];
+      const disabledSubgroups = disabledSubgroupNumbersByGroup[key] || [];
+      
+      // Check if subject is disabled
+      if (lesson.subjectIds?.some(id => disabledSubjs.includes(id))) {
+        return false;
+      }
+      
+      // Check if subgroup is disabled
+      const lessonSubNum = extractSubgroupNumber(lesson.type);
+      if (lessonSubNum !== null && disabledSubgroups.includes(lessonSubNum)) {
+        return false;
+      }
+      
+      return true;
     });
   });
 
@@ -205,6 +237,16 @@ export default function Home() {
       const next = current.includes(subjectId)
         ? current.filter(id => id !== subjectId)
         : [...current, subjectId];
+      return { ...prev, [gKey]: next };
+    });
+  }, []);
+
+  const toggleSubgroupForGroup = useCallback((gKey, subNum) => {
+    setDisabledSubgroupNumbersByGroup(prev => {
+      const current = prev[gKey] || [];
+      const next = current.includes(subNum)
+        ? current.filter(n => n !== subNum)
+        : [...current, subNum];
       return { ...prev, [gKey]: next };
     });
   }, []);
@@ -338,7 +380,10 @@ export default function Home() {
           disabledGroupIds={disabledGroupIds}
           disabledSubjectsByGroup={disabledSubjectsByGroup}
           timetableByGroup={timetableByGroup}
+          availableSubgroupsByGroup={availableSubgroupsByGroup}
+          disabledSubgroupNumbersByGroup={disabledSubgroupNumbersByGroup}
           onToggleSubjectForGroup={toggleSubjectForGroup}
+          onToggleSubgroupForGroup={toggleSubgroupForGroup}
           onToggleGroupDisabled={toggleGroupDisabled}
           onRemoveGroup={removeGroup}
           onAddGroup={() => setShowGroupSearch(true)}

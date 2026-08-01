@@ -1,5 +1,7 @@
 'use client';
 
+import { extractSubgroupNumber } from '../utils/subgroups';
+
 // Palette of 11 distinct colors
 const PALETTE = [
   { bg: '#FFB3BA', text: '#0F172A' }, // Pastel Pink/Red
@@ -171,6 +173,23 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
 
                     const isDayView = weekDates.length === 1;
 
+                    const subNum = extractSubgroupNumber(lesson.type);
+                    const typeBadge = subNum !== null ? (
+                      <div style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        background: 'rgba(0,0,0,0.15)',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        marginBottom: 2,
+                        display: 'inline-block',
+                        lineHeight: 1,
+                        flexShrink: 0
+                      }}>
+                        {lesson.type}
+                      </div>
+                    ) : null;
+
                     return (
                       <div
                         key={`${lesson.id}-${idx}`}
@@ -196,6 +215,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                       >
                         {isDayView ? (
                           <div style={{ margin: 'auto 0', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            {typeBadge}
                             <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 13, WebkitLineClamp: maxLines, marginBottom: '2px', flexShrink: 0, width: '100%' }}>
                               {displayName}
                             </div>
@@ -212,6 +232,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                           </div>
                         ) : (
                           <>
+                            {typeBadge}
                             <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12, WebkitLineClamp: maxLines }}>
                               {displayName}
                             </div>

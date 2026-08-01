@@ -27,7 +27,10 @@ export default function SettingsView({
   disabledGroupIds,
   disabledSubjectsByGroup,
   timetableByGroup,
+  availableSubgroupsByGroup,
+  disabledSubgroupNumbersByGroup,
   onToggleSubjectForGroup,
+  onToggleSubgroupForGroup,
   onToggleGroupDisabled,
   onRemoveGroup,
   onAddGroup,
@@ -199,6 +202,33 @@ export default function SettingsView({
                               </div>
                             </div>
                           ))}
+                          {availableSubgroupsByGroup?.[key]?.length > 0 && (
+                            <>
+                              <div style={{ height: 1, background: 'var(--border)', margin: '4px 20px' }} />
+                              <div className="settings-subrow" style={{ paddingBottom: 4 }}>
+                                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-secondary)' }}>
+                                  Subgrupos (Laboratorio, Ordenador, Seminario...)
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 16, padding: '4px 20px 16px 44px', flexWrap: 'wrap' }}>
+                                {availableSubgroupsByGroup[key].map(subNum => {
+                                  const disabled = (disabledSubgroupNumbersByGroup?.[key] || []).includes(subNum);
+                                  return (
+                                    <div key={subNum} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <Toggle
+                                        id={`subgroup-${key}-${subNum}`}
+                                        checked={!disabled}
+                                        onChange={() => onToggleSubgroupForGroup(key, subNum)}
+                                      />
+                                      <span style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        Subgrupo {subNum}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
                         </>
                       )}
                     </div>

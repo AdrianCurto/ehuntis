@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { WebUntisAnonymousAuth, WebUntisElementType } from 'webuntis';
+import { getMergeType } from '../../utils/subgroups';
 
 function mergeConsecutiveBlocks(lessons) {
   if (!lessons || lessons.length === 0) return [];
@@ -11,7 +12,8 @@ function mergeConsecutiveBlocks(lessons) {
   const deduplicated = [];
   const seen = new Map();
   for (const lesson of lessons) {
-    const key = `${lesson.date}_${lesson.startTime}_${lesson.endTime}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}`;
+    const mergeType = getMergeType(lesson.type);
+    const key = `${lesson.date}_${lesson.startTime}_${lesson.endTime}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}_${mergeType}`;
     if (seen.has(key)) {
       const existing = seen.get(key);
       if (!existing.classIds.includes(lesson.classId)) {
@@ -29,7 +31,8 @@ function mergeConsecutiveBlocks(lessons) {
   // Instead of simple sorting which interleaves different subjects, we group by subject/room/classId first
   const groups = new Map();
   for (const lesson of deduplicated) {
-    const groupKey = `${lesson.date}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}_${stableStringify(lesson.classIds)}`;
+    const mergeType = getMergeType(lesson.type);
+    const groupKey = `${lesson.date}_${stableStringify(lesson.subjectIds)}_${stableStringify(lesson.rooms)}_${stableStringify(lesson.classIds)}_${mergeType}`;
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
     }
@@ -104,7 +107,7 @@ export async function GET(request) {
           rooms: (lesson.rooms || []).map(r => r.element?.longName || r.element?.name || r.id),
           teachers: (lesson.teachers || []).map(t => t.element?.longName || t.element?.name || t.id),
           code: lesson.code,
-          type: lesson.lstype,
+          type: lesson.lstext,
         }));
         
         allTimetables = allTimetables.concat(mappedTt);
