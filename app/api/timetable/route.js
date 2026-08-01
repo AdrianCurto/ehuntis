@@ -11,7 +11,15 @@ export async function GET(request) {
   }
 
   // Use requested date or today
-  const date = dateStr ? new Date(dateStr) : new Date();
+  let date = dateStr ? new Date(dateStr) : new Date();
+  
+  if (!dateStr) {
+    const currentMonth = date.getMonth(); // 0 = Jan, 6 = Jul, 7 = Aug, 8 = Sep
+    // Si estamos en verano (julio, agosto) o principios de septiembre, saltar a la semana de inicio (7 sep)
+    if (currentMonth === 6 || currentMonth === 7 || (currentMonth === 8 && date.getDate() < 7)) {
+        date = new Date(date.getFullYear(), 8, 7); // 7 de Septiembre
+    }
+  }
   
   const untis = new WebUntisAnonymousAuth('ehu', 'ehu.webuntis.com');
   
