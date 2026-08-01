@@ -2,14 +2,14 @@
 
 // Palette of 8 curated colors (same as CSS vars)
 const PALETTE = [
-  { bg: '#F28B82', text: '#5C1A17' }, // salmon
-  { bg: '#A8D5A2', text: '#1A4D1A' }, // mint
-  { bg: '#86C5E4', text: '#133E52' }, // sky blue
-  { bg: '#F5C842', text: '#5C4200' }, // yellow
-  { bg: '#D5A8E4', text: '#3D1A52' }, // lavender
-  { bg: '#F4A261', text: '#5C2E00' }, // orange
-  { bg: '#8EC5C5', text: '#1A3D3D' }, // teal
-  { bg: '#F08080', text: '#5C1A1A' }, // coral
+  { bg: '#EF476F', text: '#FFFFFF' }, // vibrant pink/red
+  { bg: '#06D6A0', text: '#003326' }, // bright mint/green
+  { bg: '#118AB2', text: '#FFFFFF' }, // bright blue
+  { bg: '#FFD166', text: '#4D3E00' }, // bright yellow
+  { bg: '#B5179E', text: '#FFFFFF' }, // purple/magenta
+  { bg: '#F77F00', text: '#FFFFFF' }, // vibrant orange
+  { bg: '#4CC9F0', text: '#003A4D' }, // light bright blue
+  { bg: '#00A896', text: '#FFFFFF' }, // teal
 ];
 
 export function subjectColor(subjectId) {
@@ -37,32 +37,55 @@ function minutesSinceStart(t) {
 // Groups overlapping lessons into columns within a day
 function arrangeColumns(lessons) {
   const sorted = [...lessons].sort((a, b) => a.startTime - b.startTime);
-  const columns = [];
+  const clusters = [];
+  let currentCluster = [];
+  let clusterEnd = 0;
 
   for (const lesson of sorted) {
-    let placed = false;
-    for (const col of columns) {
-      const lastInCol = col[col.length - 1];
-      if (toMinutes(lastInCol.endTime) <= toMinutes(lesson.startTime)) {
-        col.push(lesson);
-        placed = true;
-        break;
-      }
+    const startMins = toMinutes(lesson.startTime);
+    const endMins = toMinutes(lesson.endTime);
+    if (currentCluster.length === 0) {
+      currentCluster.push(lesson);
+      clusterEnd = endMins;
+    } else if (startMins < clusterEnd) {
+      currentCluster.push(lesson);
+      clusterEnd = Math.max(clusterEnd, endMins);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [lesson];
+      clusterEnd = endMins;
     }
-    if (!placed) columns.push([lesson]);
   }
+  if (currentCluster.length > 0) clusters.push(currentCluster);
 
   const result = new Map();
-  columns.forEach((col, colIdx) => {
-    col.forEach(lesson => {
-      // Use startTime + subjectIds as a stable key since classIds is now an array
-      const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
-      result.set(key, {
-        colIdx,
-        total: columns.length,
+  
+  for (const cluster of clusters) {
+    const columns = [];
+    for (const lesson of cluster) {
+      let placed = false;
+      for (const col of columns) {
+        const lastInCol = col[col.length - 1];
+        if (toMinutes(lastInCol.endTime) <= toMinutes(lesson.startTime)) {
+          col.push(lesson);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) columns.push([lesson]);
+    }
+    
+    // columns.length is the total columns for this overlapping cluster
+    columns.forEach((col, colIdx) => {
+      col.forEach(lesson => {
+        const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
+        result.set(key, {
+          colIdx,
+          total: columns.length,
+        });
       });
     });
-  });
+  }
   return result;
 }
 
@@ -135,7 +158,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                           {displayName}
                         </div>
                         {!isShort && lesson.rooms?.[0] && (
-                          <div className="lesson-block-room">{lesson.rooms[0]}</div>
+                          <div className="lesson-block-room">{lesson.rooms[0].replace(/\s+/g, '')}</div>
                         )}
                         {lesson.code === 'cancelled' && (
                           <div className="cancelled-badge">Cancelada</div>

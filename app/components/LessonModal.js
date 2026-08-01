@@ -19,14 +19,14 @@ function parseDate(dateNum) {
 
 // Same palette as WeekCalendar – keep in sync
 const PALETTE = [
-  { bg: '#F28B82', text: '#5C1A17' },
-  { bg: '#A8D5A2', text: '#1A4D1A' },
-  { bg: '#86C5E4', text: '#133E52' },
-  { bg: '#F5C842', text: '#5C4200' },
-  { bg: '#D5A8E4', text: '#3D1A52' },
-  { bg: '#F4A261', text: '#5C2E00' },
-  { bg: '#8EC5C5', text: '#1A3D3D' },
-  { bg: '#F08080', text: '#5C1A1A' },
+  { bg: '#EF476F', text: '#FFFFFF' },
+  { bg: '#06D6A0', text: '#003326' },
+  { bg: '#118AB2', text: '#FFFFFF' },
+  { bg: '#FFD166', text: '#4D3E00' },
+  { bg: '#B5179E', text: '#FFFFFF' },
+  { bg: '#F77F00', text: '#FFFFFF' },
+  { bg: '#4CC9F0', text: '#003A4D' },
+  { bg: '#00A896', text: '#FFFFFF' },
 ];
 
 function subjectColor(subjectId) {
@@ -44,7 +44,15 @@ export default function LessonModal({ lesson, onClose }) {
   const color = subjectColor(lesson.subjectIds?.[0] || 0);
 
   const subjectName = lesson.subjects?.[0] || 'Sin asignatura';
-  const teacher = lesson.teachers?.[0] || '';
+  let teacher = lesson.teachers?.[0] || '';
+  if (teacher) {
+    const namePart = teacher.split('-')[0];
+    if (namePart && namePart.length > 1) {
+      const initial = namePart.charAt(0).toUpperCase();
+      const rest = namePart.slice(1).toLowerCase();
+      teacher = `${initial}. ${rest.charAt(0).toUpperCase() + rest.slice(1)}`;
+    }
+  }
   const room = lesson.rooms?.[0] || '';
   const classes = lesson.classes || [];
 
@@ -61,7 +69,6 @@ export default function LessonModal({ lesson, onClose }) {
         <div className="modal-drag-handle" />
 
         <button className="modal-close-btn" onClick={onClose} aria-label="Cerrar">✕</button>
-        <button className="modal-menu-btn" aria-label="Opciones">⋯</button>
 
         <div className="modal-header">
           <div className="modal-day" style={{ color: color.text, opacity: 0.7 }}>

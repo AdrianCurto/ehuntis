@@ -284,7 +284,7 @@ export default function Home() {
         />
       )}
 
-      {activeTab === 'perfil' && <ProfileView />}
+      {activeTab === 'info' && <ProfileView />}
 
       {/* Tab bar */}
       <nav className="tab-bar">
@@ -305,12 +305,12 @@ export default function Home() {
           <span className="tab-label">Horarios</span>
         </button>
         <button
-          className={`tab-btn${activeTab === 'perfil' ? ' active' : ''}`}
-          onClick={() => setActiveTab('perfil')}
-          id="tab-perfil"
+          className={`tab-btn${activeTab === 'info' ? ' active' : ''}`}
+          onClick={() => setActiveTab('info')}
+          id="tab-info"
         >
           <span className="tab-icon" style={{ display: 'flex', alignItems: 'center' }}><UserIcon size={20} strokeWidth={2} /></span>
-          <span className="tab-label">Perfil</span>
+          <span className="tab-label">Info</span>
         </button>
       </nav>
 

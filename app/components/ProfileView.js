@@ -10,7 +10,7 @@ export default function ProfileView() {
           <GraduationCap size={40} strokeWidth={1.5} />
         </div>
         <h2 className="profile-name">EHUntis</h2>
-        <p className="profile-subtitle">Horarios UPV/EHU · Versión 0.1</p>
+        <p className="profile-subtitle">Horarios UPV/EHU</p>
       </div>
 
       <div className="profile-content">
@@ -19,10 +19,9 @@ export default function ProfileView() {
           target="_blank" 
           rel="noopener noreferrer"
           className="profile-link-btn"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none', background: 'var(--accent-light)', padding: '12px 20px', borderRadius: 'var(--radius-lg)' }}
         >
-          <span className="profile-link-icon" style={{ display: 'flex', alignItems: 'center', marginRight: '8px' }}>
-            <ExternalLink size={20} strokeWidth={2} />
-          </span>
+          <ExternalLink size={20} strokeWidth={2} />
           Abrir WebUntis oficial
         </a>
 
