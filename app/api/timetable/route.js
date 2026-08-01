@@ -26,17 +26,6 @@ export async function GET(request) {
   try {
     await untis.login();
     
-    // Fetch master data to resolve IDs into human-readable names
-    const [subjects, rooms, teachers] = await Promise.all([
-      untis.getSubjects(),
-      untis.getRooms(),
-      untis.getTeachers()
-    ]);
-    
-    const subjectMap = new Map(subjects.map(s => [s.id, s]));
-    const roomMap = new Map(rooms.map(r => [r.id, r]));
-    const teacherMap = new Map(teachers.map(t => [t.id, t]));
-
     let allTimetables = [];
 
     // Fetch timetable for each requested class
@@ -53,10 +42,10 @@ export async function GET(request) {
            endTime: lesson.endTime,
            classId: classId,
            // Resolve full readable names, fallback to short name or ID
-           subjects: (lesson.subjects || []).map(s => s.element?.longName || s.element?.name || subjectMap.get(s.id)?.longName || subjectMap.get(s.id)?.name || s.id),
+           subjects: (lesson.subjects || []).map(s => s.element?.longName || s.element?.name || s.id),
            subjectIds: (lesson.subjects || []).map(s => s.id),
-           rooms: (lesson.rooms || []).map(r => r.element?.longName || r.element?.name || roomMap.get(r.id)?.longName || roomMap.get(r.id)?.name || r.id),
-           teachers: (lesson.teachers || []).map(t => t.element?.longName || t.element?.name || teacherMap.get(t.id)?.longName || teacherMap.get(t.id)?.name || t.id),
+           rooms: (lesson.rooms || []).map(r => r.element?.longName || r.element?.name || r.id),
+           teachers: (lesson.teachers || []).map(t => t.element?.longName || t.element?.name || t.id),
            code: lesson.code, // Indicates cancellations, exams, etc.
            type: lesson.lstype
         }));
