@@ -2,17 +2,17 @@
 
 // Palette of 11 distinct colors
 const PALETTE = [
-  { bg: '#2563EB', text: '#FFFFFF' }, // Azul (Blue 600)
-  { bg: '#16A34A', text: '#FFFFFF' }, // Verde (Green 600)
-  { bg: '#FACC15', text: '#713F12' }, // Amarillo (Yellow 400)
-  { bg: '#EA580C', text: '#FFFFFF' }, // Naranja (Orange 600)
-  { bg: '#DC2626', text: '#FFFFFF' }, // Rojo (Red 600)
-  { bg: '#DB2777', text: '#FFFFFF' }, // Rosa (Pink 600)
-  { bg: '#9333EA', text: '#FFFFFF' }, // Morado (Purple 600)
-  { bg: '#0891B2', text: '#FFFFFF' }, // Cyan (Cyan 600)
-  { bg: '#65A30D', text: '#FFFFFF' }, // Lima (Lime 600)
-  { bg: '#0D9488', text: '#FFFFFF' }, // Teal (Teal 600)
-  { bg: '#4F46E5', text: '#FFFFFF' }, // Indigo (Indigo 600)
+  { bg: '#2563EB', text: '#000000' }, // Azul (Blue 600)
+  { bg: '#16A34A', text: '#000000' }, // Verde (Green 600)
+  { bg: '#FACC15', text: '#000000' }, // Amarillo (Yellow 400)
+  { bg: '#EA580C', text: '#000000' }, // Naranja (Orange 600)
+  { bg: '#DC2626', text: '#000000' }, // Rojo (Red 600)
+  { bg: '#F472B6', text: '#000000' }, // Rosa suave (Pink 400)
+  { bg: '#9333EA', text: '#000000' }, // Morado (Purple 600)
+  { bg: '#0891B2', text: '#000000' }, // Cyan (Cyan 600)
+  { bg: '#65A30D', text: '#000000' }, // Lima (Lime 600)
+  { bg: '#0D9488', text: '#000000' }, // Teal (Teal 600)
+  { bg: '#4F46E5', text: '#000000' }, // Indigo (Indigo 600)
 ];
 
 // Helper to assign a color index dynamically based on a unique list of subjects
