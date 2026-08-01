@@ -182,12 +182,11 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const color = subjectColor(lesson.subjectIds?.[0] || 0);
                     const displayName = blockDisplayName(lesson);
                     const isShort = height < 40; // very small block
-                    const isNarrow = (widthPct * col.span) <= 34; // 3+ columns
+                    const isDayView = weekDates.length === 1;
+                    const isNarrow = !isDayView && ((widthPct * col.span) <= 34); // 3+ columns in week view
                     
                     // 10px padding total vertically, ~14px line height (11px font * 1.2)
                     const maxLines = Math.max(1, Math.floor((height - (isShort ? 10 : 25)) / 14));
-
-                    const isDayView = weekDates.length === 1;
 
                     const subNum = extractSubgroupNumber(lesson.type);
                     const typeBadge = subNum !== null ? (
@@ -206,7 +205,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                         textOverflow: 'ellipsis',
                         maxWidth: '100%'
                       }}>
-                        {lesson.type}
+                        {isNarrow ? lesson.type.replace('-', '') : lesson.type}
                       </div>
                     ) : null;
 
