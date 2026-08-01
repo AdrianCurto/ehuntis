@@ -191,14 +191,14 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const subNum = extractSubgroupNumber(lesson.type);
                     const typeBadge = subNum !== null ? (
                       <div style={{
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: 800,
                         background: 'rgba(0,0,0,0.15)',
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        marginBottom: 2,
+                        padding: '1px 3px',
+                        borderRadius: 3,
+                        marginBottom: 1,
                         display: 'inline-block',
-                        lineHeight: 1,
+                        lineHeight: 1.1,
                         flexShrink: 0,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',

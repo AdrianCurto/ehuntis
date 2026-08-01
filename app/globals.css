@@ -313,7 +313,7 @@ html, body {
   left: 2px;
   right: 2px;
   border-radius: var(--radius-md);
-  padding: 5px 6px;
+  padding: 3px 4px;
   border: 1px solid rgba(0,0,0,0.1);
   cursor: pointer;
   display: flex;
@@ -336,22 +336,21 @@ html, body {
 }
 
 .lesson-block-name {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   word-break: normal;
   overflow-wrap: normal;
-  hyphens: auto;
 }
 
 .lesson-block-room {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
-  opacity: 0.75;
-  margin-top: 2px;
+  opacity: 0.8;
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
