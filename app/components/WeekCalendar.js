@@ -182,6 +182,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const color = subjectColor(lesson.subjectIds?.[0] || 0);
                     const displayName = blockDisplayName(lesson);
                     const isShort = height < 40; // very small block
+                    const isNarrow = (widthPct * col.span) <= 34; // 3+ columns
                     
                     // 10px padding total vertically, ~14px line height (11px font * 1.2)
                     const maxLines = Math.max(1, Math.floor((height - (isShort ? 10 : 25)) / 14));
@@ -191,14 +192,14 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const subNum = extractSubgroupNumber(lesson.type);
                     const typeBadge = subNum !== null ? (
                       <div style={{
-                        fontSize: 9,
+                        fontSize: isNarrow ? 9 : 10,
                         fontWeight: 800,
                         background: 'rgba(0,0,0,0.15)',
-                        padding: '1px 3px',
-                        borderRadius: 3,
-                        marginBottom: 1,
+                        padding: isNarrow ? '1px 3px' : '2px 6px',
+                        borderRadius: isNarrow ? 3 : 4,
+                        marginBottom: isNarrow ? 1 : 2,
                         display: 'inline-block',
-                        lineHeight: 1.1,
+                        lineHeight: isNarrow ? 1.1 : 1,
                         flexShrink: 0,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -212,7 +213,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     return (
                       <div
                         key={`${lesson.id}-${idx}`}
-                        className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}`}
+                        className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}${isNarrow ? ' is-narrow' : ''}`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
