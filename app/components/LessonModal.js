@@ -76,7 +76,7 @@ export default function LessonModal({ lesson, onClose }) {
 
         <div className="modal-detail" style={{ color: color.text }}>
           {teacher && <div>{teacher}</div>}
-          {room && <div>{room}</div>}
+          {room && <div>{room.replace(/\s+/g, '')}</div>}
           {lesson.code === 'cancelled' && (
             <div style={{ fontWeight: 700, marginTop: 8 }}>⚠️ Cancelada</div>
           )}
