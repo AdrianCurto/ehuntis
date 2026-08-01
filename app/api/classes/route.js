@@ -40,13 +40,25 @@ export async function GET() {
       }
       
       const key = `${c.name}::${cleanLongName}`;
+      
+      let year = null;
+      let group = null;
+      // Intenta extraer el curso y grupo del nombre (ej: GITECX301 -> Curso 3, Grupo 01)
+      const nameMatch = c.name.match(/^([a-zA-Z]+)(\d)(\d{2})/);
+      if (nameMatch) {
+          year = parseInt(nameMatch[2], 10);
+          group = nameMatch[3];
+      }
+
       if (!classMap.has(key)) {
         classMap.set(key, {
           uniqueId: key,
           id: [c.id],
           name: c.name,
           longName: cleanLongName,
-          rawLongName: c.longName
+          rawLongName: c.longName,
+          year: year,
+          group: group
         });
       } else {
         classMap.get(key).id.push(c.id);
