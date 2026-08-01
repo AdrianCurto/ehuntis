@@ -133,6 +133,9 @@ html, body {
 }
 
 .week-nav-month {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-size: 10px;
   font-weight: 700;
   color: var(--text-secondary);

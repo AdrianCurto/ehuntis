@@ -16,13 +16,21 @@ export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrev
 
   const m1 = MONTHS_SHORT[firstDay.getMonth()].toUpperCase();
   const m2 = MONTHS_SHORT[lastDay.getMonth()].toUpperCase();
-  const monthLabel = m1 === m2 ? m1 : `${m1}-${m2}`;
 
   return (
     <div className="week-nav">
       {/* Month + Arrows */}
       <div className="week-nav-range">
-        <span className="week-nav-month">{monthLabel}</span>
+        <div className="week-nav-month">
+          {m1 === m2 ? (
+            <span>{m1}</span>
+          ) : (
+            <>
+              <span>{m1}</span>
+              <span>{m2}</span>
+            </>
+          )}
+        </div>
         <div className="week-nav-arrows">
           <button className="week-nav-arrow-mini" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
           <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
