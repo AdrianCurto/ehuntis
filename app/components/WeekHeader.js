@@ -9,7 +9,7 @@ function isSameDay(a, b) {
     a.getDate() === b.getDate();
 }
 
-export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrevWeek, onNextWeek }) {
+export default function WeekHeader({ weekDates, selectedDay, isDayView, onSelectDay, onPrevWeek, onNextWeek, onPrevDay, onNextDay }) {
   const today = new Date();
   const firstDay = weekDates[0];
   const lastDay = weekDates[weekDates.length - 1];
@@ -21,27 +21,42 @@ export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrev
     <div className="week-nav">
       {/* Month + Arrows */}
       <div className="week-nav-range">
-        <div className="week-nav-month">
-          {m1 === m2 ? (
-            <span>{m1}</span>
-          ) : (
-            <>
-              <span>{m1}</span>
-              <span>{m2}</span>
-            </>
-          )}
-        </div>
-        <div className="week-nav-arrows">
-          <button className="week-nav-arrow-mini" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
-          <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
-        </div>
+        {isDayView && selectedDay ? (
+          <>
+            <div className="week-nav-month">
+              <span>{MONTHS_SHORT[selectedDay.getMonth()].toUpperCase()}</span>
+              <span style={{ fontSize: '9px', fontWeight: 600 }}>{firstDay.getDate()}-{lastDay.getDate()}</span>
+            </div>
+            <div className="week-nav-arrows">
+              <button className="week-nav-arrow-mini" onClick={onPrevDay} aria-label="Día anterior">‹</button>
+              <button className="week-nav-arrow-mini" onClick={onNextDay} aria-label="Día siguiente">›</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="week-nav-month">
+              {m1 === m2 ? (
+                <span>{m1}</span>
+              ) : (
+                <>
+                  <span>{m1}</span>
+                  <span>{m2}</span>
+                </>
+              )}
+            </div>
+            <div className="week-nav-arrows">
+              <button className="week-nav-arrow-mini" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
+              <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Day buttons */}
       <div className="week-nav-days">
         {weekDates.map((date, i) => {
           const isToday = isSameDay(date, today);
-          const isSelected = isSameDay(date, selectedDay);
+          const isSelected = isDayView && selectedDay && isSameDay(date, selectedDay);
           return (
             <button
               key={i}
@@ -54,7 +69,6 @@ export default function WeekHeader({ weekDates, selectedDay, onSelectDay, onPrev
           );
         })}
       </div>
-
     </div>
   );
 }

@@ -30,17 +30,17 @@ function blockDisplayName(lesson) {
   return lesson.subjects?.[0] || '';
 }
 
-const START_HOUR = 7;
-const END_HOUR = 22;
+const START_MINUTES = 7 * 60 + 30; // 7:30 AM
+const END_MINUTES = 22 * 60;       // 22:00 PM
 const SLOT_HEIGHT = 60; // px per hour
-const TOTAL_HOURS = END_HOUR - START_HOUR;
+const TOTAL_HOURS = (END_MINUTES - START_MINUTES) / 60;
 
 function toMinutes(t) {
   return Math.floor(t / 100) * 60 + (t % 100);
 }
 
 function minutesSinceStart(t) {
-  return toMinutes(t) - START_HOUR * 60;
+  return toMinutes(t) - START_MINUTES;
 }
 
 // Groups overlapping lessons into columns within a day
@@ -99,7 +99,8 @@ function arrangeColumns(lessons) {
 }
 
 export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
-  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
+  // Generamos etiquetas de hora desde las 8:00 hasta las 21:00
+  const hours = Array.from({ length: 14 }, (_, i) => 8 + i);
 
   // Group lessons by day index (0=Mon … 4=Fri)
   const lessonsByDay = weekDates.map((date) => {
@@ -117,11 +118,14 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
       <div className="calendar-grid" style={{ minHeight: totalHeight + 'px' }}>
         {/* Time labels column */}
         <div className="time-col">
-          {hours.map(h => (
-            <div key={h} className="time-label">
-              {h < END_HOUR ? <span>{h}:00</span> : ''}
-            </div>
-          ))}
+          {hours.map(h => {
+            const top = ((h * 60 - START_MINUTES) / 60) * SLOT_HEIGHT;
+            return (
+              <div key={h} className="time-label-abs" style={{ top: `${top}px` }}>
+                <span>{h}:00</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Day columns */}

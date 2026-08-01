@@ -58,9 +58,9 @@ export default function Home() {
   const [loadingTimetable, setLoadingTimetable] = useState(false);
   const [initDone, setInitDone] = useState(false);
 
-  const defaultDate = getDefaultDate();
-  const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(defaultDate));
-  const [selectedDay, setSelectedDay] = useState(defaultDate);
+  const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(new Date()));
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [isDayView, setIsDayView] = useState(false);
 
   const [activeLesson, setActiveLesson] = useState(null);
   const [showGroupSearch, setShowGroupSearch] = useState(false);
@@ -216,6 +216,50 @@ export default function Home() {
     });
   };
 
+  const handlePrevDay = () => {
+    setSelectedDay(prev => {
+      if (!prev) return prev;
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 1);
+      // Skip weekends
+      if (d.getDay() === 0) d.setDate(d.getDate() - 2);
+      else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
+      
+      if (d < currentMonday) {
+        setCurrentMonday(getWeekMonday(d));
+      }
+      return d;
+    });
+  };
+
+  const handleNextDay = () => {
+    setSelectedDay(prev => {
+      if (!prev) return prev;
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 1);
+      // Skip weekends
+      if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+      else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+      
+      const nextMonday = new Date(currentMonday);
+      nextMonday.setDate(nextMonday.getDate() + 7);
+      if (d >= nextMonday) {
+        setCurrentMonday(getWeekMonday(d));
+      }
+      return d;
+    });
+  };
+
+  const handleSelectDay = (date) => {
+    if (isDayView && selectedDay && isSameDay(selectedDay, date)) {
+      setIsDayView(false);
+      setSelectedDay(null);
+    } else {
+      setSelectedDay(date);
+      setIsDayView(true);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
     return (
@@ -233,9 +277,12 @@ export default function Home() {
           <WeekHeader
             weekDates={weekDates}
             selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
+            isDayView={isDayView}
+            onSelectDay={handleSelectDay}
             onPrevWeek={goToPrevWeek}
             onNextWeek={goToNextWeek}
+            onPrevDay={handlePrevDay}
+            onNextDay={handleNextDay}
           />
 
           {loadingTimetable && (
@@ -265,7 +312,7 @@ export default function Home() {
             <WeekCalendar
               lessons={filteredTimetable}
               onLessonClick={setActiveLesson}
-              weekDates={weekDates}
+              weekDates={isDayView && selectedDay ? [selectedDay] : weekDates}
             />
           )}
         </>
