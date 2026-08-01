@@ -179,7 +179,11 @@ export default function Home() {
       }
     });
     timetableByGroup[key] = Array.from(seen.values());
-    availableSubgroupsByGroup[key] = Array.from(subgroupNums).sort((a,b) => a - b);
+    // Instead of only using discovered subgroups (which requires navigating to future weeks),
+    // we provide a static list of 1-6, plus any others discovered, so the user can proactively disable them.
+    const allNums = new Set([1, 2, 3, 4, 5, 6]);
+    subgroupNums.forEach(n => allNums.add(n));
+    availableSubgroupsByGroup[key] = Array.from(allNums).sort((a,b) => a - b);
   });
 
   // ── Filtered timetable ────────────────────────────────────────────────────
