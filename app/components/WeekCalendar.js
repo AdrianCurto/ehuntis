@@ -30,6 +30,17 @@ function blockDisplayName(lesson) {
   return lesson.subjects?.[0] || '';
 }
 
+function formatTeacher(teacherRaw) {
+  if (!teacherRaw) return '';
+  const namePart = teacherRaw.split('-')[0];
+  if (namePart && namePart.length > 1) {
+    const initial = namePart.charAt(0).toUpperCase();
+    const rest = namePart.slice(1).toLowerCase();
+    return `${initial}. ${rest.charAt(0).toUpperCase() + rest.slice(1)}`;
+  }
+  return teacherRaw;
+}
+
 const START_MINUTES = 7 * 60 + 30; // 7:30 AM
 const END_MINUTES = 22 * 60;       // 22:00 PM
 const SLOT_HEIGHT = 60; // px per hour
@@ -158,6 +169,8 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     // 10px padding total vertically, ~14px line height (11px font * 1.2)
                     const maxLines = Math.max(1, Math.floor((height - (isShort ? 10 : 25)) / 14));
 
+                    const isDayView = weekDates.length === 1;
+
                     return (
                       <div
                         key={`${lesson.id}-${idx}`}
@@ -170,20 +183,42 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                           background: color.bg,
                           color: color.text,
                           position: 'absolute',
+                          ...(isDayView ? {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            padding: '10px'
+                          } : {})
                         }}
                         onClick={() => onLessonClick(lesson)}
                       >
-                        <div 
-                          className="lesson-block-name" 
-                          style={{ 
-                            fontSize: isShort ? 10 : 12,
-                            WebkitLineClamp: maxLines
-                          }}
-                        >
-                          {displayName}
-                        </div>
-                        {!isShort && lesson.rooms?.[0] && (
-                          <div className="lesson-block-room">{lesson.rooms[0].replace(/\s+/g, '')}</div>
+                        {isDayView ? (
+                          <>
+                            <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 14, WebkitLineClamp: maxLines, marginBottom: '4px' }}>
+                              {displayName}
+                            </div>
+                            {!isShort && lesson.teachers?.[0] && (
+                              <div style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, marginBottom: '2px' }}>
+                                {formatTeacher(lesson.teachers[0])}
+                              </div>
+                            )}
+                            {!isShort && lesson.rooms?.[0] && (
+                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500 }}>
+                                {lesson.rooms[0].replace(/\s+/g, '')}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12, WebkitLineClamp: maxLines }}>
+                              {displayName}
+                            </div>
+                            {!isShort && lesson.rooms?.[0] && (
+                              <div className="lesson-block-room">{lesson.rooms[0].replace(/\s+/g, '')}</div>
+                            )}
+                          </>
                         )}
                         {lesson.code === 'cancelled' && (
                           <div className="cancelled-badge">Cancelada</div>
