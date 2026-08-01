@@ -71,6 +71,7 @@ export default function Home() {
   // Per-group disabled subgroup numbers: { [groupKey]: [1, 2, ...] }
   const [disabledSubgroupNumbersByGroup, setDisabledSubgroupNumbersByGroup] = useState({});
 
+  const [semesterTimetable, setSemesterTimetable] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
   const [initDone, setInitDone] = useState(false);
@@ -126,26 +127,80 @@ export default function Home() {
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
     if (!initDone || activeGroups.length === 0) {
-      setTimetable([]);
+      setSemesterTimetable([]);
       return;
     }
-    setLoadingTimetable(true);
-    const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).join(',');
-    const dateStr = [
-      currentMonday.getFullYear(),
-      String(currentMonday.getMonth() + 1).padStart(2, '0'),
-      String(currentMonday.getDate()).padStart(2, '0'),
-    ].join('-');
+    
+    const month = currentMonday.getMonth();
+    const year = currentMonday.getFullYear();
+    let startDate, endDate;
+    if (month >= 7 || month === 0) { // Fall: Aug 1 - Jan 31
+      const startYear = month === 0 ? year - 1 : year;
+      const endYear = month === 0 ? year : year + 1;
+      startDate = new Date(startYear, 7, 1);
+      endDate = new Date(endYear, 0, 31);
+    } else { // Spring: Feb 1 - Jul 31
+      startDate = new Date(year, 1, 1);
+      endDate = new Date(year, 6, 31);
+    }
+    
+    const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
+    const cacheKey = `ehuntis_timetable_cache_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
+    
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Check if cache is younger than 24h
+        if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+          setSemesterTimetable(parsed.data);
+          return;
+        }
+      }
+    } catch (e) {}
 
-    fetch(`/api/timetable?classIds=${ids}&date=${dateStr}`)
+    setLoadingTimetable(true);
+    
+    const startStr = startDate.toISOString();
+    const endStr = endDate.toISOString();
+
+    fetch(`/api/timetable?classIds=${ids}&startDate=${startStr}&endDate=${endStr}`)
       .then(r => r.json())
-      .then(d => { if (!d.error) setTimetable(d); })
+      .then(d => { 
+        if (!d.error) {
+          setSemesterTimetable(d); 
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({
+              timestamp: Date.now(),
+              data: d
+            }));
+          } catch(e) {}
+        }
+      })
       .catch(console.error)
       .finally(() => setLoadingTimetable(false));
   }, [selectedGroups, disabledGroupIds, currentMonday, initDone]);
 
+  // Derive the current week's timetable from the semester cache
+  useEffect(() => {
+    const endOfWeek = new Date(currentMonday);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    const currentWeekTimetable = semesterTimetable.filter(lesson => {
+      // Use YYYYMMDD string format or Date object to check bounds
+      const lessonDateStr = String(lesson.date); // e.g. "20250915"
+      const y = parseInt(lessonDateStr.substring(0, 4));
+      const m = parseInt(lessonDateStr.substring(4, 6)) - 1;
+      const d = parseInt(lessonDateStr.substring(6, 8));
+      const lessonDate = new Date(y, m, d);
+      return lessonDate >= currentMonday && lessonDate <= endOfWeek;
+    });
+    setTimetable(currentWeekTimetable);
+  }, [semesterTimetable, currentMonday]);
+
   // ── Per-group subject index ───────────────────────────────────────────────
-  // Build { [groupKey]: [{ id, name, shortName }] } from the timetable
+  // Build { [groupKey]: [{ id, name, shortName }] } from the semester timetable
   const timetableByGroup = {};
   const availableSubgroupsByGroup = {};
   
@@ -154,7 +209,8 @@ export default function Home() {
     const seen = new Map();
     const subgroupNums = new Set();
     
-    timetable.forEach(lesson => {
+    // We scan the ENTIRE semester timetable to find all available subjects and subgroups
+    semesterTimetable.forEach(lesson => {
       // Check if this lesson belongs to this group
       const belongsToGroup = lesson.classIds?.some(id => {
         const gIds = Array.isArray(g.id) ? g.id : [g.id];
@@ -179,11 +235,7 @@ export default function Home() {
       }
     });
     timetableByGroup[key] = Array.from(seen.values());
-    // Instead of only using discovered subgroups (which requires navigating to future weeks),
-    // we provide a static list of 1-6, plus any others discovered, so the user can proactively disable them.
-    const allNums = new Set([1, 2, 3, 4, 5, 6]);
-    subgroupNums.forEach(n => allNums.add(n));
-    availableSubgroupsByGroup[key] = Array.from(allNums).sort((a,b) => a - b);
+    availableSubgroupsByGroup[key] = Array.from(subgroupNums).sort((a,b) => a - b);
   });
 
   // ── Filtered timetable ────────────────────────────────────────────────────

@@ -67,6 +67,8 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const classIds = searchParams.get('classIds')?.split(',').map(Number);
   const dateStr = searchParams.get('date');
+  const startDateStr = searchParams.get('startDate');
+  const endDateStr = searchParams.get('endDate');
 
   if (!classIds || classIds.length === 0) {
     return NextResponse.json({ error: 'Missing classIds' }, { status: 400 });
@@ -75,7 +77,7 @@ export async function GET(request) {
   // Use requested date or today
   let date = dateStr ? new Date(dateStr) : new Date();
   
-  if (!dateStr) {
+  if (!dateStr && !startDateStr) {
     const currentMonth = date.getMonth();
     if (currentMonth === 6 || currentMonth === 7 || (currentMonth === 8 && date.getDate() < 7)) {
       date = new Date(date.getFullYear(), 8, 7);
@@ -89,19 +91,25 @@ export async function GET(request) {
     
     let allTimetables = [];
 
-    // Calculate start and end of the week for the given date
-    const d = new Date(date);
-    const day = d.getDay();
-    const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(d.setDate(diffToMonday));
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    // Calculate start and end range
+    let startRange, endRange;
+    if (startDateStr && endDateStr) {
+      startRange = new Date(startDateStr);
+      endRange = new Date(endDateStr);
+    } else {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
+      startRange = new Date(d.setDate(diffToMonday));
+      endRange = new Date(startRange);
+      endRange.setDate(endRange.getDate() + 6);
+    }
 
     for (const classId of classIds) {
       if (!classId) continue;
       
       try {
-        const tt = await untis.getTimetableForRange(startOfWeek, endOfWeek, classId, WebUntisElementType.CLASS);
+        const tt = await untis.getTimetableForRange(startRange, endRange, classId, WebUntisElementType.CLASS);
         
         const mappedTt = tt.map(lesson => {
           const rawSubjects = lesson.subjects || lesson.su || [];
@@ -126,7 +134,11 @@ export async function GET(request) {
         
         allTimetables = allTimetables.concat(mappedTt);
       } catch (err) {
-        console.error(`Failed to fetch timetable for class ${classId}:`, err.message);
+        if (err.message && err.message.includes("Server didn't return any result")) {
+            // No lessons in this date range, this is fine
+        } else {
+            console.error(`Failed to fetch timetable for class ${classId}:`, err.message);
+        }
       }
     }
 

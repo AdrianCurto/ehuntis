@@ -74,6 +74,12 @@ export default function LessonModal({ lesson, onClose }) {
           {subjectName}
         </div>
 
+        {lesson.type && (
+          <div style={{ color: color.text, opacity: 0.8, fontSize: '0.9rem', marginBottom: '8px' }}>
+            {lesson.type}
+          </div>
+        )}
+
         <div className="modal-detail" style={{ color: color.text }}>
           {teacher && <div>{teacher}</div>}
           {room && <div>{room.replace(/\s+/g, '')}</div>}
