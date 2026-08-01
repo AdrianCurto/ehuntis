@@ -56,9 +56,12 @@ function minutesSinceStart(t) {
   return toMinutes(t) - START_MINUTES;
 }
 
-// Groups overlapping lessons into columns within a day
 function arrangeColumns(lessons) {
-  const sorted = [...lessons].sort((a, b) => a.startTime - b.startTime);
+  const sorted = [...lessons].sort((a, b) => {
+    if (a.startTime !== b.startTime) return a.startTime - b.startTime;
+    return b.endTime - a.endTime; // Longer first
+  });
+
   const clusters = [];
   let currentCluster = [];
   let clusterEnd = 0;
@@ -97,16 +100,28 @@ function arrangeColumns(lessons) {
       if (!placed) columns.push([lesson]);
     }
     
-    // columns.length is the total columns for this overlapping cluster
-    columns.forEach((col, colIdx) => {
-      col.forEach(lesson => {
-        const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
-        result.set(key, {
+    for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+      for (const lesson of columns[colIdx]) {
+        let span = 1;
+        // Expand lesson width across empty adjacent columns
+        for (let nextColIdx = colIdx + 1; nextColIdx < columns.length; nextColIdx++) {
+          const hasOverlap = columns[nextColIdx].some(other => {
+            return toMinutes(other.startTime) < toMinutes(lesson.endTime) &&
+                   toMinutes(other.endTime) > toMinutes(lesson.startTime);
+          });
+          if (!hasOverlap) {
+            span++;
+          } else {
+            break;
+          }
+        }
+        result.set(lesson.id, {
           colIdx,
+          span,
           total: columns.length,
         });
-      });
-    });
+      }
+    }
   }
   return result;
 }
@@ -159,8 +174,8 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                     const top = (startMin / 60) * SLOT_HEIGHT;
                     const height = Math.max(((endMin - startMin) / 60) * SLOT_HEIGHT - 2, 22);
 
-                    const key = lesson.startTime + '_' + (lesson.subjectIds?.join(',') || lesson.id);
-                    const col = layout.get(key) || { colIdx: 0, total: 1 };
+                    const key = lesson.id;
+                    const col = layout.get(key) || { colIdx: 0, total: 1, span: 1 };
                     const widthPct = 100 / col.total;
                     const leftPct = col.colIdx * widthPct;
 
@@ -198,7 +213,7 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
                           top: `${top}px`,
                           height: `${height}px`,
                           left: `${leftPct + 0.5}%`,
-                          width: `${widthPct - 1}%`,
+                          width: `${(widthPct * col.span) - 1}%`,
                           background: color.bg,
                           color: color.text,
                           position: 'absolute',

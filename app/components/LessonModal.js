@@ -75,7 +75,7 @@ export default function LessonModal({ lesson, onClose }) {
         </div>
 
         {lesson.type && (
-          <div style={{ color: color.text, opacity: 0.8, fontSize: '0.9rem', marginBottom: '8px' }}>
+          <div style={{ color: color.text, opacity: 0.8, fontSize: '0.9rem', marginBottom: '8px', textAlign: 'center' }}>
             {lesson.type}
           </div>
         )}
