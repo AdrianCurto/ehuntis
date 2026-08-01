@@ -17,22 +17,7 @@ function parseDate(dateNum) {
   return new Date(y, m, d);
 }
 
-// Same palette as WeekCalendar – keep in sync
-const PALETTE = [
-  { bg: '#EF476F', text: '#FFFFFF' },
-  { bg: '#06D6A0', text: '#003326' },
-  { bg: '#118AB2', text: '#FFFFFF' },
-  { bg: '#FFD166', text: '#4D3E00' },
-  { bg: '#B5179E', text: '#FFFFFF' },
-  { bg: '#F77F00', text: '#FFFFFF' },
-  { bg: '#4CC9F0', text: '#003A4D' },
-  { bg: '#00A896', text: '#FFFFFF' },
-];
-
-function subjectColor(subjectId) {
-  const id = typeof subjectId === 'number' ? subjectId : parseInt(subjectId, 10) || 0;
-  return PALETTE[Math.abs(id) % PALETTE.length];
-}
+import { subjectColor } from './WeekCalendar';
 
 export default function LessonModal({ lesson, onClose }) {
   if (!lesson) return null;
