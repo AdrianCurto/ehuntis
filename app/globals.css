@@ -267,23 +267,18 @@ html, body {
   visibility: hidden;
 }
 
-.days-grid {
-  flex: 1;
-  display: flex;
-  position: relative;
-}
-
 .day-col {
   flex: 1;
   position: relative;
   border-left: 1px solid var(--border-light);
+  min-width: 0;
 }
 
-/* Horizontal hour lines */
-.day-col::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+/* Grid lines drawn as background on the days-grid wrapper */
+.days-grid {
+  flex: 1;
+  display: flex;
+  position: relative;
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0px,
@@ -291,12 +286,11 @@ html, body {
     var(--border-light) 59px,
     var(--border-light) 60px
   );
-  pointer-events: none;
 }
 
 .day-col-inner {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
 }
 
 /* ─── Lesson Blocks ──────────────────────────────────────── */
