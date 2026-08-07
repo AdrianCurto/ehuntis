@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 
 function normalizeStr(str) {
   if (!str) return '';
@@ -9,19 +9,14 @@ function normalizeStr(str) {
 
 export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemove, onClose }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
+  const results = useMemo(() => {
+    if (query.length < 2) return [];
     const terms = normalizeStr(query).split(/[\s\-_]+/).filter(t => t.length > 0);
     const filtered = allClasses.filter(c => {
       const text = normalizeStr((c.longName || '') + ' ' + (c.name || ''));
       return terms.every(term => text.includes(term));
     });
-    setResults(filtered.slice(0, 30));
+    return filtered.slice(0, 30);
   }, [query, allClasses]);
 
   const isSelected = (c) => selectedGroups.some(g =>

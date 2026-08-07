@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { extractSubgroupNumber } from './utils/subgroups';
 import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch } from 'lucide-react';
@@ -55,6 +55,21 @@ function getDefaultDate() {
   return now;
 }
 
+function readStoredJson(key, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function getInitialSemesterTimetable() {
+  const parsedLast = readStoredJson(LAST_TIMETABLE_CACHE_KEY, null);
+  return Array.isArray(parsedLast?.data) ? parsedLast.data : [];
+}
+
 // ─── Header label ─────────────────────────────────────────────────────────────
 
 // Header label function removed
@@ -64,18 +79,17 @@ function getDefaultDate() {
 export default function Home() {
   const [activeTab, setActiveTab] = useState('horarios');
   const [allClasses, setAllClasses] = useState([]);
-  const [selectedGroups, setSelectedGroups] = useState([]);
-  const [disabledGroupIds, setDisabledGroupIds] = useState([]);
+  const [selectedGroups, setSelectedGroups] = useState(() => readStoredJson('ehuntis_groups_v2', []));
+  const [disabledGroupIds, setDisabledGroupIds] = useState(() => readStoredJson('ehuntis_disabled_groups_v2', []));
 
   // Per-group disabled subjects: { [groupKey]: [subjectId, ...] }
-  const [disabledSubjectsByGroup, setDisabledSubjectsByGroup] = useState({});
+  const [disabledSubjectsByGroup, setDisabledSubjectsByGroup] = useState(() => readStoredJson('ehuntis_disabled_v2', {}));
   // Per-group disabled subgroup numbers: { [groupKey]: [1, 2, ...] }
-  const [disabledSubgroupNumbersByGroup, setDisabledSubgroupNumbersByGroup] = useState({});
+  const [disabledSubgroupNumbersByGroup, setDisabledSubgroupNumbersByGroup] = useState(() => readStoredJson('ehuntis_disabled_subgroups_v2', {}));
 
-  const [semesterTimetable, setSemesterTimetable] = useState([]);
-  const [timetable, setTimetable] = useState([]);
+  const [semesterTimetable, setSemesterTimetable] = useState(() => getInitialSemesterTimetable());
   const [loadingTimetable, setLoadingTimetable] = useState(false);
-  const [initDone, setInitDone] = useState(false);
+  const [initDone] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [currentMonday, setCurrentMonday] = useState(() => getWeekMonday(getDefaultDate()));
@@ -88,29 +102,13 @@ export default function Home() {
   const weekDates = getWeekDates(currentMonday);
 
   const groupKey = (g) => String(g.uniqueId || g.id);
-  const activeGroups = selectedGroups.filter(g => !disabledGroupIds.includes(groupKey(g)));
+  const activeGroups = useMemo(
+    () => selectedGroups.filter(g => !disabledGroupIds.includes(groupKey(g))),
+    [selectedGroups, disabledGroupIds]
+  );
 
   // ── Persistence ────────────────────────────────────────────────────────────
   useEffect(() => {
-    try {
-      const sg = localStorage.getItem('ehuntis_groups_v2');
-      const ds = localStorage.getItem('ehuntis_disabled_v2');
-      const dg = localStorage.getItem('ehuntis_disabled_groups_v2');
-      const dsub = localStorage.getItem('ehuntis_disabled_subgroups_v2');
-      const lastTimetable = localStorage.getItem(LAST_TIMETABLE_CACHE_KEY);
-      if (sg) setSelectedGroups(JSON.parse(sg));
-      if (ds) setDisabledSubjectsByGroup(JSON.parse(ds));
-      if (dg) setDisabledGroupIds(JSON.parse(dg));
-      if (dsub) setDisabledSubgroupNumbersByGroup(JSON.parse(dsub));
-      if (lastTimetable) {
-        const parsedLast = JSON.parse(lastTimetable);
-        if (Array.isArray(parsedLast?.data)) {
-          setSemesterTimetable(parsedLast.data);
-        }
-      }
-    } catch (_) {}
-    setInitDone(true);
-
     fetch('/api/classes')
       .then(r => r.json())
       .then(d => { if (!d.error) setAllClasses(d); })
@@ -135,10 +133,7 @@ export default function Home() {
 
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!initDone || activeGroups.length === 0) {
-      setSemesterTimetable([]);
-      return;
-    }
+    if (!initDone || activeGroups.length === 0) return;
     
     const today = new Date();
     const month = today.getMonth();
@@ -190,7 +185,22 @@ export default function Home() {
       })
       .catch(console.error)
       .finally(() => setLoadingTimetable(false));
-  }, [selectedGroups, disabledGroupIds, currentMonday, initDone, refreshTrigger]);
+  }, [activeGroups, initDone, refreshTrigger]);
+
+  const timetable = useMemo(() => {
+    const endOfWeek = new Date(currentMonday);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    return semesterTimetable.filter(lesson => {
+      const lessonDateStr = String(lesson.date);
+      const y = parseInt(lessonDateStr.substring(0, 4));
+      const m = parseInt(lessonDateStr.substring(4, 6)) - 1;
+      const d = parseInt(lessonDateStr.substring(6, 8));
+      const lessonDate = new Date(y, m, d);
+      return lessonDate >= currentMonday && lessonDate <= endOfWeek;
+    });
+  }, [semesterTimetable, currentMonday]);
 
   const forceRefreshTimetable = useCallback(() => {
     try {
@@ -206,24 +216,6 @@ export default function Home() {
     // We intentionally DO NOT clear semesterTimetable here to prevent screen blanking
     setRefreshTrigger(prev => prev + 1);
   }, []);
-
-  // Derive the current week's timetable from the semester cache
-  useEffect(() => {
-    const endOfWeek = new Date(currentMonday);
-    endOfWeek.setDate(endOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-    
-    const currentWeekTimetable = semesterTimetable.filter(lesson => {
-      // Use YYYYMMDD string format or Date object to check bounds
-      const lessonDateStr = String(lesson.date); // e.g. "20250915"
-      const y = parseInt(lessonDateStr.substring(0, 4));
-      const m = parseInt(lessonDateStr.substring(4, 6)) - 1;
-      const d = parseInt(lessonDateStr.substring(6, 8));
-      const lessonDate = new Date(y, m, d);
-      return lessonDate >= currentMonday && lessonDate <= endOfWeek;
-    });
-    setTimetable(currentWeekTimetable);
-  }, [semesterTimetable, currentMonday]);
 
   // ── Per-group subject index ───────────────────────────────────────────────
   // Build { [groupKey]: [{ id, name, shortName }] } from the semester timetable
