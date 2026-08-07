@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { extractSubgroupNumber } from '../utils/subgroups';
 
 // Palette of 11 distinct colors
@@ -126,7 +127,48 @@ function arrangeColumns(lessons) {
   return result;
 }
 
-export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
+const SWIPE_MIN_DISTANCE = 42;
+const SWIPE_MAX_OFF_AXIS = 70;
+const SWIPE_MAX_DURATION = 700;
+const SWIPE_DOMINANCE_RATIO = 1.35;
+
+export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwipeLeft, onSwipeRight }) {
+  const touchStartRef = useRef(null);
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) {
+      touchStartRef.current = null;
+      return;
+    }
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      t: Date.now(),
+    };
+  };
+
+  const handleTouchEnd = (e) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || e.changedTouches.length === 0) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const elapsed = Date.now() - start.t;
+
+    if (elapsed > SWIPE_MAX_DURATION) return;
+    if (absX < SWIPE_MIN_DISTANCE) return;
+    if (absY > SWIPE_MAX_OFF_AXIS) return;
+    if (absX < absY * SWIPE_DOMINANCE_RATIO) return;
+
+    if (dx < 0) onSwipeLeft?.();
+    else onSwipeRight?.();
+  };
+
   // Generamos etiquetas de hora desde las 8:00 hasta las 21:00
   const hours = Array.from({ length: 14 }, (_, i) => 8 + i);
 
@@ -142,7 +184,12 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates }) {
   const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
 
   return (
-    <div className="calendar-scroll">
+    <div
+      className="calendar-scroll"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => { touchStartRef.current = null; }}
+    >
       <div className="calendar-grid" style={{ minHeight: totalHeight + 'px' }}>
         {/* Time labels column */}
         <div className="time-col">

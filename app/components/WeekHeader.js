@@ -13,6 +13,8 @@ export default function WeekHeader({ weekDates, selectedDay, isDayView, onSelect
   const today = new Date();
   const firstDay = weekDates[0];
   const lastDay = weekDates[weekDates.length - 1];
+  const prevHandler = isDayView ? onPrevDay : onPrevWeek;
+  const nextHandler = isDayView ? onNextDay : onNextWeek;
 
   const m1 = MONTHS_SHORT[firstDay.getMonth()].toUpperCase();
   const m2 = MONTHS_SHORT[lastDay.getMonth()].toUpperCase();
@@ -33,8 +35,8 @@ export default function WeekHeader({ weekDates, selectedDay, isDayView, onSelect
               )}
             </div>
             <div className="week-nav-arrows">
-              <button className="week-nav-arrow-mini" onClick={onPrevWeek} aria-label="Semana anterior">‹</button>
-              <button className="week-nav-arrow-mini" onClick={onNextWeek} aria-label="Semana siguiente">›</button>
+              <button className="week-nav-arrow-mini" onClick={prevHandler} aria-label={isDayView ? "Día anterior" : "Semana anterior"}>‹</button>
+              <button className="week-nav-arrow-mini" onClick={nextHandler} aria-label={isDayView ? "Día siguiente" : "Semana siguiente"}>›</button>
             </div>
           </>
       </div>

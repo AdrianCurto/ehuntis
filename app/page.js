@@ -461,6 +461,8 @@ export default function Home() {
               lessons={filteredTimetable}
               onLessonClick={setActiveLesson}
               weekDates={isDayView && selectedDay ? [selectedDay] : weekDates}
+              onSwipeLeft={isDayView ? handleNextDay : goToNextWeek}
+              onSwipeRight={isDayView ? handlePrevDay : goToPrevWeek}
             />
           )}
         </>
