@@ -24,6 +24,7 @@ function ChevronIcon({ open }) {
 
 export default function SettingsView({
   onForceRefresh,
+  isRefreshingTimetable,
   selectedGroups,
   disabledGroupIds,
   disabledSubjectsByGroup,
@@ -37,12 +38,24 @@ export default function SettingsView({
   onAddGroup,
 }) {
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [isRefreshPressed, setIsRefreshPressed] = useState(false);
 
   const toggleExpanded = (key) => {
     setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const groupKey = (g) => String(g.uniqueId || g.id);
+  const isRefreshing = isRefreshPressed || isRefreshingTimetable;
+
+  const handleRefresh = async () => {
+    if (isRefreshPressed) return;
+    setIsRefreshPressed(true);
+    try {
+      await Promise.resolve(onForceRefresh?.());
+    } finally {
+      setTimeout(() => setIsRefreshPressed(false), 450);
+    }
+  };
 
   return (
     <div className="settings-view">
@@ -54,8 +67,12 @@ export default function SettingsView({
             Gestiona tus grupos y asignaturas
           </div>
         </div>
-        <button className="primary-btn" onClick={onForceRefresh} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13 }}>
-          <RefreshCw size={14} />
+        <button
+          className={`primary-btn refresh-btn${isRefreshing ? ' is-refreshing' : ''}`}
+          onClick={handleRefresh}
+          aria-busy={isRefreshing}
+        >
+          <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
           Refrescar datos
         </button>
       </div>

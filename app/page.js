@@ -11,6 +11,7 @@ const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: fal
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
+const LAST_TIMETABLE_CACHE_KEY = 'ehuntis_timetable_last_v1';
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -96,10 +97,17 @@ export default function Home() {
       const ds = localStorage.getItem('ehuntis_disabled_v2');
       const dg = localStorage.getItem('ehuntis_disabled_groups_v2');
       const dsub = localStorage.getItem('ehuntis_disabled_subgroups_v2');
+      const lastTimetable = localStorage.getItem(LAST_TIMETABLE_CACHE_KEY);
       if (sg) setSelectedGroups(JSON.parse(sg));
       if (ds) setDisabledSubjectsByGroup(JSON.parse(ds));
       if (dg) setDisabledGroupIds(JSON.parse(dg));
       if (dsub) setDisabledSubgroupNumbersByGroup(JSON.parse(dsub));
+      if (lastTimetable) {
+        const parsedLast = JSON.parse(lastTimetable);
+        if (Array.isArray(parsedLast?.data)) {
+          setSemesterTimetable(parsedLast.data);
+        }
+      }
     } catch (_) {}
     setInitDone(true);
 
@@ -150,11 +158,11 @@ export default function Home() {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        // Check if cache is younger than 24h
-        if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+        if (Array.isArray(parsed?.data)) {
           setSemesterTimetable(parsed.data);
-          return;
         }
+        // Check if cache is younger than 24h
+        if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) return;
       }
     } catch (e) {}
 
@@ -169,10 +177,14 @@ export default function Home() {
         if (!d.error) {
           setSemesterTimetable(d); 
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({
+            const cachePayload = {
               timestamp: Date.now(),
               data: d
+            };
+            localStorage.setItem(cacheKey, JSON.stringify({
+              ...cachePayload
             }));
+            localStorage.setItem(LAST_TIMETABLE_CACHE_KEY, JSON.stringify(cachePayload));
           } catch(e) {}
         }
       })
@@ -426,15 +438,9 @@ export default function Home() {
             onNextDay={handleNextDay}
           />
 
-          {loadingTimetable && semesterTimetable.length === 0 && (
-            <div className="spinner-wrap" style={{ flex: 1 }}>
-              <div className="spinner" />
-            </div>
-          )}
-
-          {loadingTimetable && semesterTimetable.length > 0 && (
-            <div style={{ position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-card)', padding: '6px 12px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 50, border: '1px solid var(--border)' }}>
-              <div className="spinner" style={{ width: 14, height: 14, borderLeftColor: 'var(--brand)' }} />
+          {loadingTimetable && activeGroups.length > 0 && (
+            <div className="updating-pill" aria-live="polite">
+              <div className="spinner" style={{ width: 14, height: 14, borderLeftColor: 'var(--accent)' }} />
               Actualizando...
             </div>
           )}
@@ -456,7 +462,7 @@ export default function Home() {
             </div>
           )}
 
-          {!loadingTimetable && activeGroups.length > 0 && (
+          {activeGroups.length > 0 && (
             <WeekCalendar
               lessons={filteredTimetable}
               onLessonClick={setActiveLesson}
@@ -471,6 +477,7 @@ export default function Home() {
       {activeTab === 'ajustes' && (
         <SettingsView
           onForceRefresh={forceRefreshTimetable}
+          isRefreshingTimetable={loadingTimetable}
           selectedGroups={selectedGroups}
           disabledGroupIds={disabledGroupIds}
           disabledSubjectsByGroup={disabledSubjectsByGroup}
