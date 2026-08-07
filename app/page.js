@@ -413,6 +413,29 @@ export default function Home() {
     }
   };
 
+  const handlePickDate = (pickedDate) => {
+    const { minDate, maxDate } = getAcademicYearBounds();
+    const date = new Date(pickedDate);
+    date.setHours(0, 0, 0, 0);
+
+    if (date < minDate) date.setTime(minDate.getTime());
+    if (date > maxDate) date.setTime(maxDate.getTime());
+
+    if (isDayView) {
+      if (date.getDay() === 6) date.setDate(date.getDate() - 1);
+      if (date.getDay() === 0) date.setDate(date.getDate() - 2);
+      if (date < minDate) date.setTime(minDate.getTime());
+      if (date > maxDate) date.setTime(maxDate.getTime());
+      if (date.getDay() === 6) date.setDate(date.getDate() + 2);
+      if (date.getDay() === 0) date.setDate(date.getDate() + 1);
+      setSelectedDay(date);
+      setCurrentMonday(getWeekMonday(date));
+      return;
+    }
+
+    setCurrentMonday(getWeekMonday(date));
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
     return (
@@ -436,6 +459,9 @@ export default function Home() {
             onNextWeek={goToNextWeek}
             onPrevDay={handlePrevDay}
             onNextDay={handleNextDay}
+            onPickDate={handlePickDate}
+            minDate={getAcademicYearBounds().minDate}
+            maxDate={getAcademicYearBounds().maxDate}
           />
 
           {loadingTimetable && activeGroups.length > 0 && (
