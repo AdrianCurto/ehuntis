@@ -154,7 +154,7 @@ export default function Home() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed?.data)) {
-          setSemesterTimetable(parsed.data);
+          Promise.resolve().then(() => setSemesterTimetable(parsed.data));
         }
         // Check if cache is younger than 24h
         if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) return;
