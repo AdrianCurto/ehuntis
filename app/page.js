@@ -161,7 +161,7 @@ export default function Home() {
       }
     } catch (e) {}
 
-    setLoadingTimetable(true);
+    Promise.resolve().then(() => setLoadingTimetable(true));
     
     const startStr = startDate.toISOString();
     const endStr = endDate.toISOString();
