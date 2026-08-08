@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { extractSubgroupNumber } from '../utils/subgroups';
 
 // Palette of 11 distinct colors
@@ -104,7 +104,6 @@ function arrangeColumns(lessons) {
     for (let colIdx = 0; colIdx < columns.length; colIdx++) {
       for (const lesson of columns[colIdx]) {
         let span = 1;
-        // Expand lesson width across empty adjacent columns
         for (let nextColIdx = colIdx + 1; nextColIdx < columns.length; nextColIdx++) {
           const hasOverlap = columns[nextColIdx].some(other => {
             return toMinutes(other.startTime) < toMinutes(lesson.endTime) &&
@@ -127,6 +126,47 @@ function arrangeColumns(lessons) {
   return result;
 }
 
+// ─── Progressive text-fitting system ─────────────────────────────────────────
+// Each level applies progressively more aggressive space-saving measures.
+// The component measures each block after render; if content overflows, it
+// bumps that block to the next level.  This repeats until everything fits or
+// the maximum level is reached.  Measures are applied in order and only when
+// needed — if level 1 already makes the text fit, level 2+ is never used.
+//
+// Measure order (week view):
+//   0  Default — full fonts, full padding, all elements
+//   1  Reduce font sizes
+//   2  Tighten padding + line-height
+//   3  Hide room
+//   4  Hide type badge
+//   5  Minimal fonts + tightest spacing
+//   6  Absolute minimum — last resort
+//
+// Day view adds a "hide teacher" step (level 3) before hiding room (level 4).
+
+const MAX_FIT_LEVEL = 6;
+
+const WEEK_FIT = [
+  { name: 11, room: 10, badge: 10, padding: '5px 6px', lh: 1.2,  showRoom: true,  showBadge: true  },
+  { name: 10, room: 9,  badge: 9,  padding: '5px 6px', lh: 1.2,  showRoom: true,  showBadge: true  },
+  { name: 10, room: 9,  badge: 9,  padding: '3px 4px', lh: 1.1,  showRoom: true,  showBadge: true  },
+  { name: 10, room: 9,  badge: 9,  padding: '3px 4px', lh: 1.1,  showRoom: false, showBadge: true  },
+  { name: 10, room: 9,  badge: 9,  padding: '3px 4px', lh: 1.1,  showRoom: false, showBadge: false },
+  { name: 9,  room: 8,  badge: 8,  padding: '2px 3px', lh: 1.05, showRoom: false, showBadge: false },
+  { name: 8,  room: 7,  badge: 7,  padding: '1px 2px', lh: 1.0,  showRoom: false, showBadge: false },
+];
+
+const DAY_FIT = [
+  { name: 13, room: 11, teacher: 11, badge: 10, padding: '4px 8px', lh: 1.2,  showRoom: true,  showTeacher: true,  showBadge: true  },
+  { name: 12, room: 10, teacher: 10, badge: 9,  padding: '4px 8px', lh: 1.2,  showRoom: true,  showTeacher: true,  showBadge: true  },
+  { name: 12, room: 10, teacher: 10, badge: 9,  padding: '3px 6px', lh: 1.1,  showRoom: true,  showTeacher: true,  showBadge: true  },
+  { name: 12, room: 10, teacher: 10, badge: 9,  padding: '3px 6px', lh: 1.1,  showRoom: true,  showTeacher: false, showBadge: true  },
+  { name: 12, room: 10, teacher: 10, badge: 9,  padding: '3px 6px', lh: 1.1,  showRoom: false, showTeacher: false, showBadge: true  },
+  { name: 12, room: 10, teacher: 10, badge: 9,  padding: '3px 6px', lh: 1.1,  showRoom: false, showTeacher: false, showBadge: false },
+  { name: 10, room: 9,  teacher: 9,  badge: 8,  padding: '2px 4px', lh: 1.05, showRoom: false, showTeacher: false, showBadge: false },
+];
+
+// ─── Touch / swipe handling ──────────────────────────────────────────────────
 const SWIPE_MIN_DISTANCE = 42;
 const SWIPE_MAX_OFF_AXIS = 70;
 const SWIPE_MAX_DURATION = 700;
@@ -134,6 +174,9 @@ const SWIPE_DOMINANCE_RATIO = 1.35;
 
 export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwipeLeft, onSwipeRight }) {
   const touchStartRef = useRef(null);
+  const blockRefs = useRef(new Map());
+  const [fitLevels, setFitLevels] = useState({});
+  const lastLessonsKey = useRef('');
 
   const handleTouchStart = (e) => {
     if (e.touches.length !== 1) {
@@ -169,6 +212,48 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
     else onSwipeRight?.();
   };
 
+  // Reset fit levels on viewport resize (orientation change, etc.)
+  useEffect(() => {
+    const handleResize = () => {
+      setFitLevels({});
+      lastLessonsKey.current = '';
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Measure each block after render; bump the fit level of any block whose
+  // content overflows.  Runs synchronously before paint so the user never
+  // sees intermediate states — only the final, fitted result.
+  useLayoutEffect(() => {
+    const currentKey = lessons.map(l => l.id).join(',');
+    const isReset = lastLessonsKey.current !== currentKey;
+    if (isReset) {
+      lastLessonsKey.current = currentKey;
+    }
+
+    let needsUpdate = isReset;
+    const newLevels = isReset ? {} : { ...fitLevels };
+
+    for (const [key, el] of blockRefs.current) {
+      if (!el) {
+        blockRefs.current.delete(key);
+        continue;
+      }
+      const currentLevel = newLevels[key] || 0;
+      if (currentLevel >= MAX_FIT_LEVEL) continue;
+
+      if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
+        newLevels[key] = currentLevel + 1;
+        needsUpdate = true;
+      }
+    }
+
+    if (needsUpdate) {
+      setFitLevels(newLevels);
+    }
+  }, [fitLevels, lessons, weekDates]);
+
   // Generamos etiquetas de hora desde las 8:00 hasta las 21:00
   const hours = Array.from({ length: 14 }, (_, i) => 8 + i);
 
@@ -182,6 +267,8 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
   updateSubjectColors(lessons);
 
   const totalHeight = TOTAL_HOURS * SLOT_HEIGHT;
+  const isDayView = weekDates.length === 1;
+  const fitTable = isDayView ? DAY_FIT : WEEK_FIT;
 
   return (
     <div
@@ -221,45 +308,41 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
                     const top = (startMin / 60) * SLOT_HEIGHT;
                     const height = Math.max(((endMin - startMin) / 60) * SLOT_HEIGHT - 2, 22);
 
-                    const key = lesson.id;
-                    const col = layout.get(key) || { colIdx: 0, total: 1, span: 1 };
+                    const blockKey = `${lesson.id}-${idx}`;
+                    const col = layout.get(lesson.id) || { colIdx: 0, total: 1, span: 1 };
                     const widthPct = 100 / col.total;
                     const leftPct = col.colIdx * widthPct;
 
                     const color = subjectColor(lesson.subjectIds?.[0] || 0);
                     const displayName = blockDisplayName(lesson);
-                    const isShort = height < 40; // very small block
-                    const isDayView = weekDates.length === 1;
-                    const isNarrow = !isDayView && ((widthPct * col.span) <= 34); // 3+ columns in week view
-                    
-                    // 10px padding total vertically, ~14px line height (11px font * 1.2)
-                    const maxLines = Math.max(1, Math.floor((height - (isShort ? 10 : 25)) / 14));
+                    const fitLevel = fitLevels[blockKey] || 0;
+                    const fit = fitTable[fitLevel];
 
                     const subNum = extractSubgroupNumber(lesson.type);
-                    const typeBadge = subNum !== null ? (
+                    const typeBadge = subNum !== null && fit.showBadge ? (
                       <div style={{
-                        fontSize: isNarrow ? 9 : 10,
+                        fontSize: fit.badge,
                         fontWeight: 800,
                         background: 'rgba(0,0,0,0.15)',
-                        padding: isNarrow ? '1px 3px' : '2px 6px',
-                        borderRadius: isNarrow ? 3 : 4,
-                        marginBottom: isNarrow ? 1 : 2,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        marginBottom: 2,
                         display: 'inline-block',
-                        lineHeight: isNarrow ? 1.1 : 1,
+                        lineHeight: 1,
                         flexShrink: 0,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                         maxWidth: '100%'
                       }}>
-                        {isNarrow ? lesson.type.replace('-', '') : lesson.type}
+                        {lesson.type}
                       </div>
                     ) : null;
 
                     return (
                       <div
-                        key={`${lesson.id}-${idx}`}
-                        className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}${isNarrow ? ' is-narrow' : ''}`}
+                        key={blockKey}
+                        ref={el => { blockRefs.current[blockKey] = el; }}
+                        className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
@@ -268,13 +351,13 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
                           background: color.bg,
                           color: color.text,
                           position: 'absolute',
+                          padding: fit.padding,
                           ...(isDayView ? {
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'flex-start',
                             alignItems: 'center',
                             textAlign: 'center',
-                            padding: '4px 8px'
                           } : {})
                         }}
                         onClick={() => onLessonClick(lesson)}
@@ -282,16 +365,16 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
                         {isDayView ? (
                           <div style={{ margin: 'auto 0', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             {typeBadge}
-                            <div className="lesson-block-name" style={{ fontSize: isShort ? 12 : 13, WebkitLineClamp: maxLines, marginBottom: '2px', flexShrink: 0, width: '100%' }}>
+                            <div className="lesson-block-name" style={{ fontSize: fit.name, lineHeight: fit.lh, marginBottom: '2px', flexShrink: 0, width: '100%' }}>
                               {displayName}
                             </div>
-                            {!isShort && lesson.rooms?.[0] && (
-                              <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 500, marginBottom: '1px', flexShrink: 0 }}>
+                            {fit.showRoom && lesson.rooms?.[0] && (
+                              <div style={{ fontSize: fit.room, opacity: 0.75, fontWeight: 500, marginBottom: '1px', flexShrink: 0 }}>
                                 {lesson.rooms[0].replace(/\s+/g, '')}
                               </div>
                             )}
-                            {!isShort && lesson.teachers?.[0] && (
-                              <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600, flexShrink: 0 }}>
+                            {fit.showTeacher && lesson.teachers?.[0] && (
+                              <div style={{ fontSize: fit.teacher, opacity: 0.85, fontWeight: 600, flexShrink: 0 }}>
                                 {formatTeacher(lesson.teachers[0])}
                               </div>
                             )}
@@ -299,11 +382,13 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
                         ) : (
                           <>
                             {typeBadge}
-                            <div className="lesson-block-name" style={{ fontSize: isShort ? 10 : 12, WebkitLineClamp: maxLines }}>
+                            <div className="lesson-block-name" style={{ fontSize: fit.name, lineHeight: fit.lh }}>
                               {displayName}
                             </div>
-                            {!isShort && lesson.rooms?.[0] && (
-                              <div className="lesson-block-room">{lesson.rooms[0].replace(/\s+/g, '')}</div>
+                            {fit.showRoom && lesson.rooms?.[0] && (
+                              <div className="lesson-block-room" style={{ fontSize: fit.room }}>
+                                {lesson.rooms[0].replace(/\s+/g, '')}
+                              </div>
                             )}
                           </>
                         )}

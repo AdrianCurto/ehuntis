@@ -333,7 +333,6 @@ html, body {
   left: 2px;
   right: 2px;
   border-radius: var(--radius-md);
-  padding: 5px 6px;
   border: 1px solid rgba(0,0,0,0.1);
   cursor: pointer;
   display: flex;
@@ -343,10 +342,6 @@ html, body {
   transition: filter 0.12s, transform 0.12s;
   -webkit-tap-highlight-color: transparent;
   min-height: 28px;
-}
-
-.lesson-block.is-narrow {
-  padding: 3px 4px;
 }
 
 .lesson-block:active {
@@ -360,9 +355,7 @@ html, body {
 }
 
 .lesson-block-name {
-  font-size: 11px;
   font-weight: 600;
-  line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -370,26 +363,12 @@ html, body {
   overflow-wrap: normal;
 }
 
-.lesson-block.is-narrow .lesson-block-name {
-  font-size: 10px;
-  line-height: 1.15;
-}
-
 .lesson-block-room {
-  font-size: 10px;
   font-weight: 500;
   opacity: 0.75;
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lesson-block.is-narrow .lesson-block-room {
-  font-size: 9px;
-  opacity: 0.8;
-  margin-top: 1px;
-  text-overflow: clip;
 }
 
 /* Subgroup side column */
