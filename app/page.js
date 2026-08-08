@@ -138,13 +138,13 @@ export default function Home() {
     const today = new Date();
     const month = today.getMonth();
     const year = today.getFullYear();
-    // Academic year runs from Sept 1 (startYear) to July 1 (startYear + 1)
+    // Academic year runs from Sept 1 (startYear) to June 30 (startYear + 1)
     // If today is Aug-Dec (month >= 7), startYear is current year
     // If today is Jan-July (month < 7), startYear is previous year
     const startYear = month >= 7 ? year : year - 1;
     
     const startDate = new Date(startYear, 8, 1); // Sept 1
-    const endDate = new Date(startYear + 1, 6, 1); // July 1
+    const endDate = new Date(startYear + 1, 5, 30); // June 30
     
     const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
     const cacheKey = `ehuntis_timetable_cache_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
@@ -335,7 +335,7 @@ export default function Home() {
     const startYear = month >= 7 ? today.getFullYear() : today.getFullYear() - 1;
     return {
       minDate: new Date(startYear, 8, 1), // Sept 1
-      maxDate: new Date(startYear + 1, 6, 1) // July 1
+      maxDate: new Date(startYear + 1, 5, 30) // June 30
     };
   };
 
@@ -355,7 +355,7 @@ export default function Home() {
       const d = new Date(prev);
       d.setDate(d.getDate() + 7);
       const { maxDate } = getAcademicYearBounds();
-      // Ensure we don't go past July 1 of the current academic year
+      // Ensure we don't go past June 30 of the current academic year
       if (d > getWeekMonday(maxDate)) return prev;
       return d;
     });
@@ -410,16 +410,12 @@ export default function Home() {
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
 
+    if (date.getDay() === 0 || date.getDay() === 6) return;
+
     if (date < minDate) date.setTime(minDate.getTime());
     if (date > maxDate) date.setTime(maxDate.getTime());
 
     if (isDayView) {
-      if (date.getDay() === 6) date.setDate(date.getDate() - 1);
-      if (date.getDay() === 0) date.setDate(date.getDate() - 2);
-      if (date < minDate) date.setTime(minDate.getTime());
-      if (date > maxDate) date.setTime(maxDate.getTime());
-      if (date.getDay() === 6) date.setDate(date.getDate() + 2);
-      if (date.getDay() === 0) date.setDate(date.getDate() + 1);
       setSelectedDay(date);
       setCurrentMonday(getWeekMonday(date));
       return;
