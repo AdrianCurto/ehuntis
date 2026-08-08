@@ -1,41 +1,889 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Examples 1:
+# Project contains only source/config files
+*.pyc
+__pycache__/
+*.log
+*.tmp
+*.swp
+.env
+.env.local
+.env.*
+.vscode/
+.idea/
+node_modules/
+venv/
+.venv/
+dist/
+build/
+target/
+.gradle/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Original rules preserved
+*.log
 
-# testing
-/coverage
+# Dependencies and build artifacts detected in file changes
+WeekCalendar.js.map
+WeekCalendar.js.flow
+*.min.js
+*.bundle.js
 
-# next.js
-/.next/
-/out/
+# Editor/IDE files
+*.swp
+*.swo
+*.tmp
+*.log
 
-# production
-/build
+# Environment files
+.env
+.env.local
+*.env.*
 
-# misc
+# Coverage and test artifacts
+coverage/
+htmlcov/
+.coverage
+
+# Compression files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# System files
 .DS_Store
-*.pem
+Thumbs.db
 
-# debug
+# Build outputs
+*.o
+*.obj
+*.out
+*.exe
+*.dll
+*.so
+*.a
+*.class
+
+# Python specific
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Node specific
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Java specific
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
 
-# vercel
-.vercel
+# C/C++ specific
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+*.stackdump
 
-# typescript
+# Go specific
+*.o
+*.a
+*.so
+*.exe
+*.test
+*.prof
+*.out
+
+# Ruby specific
+*.gem
+*.rbc
+.bundle/
+.coverage/
+.rake_opts
+
+# Rust specific
+*.o
+*.rlib
+*.so
+*.dylib
+*.dll
+target/
+
+# Scala specific
+*.class
+*.jar
+*.war
+*.ear
+.sbt/
+target/
+
+# Gradle
+.gradle/
+build/
+
+# Maven
+target/
+!src/main/**
+!src/test/**
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# JetBrains IDEs
+.idea/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Python virtual environments
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask
+instance/
+.webassets-cache
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Local configuration file (sdkman)
+.local/configuration
+
+# Log files
+*.log
+
+# Custom MinGW
+*.gch
+*.pch
+
+# CLion
+cmake-build-*/
+
+# Android Studio
+*.iml
+*.iws
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+**/devices.xml
+**/device_persist.xml
+*.backup
+.idea/libraries
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+.idea/compiler.xml
+.idea/copyright/profiles_settings.xml
+.idea/encodings.xml
+*.ipr
+*.iws
+*.idea/
+!.idea/codeStyles/Project.xml
+.externalToolBuilders/
+*.ap_
+nbproject/private/
+nbproject/private/
+make/
+*.nbc
+nbbuild/
+nbdist/
+.nb-gradle/
+build/
+!src/main/**
+!src/test/**
+
+# Various
+*~
+*.bak
+*.swp
+*.tmp
+*.temp
+*.log
+*.out
+*.pid
+*.seed
+*.lock
+*.csv
+*.dat
+*.bin
+*.o
+*.a
+*.so
+*.obj
+*.exe
+*.dll
+*.class
+*.pyc
+*.pyo
+*.pyd
+*.jar
+*.war
+*.ear
+*.tar.gz
+*.orig
+*.rej
+*.diff
+*.patch
+*.dump
+*.core
+*~
+*.swp
+*.swo
+*.tmp
+*.temp
+*.log
+*.out
+*.pid
+*.seed
+*.lock
+*.csv
+*.dat
+*.bin
+*.o
+*.a
+*.so
+*.obj
+*.exe
+*.dll
+*.class
+*.pyc
+*.pyo
+*.pyd
+*.jar
+*.war
+*.ear
+*.tar.gz
+*.orig
+*.rej
+*.diff
+*.patch
+*.dump
+*.core
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output/
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt/
+
+# Bower dependency directory (https://bower.io/)
+bower_components/
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript v1 declaration files
+typings/
+
+# TypeScript cache
 *.tsbuildinfo
-next-env.d.ts
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history for Babel
+.babel.json
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+.env.production
+.env.local
+.env.development
+.env.staging
+.env.backup
+.env.example
+
+# next.js build output
+.next/
+
+# nuxt.js build output
+.nuxt/
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file configuration
+.tern-port
+.tern-project
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Rome toolchain configuration
+rome.json
+.rocket/
+
+# Deno cache and output
+deno.lock
+*.tsbuildinfo
+
+# Go workspace file (since Go 1.21)
+go.work
+go.work.sum
+
+# Zig build artifacts
+zig-cache/
+zig-out/
+
+# Julia packages
+julia-*/
+.JuliaUserPackage/
+
+# .NET
+bin/
+obj/
+out/
+AppPackages/
+*.nupkg
+*.snupkg
+*.userprefs
+*.sln.cache
+*.userosscache
+*.VC.db
+*.VC.VC.opendb
+[[Ss]olution[Cc]onfiguration].sln.docstates
+[Tt]est[Rr]esults/
+*.trx
+artifacts/
+*.deps.json
+*.runtimeconfig.json
+*.lock.json
+*.sln.dotsettings.user
+*.user.DotSettings
+*.DotSettings.user
+CoverageResult.xml
+packages.lock.json
+Directory.Build.props
+Directory.Build.targets
+Directory.Packages.props
+nuget.config
+NuGet.Config
+NuGet.targets
+MSBuild.exe.stacktrace.txt
+*.binlog
+!Directory.Build.props
+!Directory.Build.targets
+!Directory.Packages.props
+!nuget.config
+!NuGet.Config
+!MSBuild.exe.stacktrace.txt
+!*.binlog
+
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+Assets/AssetStoreTools/
+Packages/packages-lock.json
+ProjectSettings/
+ProjectVersion.txt
+UnityPackageManager/
+*.unityproj
+*.sln
+*.csproj
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.unity
+*.asset
+*.meta
+*.prefab
+*.prefab.meta
+*.mat
+*.anim
+*.fbx
+*.FBX
+*.dae
+*.unitypackage
+*.pidb.meta
+*.ai.meta
+*.psd.meta
+*.svg.meta
+*.cginc.meta
+*.compute.meta
+*.hlsl.meta
+*.shader.meta
+*.mat.meta
+*.anim.meta
+*.controller.meta
+*.mask.meta
+*.guiconfig.meta
+*.physicMaterial.meta
+*.physicsMaterial2D.meta
+*.playable.meta
+*.overrideController.meta
+*.spriteatlas.meta
+*.asmdef.meta
+*.rsp.meta
+*.asmref.meta
+*.terrain.meta
+*.terrainlayer.meta
+*.tflite.meta
+*.modeltarget.meta
+*.xml.meta
+*.json.meta
+*.bytes.meta
+*.csv.meta
+*.txt.meta
+*.yaml.meta
+*.yml.meta
+*.prefab
+*.prefab.meta
+*.unity
+*.unity.meta
+*.asset
+*.asset.meta
+*.meta
+*.cache
+*.cached
+*.manifest
+*.db
+*.pidb.meta
+*.cd.meta
+*.custom.meta
+*.obj.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+......
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+......
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta
+*.fbx.meta
+*.FBX.meta......

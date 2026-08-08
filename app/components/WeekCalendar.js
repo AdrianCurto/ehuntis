@@ -232,27 +232,77 @@ export default function WeekCalendar({ lessons, onLessonClick, weekDates, onSwip
       lastLessonsKey.current = currentKey;
     }
 
-    let needsUpdate = isReset;
-    const newLevels = isReset ? {} : { ...fitLevels };
+    let needsUpdate = false;
+    const newLevels = {};
 
     for (const [key, el] of blockRefs.current) {
       if (!el) {
         blockRefs.current.delete(key);
         continue;
       }
-      const currentLevel = newLevels[key] || 0;
-      if (currentLevel >= MAX_FIT_LEVEL) continue;
+      
+      // Start from current level (or 0 if reset)
+      let testLevel = isReset ? 0 : (fitLevels[key] || 0);
+      
+      // If already at max, skip
+      if (testLevel >= MAX_FIT_LEVEL) {
+        newLevels[key] = testLevel;
+        continue;
+      }
 
-      if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
-        newLevels[key] = currentLevel + 1;
+      // Progressive test: increase level until content fits or max reached
+      let fits = false;
+      while (testLevel < MAX_FIT_LEVEL && !fits) {
+        // Temporarily apply this level's styles to measure
+        const fit = fitTable[testLevel];
+        const originalStyle = el.getAttribute('style');
+        
+        // Apply test styles
+        el.style.padding = fit.padding;
+        el.style.lineHeight = fit.lh;
+        
+        // Find and style child elements
+        const nameEl = el.querySelector('.lesson-block-name');
+        const roomEl = el.querySelector('.lesson-block-room');
+        
+        if (nameEl) {
+          nameEl.style.fontSize = `${fit.name}px`;
+          nameEl.style.lineHeight = fit.lh;
+        }
+        if (roomEl) {
+          roomEl.style.fontSize = `${fit.room}px`;
+        }
+        
+        // Check if it fits now
+        const hasOverflow = el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+        
+        if (!hasOverflow) {
+          fits = true;
+        } else {
+          testLevel++;
+        }
+        
+        // Restore original style (the component will reapply correct styles on next render)
+        if (originalStyle) {
+          el.setAttribute('style', originalStyle);
+        } else {
+          el.removeAttribute('style');
+        }
+      }
+
+      // Only update if level changed
+      if (testLevel !== (fitLevels[key] || 0)) {
+        newLevels[key] = testLevel;
         needsUpdate = true;
+      } else {
+        newLevels[key] = testLevel;
       }
     }
 
     if (needsUpdate) {
       setFitLevels(newLevels);
     }
-  }, [fitLevels, lessons, weekDates]);
+  }, [fitLevels, lessons, weekDates, fitTable]);
 
   // Generamos etiquetas de hora desde las 8:00 hasta las 21:00
   const hours = Array.from({ length: 14 }, (_, i) => 8 + i);
