@@ -410,9 +410,9 @@ export default function Home() {
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
 
-    // Sábado o domingo: saltar al lunes de esa semana (en vez de ignorar el clic)
-    if (date.getDay() === 6) date.setDate(date.getDate() + 2);
-    else if (date.getDay() === 0) date.setDate(date.getDate() + 1);
+    // Sábado o domingo: saltar al viernes de esa misma semana (en vez de ignorar el clic)
+    if (date.getDay() === 6) date.setDate(date.getDate() - 1);
+    else if (date.getDay() === 0) date.setDate(date.getDate() - 2);
 
     if (date < minDate) date.setTime(minDate.getTime());
     if (date > maxDate) date.setTime(maxDate.getTime());
