@@ -41,7 +41,7 @@ function getWeekDates(monday) {
 
 function getDefaultDate() {
   const now = new Date();
-  
+
   if (now.getDay() === 0) {
     now.setDate(now.getDate() + 1);
   } else if (now.getDay() === 6) {
@@ -134,7 +134,7 @@ export default function Home() {
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
     if (!initDone || activeGroups.length === 0) return;
-    
+
     const today = new Date();
     const month = today.getMonth();
     const year = today.getFullYear();
@@ -142,13 +142,13 @@ export default function Home() {
     // If today is Aug-Dec (month >= 7), startYear is current year
     // If today is Jan-July (month < 7), startYear is previous year
     const startYear = month >= 7 ? year : year - 1;
-    
+
     const startDate = new Date(startYear, 8, 1); // Sept 1
     const endDate = new Date(startYear + 1, 5, 30); // June 30
-    
+
     const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
     const cacheKey = `ehuntis_timetable_cache_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
-    
+
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -162,7 +162,7 @@ export default function Home() {
     } catch (e) {}
 
     Promise.resolve().then(() => setLoadingTimetable(true));
-    
+
     const startStr = startDate.toISOString();
     const endStr = endDate.toISOString();
 
@@ -221,12 +221,12 @@ export default function Home() {
   // Build { [groupKey]: [{ id, name, shortName }] } from the semester timetable
   const timetableByGroup = {};
   const availableSubgroupsByGroup = {};
-  
+
   activeGroups.forEach(g => {
     const key = groupKey(g);
     const seen = new Map();
     const subgroupNums = new Set();
-    
+
     // We scan the ENTIRE semester timetable to find all available subjects and subgroups
     semesterTimetable.forEach(lesson => {
       // Check if this lesson belongs to this group
@@ -245,7 +245,7 @@ export default function Home() {
             });
           }
         });
-        
+
         const subNum = extractSubgroupNumber(lesson.type);
         if (subNum !== null) {
           subgroupNums.add(subNum);
@@ -263,25 +263,25 @@ export default function Home() {
       const gIds = Array.isArray(g.id) ? g.id : [g.id];
       return lesson.classIds?.some(id => gIds.includes(id)) || (lesson.classId && gIds.includes(lesson.classId));
     });
-    
+
     if (ownerGroups.length === 0) return true;
-    
+
     return ownerGroups.some(g => {
       const key = groupKey(g);
       const disabledSubjs = disabledSubjectsByGroup[key] || [];
       const disabledSubgroups = disabledSubgroupNumbersByGroup[key] || [];
-      
+
       // Check if subject is disabled
       if (lesson.subjectIds?.some(id => disabledSubjs.includes(id))) {
         return false;
       }
-      
+
       // Check if subgroup is disabled
       const lessonSubNum = extractSubgroupNumber(lesson.type);
       if (lessonSubNum !== null && disabledSubgroups.includes(lessonSubNum)) {
         return false;
       }
-      
+
       return true;
     });
   });
@@ -369,7 +369,7 @@ export default function Home() {
       // Skip weekends
       if (d.getDay() === 0) d.setDate(d.getDate() - 2);
       else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
-      
+
       if (d < currentMonday) {
         setCurrentMonday(getWeekMonday(d));
       }
@@ -385,7 +385,7 @@ export default function Home() {
       // Skip weekends
       if (d.getDay() === 6) d.setDate(d.getDate() + 2);
       else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-      
+
       const nextMonday = new Date(currentMonday);
       nextMonday.setDate(nextMonday.getDate() + 7);
       if (d >= nextMonday) {
@@ -410,7 +410,9 @@ export default function Home() {
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
 
-    if (date.getDay() === 0 || date.getDay() === 6) return;
+    // Sábado o domingo: saltar al lunes de esa semana (en vez de ignorar el clic)
+    if (date.getDay() === 6) date.setDate(date.getDate() + 2);
+    else if (date.getDay() === 0) date.setDate(date.getDate() + 1);
 
     if (date < minDate) date.setTime(minDate.getTime());
     if (date > maxDate) date.setTime(maxDate.getTime());
