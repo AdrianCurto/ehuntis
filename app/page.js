@@ -5,14 +5,23 @@ import dynamic from 'next/dynamic';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import { hasLocalCustomData, areConfigsEquivalent, mergeConfigs } from './utils/syncUtils';
-import { getResolvedTargetDate, getAcademicYearBounds } from './utils/dayLogic';
+import { getResolvedTargetDate, getAcademicYearBounds, toDateNumber } from './utils/dayLogic';
 import { resolveSubjectColors, swapSubjectColor } from './utils/colorLogic';
-import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch } from 'lucide-react';
+import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
+import {
+  getStoredCustomEvents,
+  saveStoredCustomEvents,
+  expandCustomEventsForDates,
+  deleteCustomEventInstance,
+  saveCustomEventInstance,
+  suggestEventColor,
+} from './utils/customEvents';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
 const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
+const CustomEventModal = dynamic(() => import('./components/CustomEventModal'), { ssr: false });
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
@@ -215,6 +224,12 @@ export default function Home() {
 
   const [activeLesson, setActiveLesson] = useState(null);
   const [showGroupSearch, setShowGroupSearch] = useState(false);
+  const [customEvents, setCustomEvents] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    return getStoredCustomEvents();
+  });
+  const [editingCustomEvent, setEditingCustomEvent] = useState(null);
+  const [showNewEventModal, setShowNewEventModal] = useState(false);
 
   const weekDates = useMemo(() => getWeekDates(currentMonday), [currentMonday]);
   const { minDate: _boundsMin, maxDate: _boundsMax } = getAcademicYearBounds();
@@ -316,6 +331,12 @@ export default function Home() {
       } catch (_) {}
     }
   }, [configs, activeConfig.id, initDone]);
+
+  useEffect(() => {
+    if (initDone && typeof window !== 'undefined') {
+      saveStoredCustomEvents(customEvents);
+    }
+  }, [customEvents, initDone]);
 
   const updateActiveConfig = useCallback((updater) => {
     isUserDirtyRef.current = true;
@@ -1199,6 +1220,39 @@ export default function Home() {
     }).filter(Boolean);
   }, [timetable, activeGroups, disabledSubjectsByGroup, disabledSubgroupsBySubject, activeConfig.showDimmedSubgroups]);
 
+  // ── Custom Events expansion and combined timetable ───────────────────────
+  const expandedCustomEvents = useMemo(() => {
+    return expandCustomEventsForDates(customEvents, weekDates);
+  }, [customEvents, weekDates]);
+
+  const combinedTimetable = useMemo(() => {
+    return [...filteredTimetable, ...expandedCustomEvents];
+  }, [filteredTimetable, expandedCustomEvents]);
+
+  const suggestedEventColor = useMemo(() => {
+    return suggestEventColor(semesterTimetable, customEvents, activeConfig.customColors || {});
+  }, [semesterTimetable, customEvents, activeConfig.customColors]);
+
+  const handleSaveCustomEvent = useCallback((eventData, mode) => {
+    const targetDateNum = editingCustomEvent?.date || toDateNumber(selectedDay || currentMonday);
+    setCustomEvents(prev => saveCustomEventInstance(prev, eventData, targetDateNum, mode));
+    setEditingCustomEvent(null);
+    setShowNewEventModal(false);
+  }, [editingCustomEvent, selectedDay, currentMonday]);
+
+  const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
+    setCustomEvents(prev => deleteCustomEventInstance(prev, eventId, dateNum, mode));
+    setEditingCustomEvent(null);
+  }, []);
+
+  const handleLessonClick = useCallback((lesson) => {
+    if (lesson?.isCustomEvent) {
+      setEditingCustomEvent(lesson);
+    } else {
+      setActiveLesson(lesson);
+    }
+  }, []);
+
   // ── Group and Subgroup management ──────────────────────────────────────────
   const addGroup = useCallback((c) => {
     updateActiveConfig(cfg => {
@@ -1627,7 +1681,7 @@ export default function Home() {
             </div>
           )}
 
-          {!loadingTimetable && activeGroups.length === 0 && (
+          {!loadingTimetable && activeGroups.length === 0 && expandedCustomEvents.length === 0 && (
             <div className="empty-state">
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
                 <CalendarSearch size={48} strokeWidth={1.5} />
@@ -1635,21 +1689,26 @@ export default function Home() {
               <div className="empty-state-title">Tu horario aquí</div>
               <div className="empty-state-body">
                 {selectedGroups.length === 0 
-                  ? 'Ve a ajustes para añadir tus grupos y asignaturas.' 
-                  : 'Todos tus grupos están ocultos. Ve a ajustes para activarlos.'}
+                  ? 'Ve a ajustes para añadir tus grupos y asignaturas, o usa el botón "+" para crear eventos personales.' 
+                  : 'Todos tus grupos están ocultos. Ve a ajustes para activarlos o usa el botón "+" para eventos personales.'}
               </div>
-              <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
-                Ir a Ajustes
-              </button>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
+                  Ir a Ajustes
+                </button>
+                <button className="empty-cta-btn" onClick={() => setShowNewEventModal(true)} style={{ background: 'var(--accent)', color: '#fff' }}>
+                  + Añadir evento
+                </button>
+              </div>
             </div>
           )}
 
-          {activeGroups.length > 0 && (
+          {(activeGroups.length > 0 || expandedCustomEvents.length > 0) && (
             <WeekCalendar
               ref={calendarRef}
-              lessons={filteredTimetable}
+              lessons={combinedTimetable}
               customColors={activeConfig.customColors}
-              onLessonClick={setActiveLesson}
+              onLessonClick={handleLessonClick}
               weekDates={isDayView && selectedDay ? [selectedDay] : weekDates}
               isDayView={isDayView}
               selectedDay={selectedDay}
@@ -1661,6 +1720,16 @@ export default function Home() {
               onSwipeRight={() => handleSwipeCommit('prev')}
             />
           )}
+
+          {/* Floating Action Button (FAB) para crear eventos personales */}
+          <button
+            className="fab-add-event"
+            onClick={() => setShowNewEventModal(true)}
+            aria-label="Añadir evento personal"
+            title="Añadir evento personal"
+          >
+            <Plus size={24} strokeWidth={2.5} />
+          </button>
         </>
       )}
 
@@ -1744,6 +1813,21 @@ export default function Home() {
           lesson={activeLesson}
           isDark={isDark}
           onClose={() => setActiveLesson(null)}
+        />
+      )}
+
+      {(showNewEventModal || editingCustomEvent) && (
+        <CustomEventModal
+          event={editingCustomEvent}
+          targetDate={selectedDay || currentMonday}
+          suggestedColor={suggestedEventColor}
+          onSave={handleSaveCustomEvent}
+          onDelete={handleDeleteCustomEvent}
+          onClose={() => {
+            setShowNewEventModal(false);
+            setEditingCustomEvent(null);
+          }}
+          isDark={isDark}
         />
       )}
 

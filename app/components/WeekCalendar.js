@@ -332,12 +332,31 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const availWidth = Math.max(0, blockWidth - padX * 2 - (isDayView ? 2 : 0));
   const availHeight = Math.max(0, blockHeight - padTop - padBottom - (isDayView ? 2 : 0));
 
-  const isMagistral = isMagistralType(lesson.type);
+  const isMagistral = !lesson.isCustomEvent && isMagistralType(lesson.type);
 
   // 1. Badge candidate options
-  const subNum = extractSubgroupNumber(lesson.type);
+  const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
-  if (lesson.type && lesson.type.trim()) {
+
+  if (lesson.isCustomEvent) {
+    if (lesson.category) {
+      const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
+      for (const style of BADGE_STYLES) {
+        if (measureText(catText, style.font, '800') + style.padX * 2 <= availWidth) {
+          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+          badgeCandidates.push({
+            hide: false,
+            text: catText,
+            font: style.font,
+            padding: `${style.padY}px ${style.padX}px`,
+            lineHeight: 1.1,
+            height,
+          });
+          break;
+        }
+      }
+    }
+  } else if (lesson.type && lesson.type.trim()) {
     const raw = lesson.type.trim();
     const upper = raw.toUpperCase();
     const texts = [];
@@ -1717,7 +1736,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const widthPct = 100 / col.total;
               const leftPct = col.colIdx * widthPct;
 
-              const color = subjectColor(lesson.subjectIds?.[0] || 0, isDark);
+              const color = (lesson.isCustomEvent && typeof lesson.colorIndex === 'number')
+                ? getSubjectColorStyle(lesson.colorIndex, isDark)
+                : subjectColor(lesson.subjectIds?.[0] || 0, isDark);
               const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - (isDayView ? 4 : 2));
               let fit = computeBlockLayoutMemo(lesson, blockWidth, height, isDayView) || DEFAULT_FIT;
 
@@ -1726,11 +1747,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 fit = { ...fit, badge: { ...(fit.badge || {}), hide: true } };
               }
 
-
               return (
                 <div
                   key={blockKey}
-                  className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}`}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,

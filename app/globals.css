@@ -2160,3 +2160,439 @@ html, body {
   transform: scale(0.92);
 }
 
+
+/* ─── Custom Events Styling ────────────────────────────────────────── */
+
+/* Distintivo de evento propio en el horario */
+.lesson-block.is-custom-event {
+  border-left-width: 4px !important;
+  border-left-style: solid !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.lesson-block.is-custom-event:hover {
+  filter: brightness(0.96);
+}
+
+.dark .lesson-block.is-custom-event:hover {
+  filter: brightness(1.08);
+}
+
+/* Botón Flotante (FAB) para añadir evento */
+.fab-add-event {
+  position: fixed;
+  bottom: calc(var(--tabbar-height, 64px) + 16px);
+  right: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--accent);
+  color: #FFFFFF;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 90;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background-color 0.15s ease;
+  outline: none;
+}
+
+.fab-add-event:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.fab-add-event:active {
+  transform: scale(0.94);
+}
+
+/* Modal de Eventos Personalizados */
+.custom-event-modal {
+  max-width: 500px;
+  margin: 0 auto;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 20px 24px;
+  background: var(--surface);
+  color: var(--text-primary);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .custom-event-modal {
+    border-radius: 16px;
+    max-height: 85vh;
+  }
+}
+
+.custom-event-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.custom-modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-modal-close-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.custom-event-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.custom-event-error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+.custom-event-form .form-group {
+  margin-bottom: 14px;
+}
+
+.custom-event-form .form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.custom-event-form .flex-1 {
+  flex: 1;
+}
+
+.custom-event-form .form-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.event-input-title {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.event-input-title:focus {
+  border-color: var(--accent);
+}
+
+.event-input-time,
+.event-input-date,
+.event-input-text {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.event-input-time:focus,
+.event-input-date:focus,
+.event-input-text:focus,
+.event-input-textarea:focus {
+  border-color: var(--accent);
+}
+
+.event-input-textarea {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* Category Chips */
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.category-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.category-chip.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+/* Recurrence toggle bar */
+.recurrence-toggle-bar {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  border: 1px solid var(--border);
+  gap: 4px;
+}
+
+.recurrence-tab {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.recurrence-tab.active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Day Pickers for weekly recurrence */
+.days-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.day-pick-btn {
+  flex: 1;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.day-pick-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.day-pick-btn.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Swatches Grid in Custom Event Modal */
+.color-swatches-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-swatch-btn.selected {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+/* Actions */
+.custom-event-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.event-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.event-btn-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.event-btn-cancel {
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.event-btn-cancel:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.event-btn-save {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #FFFFFF;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease;
+}
+
+.event-btn-save:hover {
+  filter: brightness(1.08);
+}
+
+/* Scope Dialog (Single vs Series Confirmation) */
+.scope-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.scope-dialog-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+}
+
+.scope-dialog-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.scope-dialog-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.scope-dialog-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scope-btn {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.scope-btn.single {
+  background: var(--accent);
+  color: #FFFFFF;
+  border-color: var(--accent);
+}
+
+.scope-btn.series {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.scope-btn.cancel {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.scope-btn:hover {
+  filter: brightness(1.05);
+}
