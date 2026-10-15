@@ -177,10 +177,8 @@ function expandCustomEventsForDates(customEvents = [], targetDates = []) {
     if (!dateObj || isNaN(dateObj.getTime())) continue;
 
     const dateNum = toDateNumber(dateObj);
-    const dayOfWeek = dateObj.getDay(); // 1 = Lunes, ..., 5 = Viernes (0 = Domingo, 6 = Sábado)
+    const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
 
-    // Solo días de diario Lunes a Viernes (1 a 5)
-    if (dayOfWeek < 1 || dayOfWeek > 5) continue;
 
     for (const event of customEvents) {
       if (!event || !event.recurrence) continue;

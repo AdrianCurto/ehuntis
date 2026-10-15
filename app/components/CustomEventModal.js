@@ -40,6 +40,8 @@ const DAYS_NAMES = [
   { day: 3, label: 'X', full: 'Miércoles' },
   { day: 4, label: 'J', full: 'Jueves' },
   { day: 5, label: 'V', full: 'Viernes' },
+  { day: 6, label: 'S', full: 'Sábado' },
+  { day: 0, label: 'D', full: 'Domingo' },
 ];
 
 function formatDateForInput(date) {
@@ -54,6 +56,8 @@ function formatDateForInput(date) {
 export default function CustomEventModal({
   event,          // Instancia del evento a editar, o null si es nuevo
   targetDate,     // Fecha de la celda pulsada o día activo
+  initialStartTimeStr,
+  initialEndTimeStr,
   suggestedColor = 4,
   onSave,
   onDelete,
@@ -66,25 +70,20 @@ export default function CustomEventModal({
   // Horas por defecto: siguiente hora en punto para inicio, +1h para fin
   const defaultTimes = useMemo(() => getDefaultEventTimes(), []);
 
-  // Fecha base para inicializar: si es nuevo evento, siempre la fecha de hoy
+  // Fecha base para inicializar: si es nuevo evento y viene targetDate, usar targetDate; si no, hoy
   const initialDate = useMemo(() => {
     if (isEditing) {
       if (event?.date) return parseDateNumber(event.date);
       if (rawEvent.recurrence?.date) return parseDateNumber(rawEvent.recurrence.date);
     }
+    if (targetDate) {
+      return targetDate instanceof Date ? targetDate : new Date(targetDate);
+    }
     return new Date();
-  }, [isEditing, event, rawEvent]);
+  }, [isEditing, event, rawEvent, targetDate]);
 
-  // Si hoy es fin de semana, ajustar a lunes para no tener días fuera de rango en recurrencia
-  const safeInitialDate = useMemo(() => {
-    const d = new Date(initialDate);
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-    return d;
-  }, [initialDate]);
-
-  const targetDateNum = toDateNumber(safeInitialDate);
-  const currentDayOfWeek = safeInitialDate.getDay();
+  const targetDateNum = toDateNumber(initialDate);
+  const currentDayOfWeek = initialDate.getDay();
 
   // ── Form State ─────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(rawEvent.title || event?.subjects?.[0] || '');
@@ -98,6 +97,7 @@ export default function CustomEventModal({
       const s = rawEvent.startTime || event?.startTime;
       if (s) return timeNumberToString(s);
     }
+    if (initialStartTimeStr) return initialStartTimeStr;
     return defaultTimes.startStr;
   });
 
@@ -106,6 +106,7 @@ export default function CustomEventModal({
       const e = rawEvent.endTime || event?.endTime;
       if (e) return timeNumberToString(e);
     }
+    if (initialEndTimeStr) return initialEndTimeStr;
     return defaultTimes.endStr;
   });
 
@@ -121,18 +122,17 @@ export default function CustomEventModal({
     if (isEditing && event?.date) {
       return formatDateForInput(parseDateNumber(event.date));
     }
-    return formatDateForInput(new Date());
+    return formatDateForInput(initialDate);
   });
 
   const [daysOfWeek, setDaysOfWeek] = useState(() => {
     if (Array.isArray(rawEvent.recurrence?.daysOfWeek) && rawEvent.recurrence.daysOfWeek.length > 0) {
       return rawEvent.recurrence.daysOfWeek;
     }
-    const todayDay = new Date().getDay();
-    return [todayDay >= 1 && todayDay <= 5 ? todayDay : 1];
+    return [currentDayOfWeek];
   });
 
-  const bounds = getAcademicYearBounds(safeInitialDate);
+  const bounds = getAcademicYearBounds(initialDate);
   const defaultEndOfYearStr = formatDateForInput(bounds.end);
 
   const [hasNoEndDate, setHasNoEndDate] = useState(() => {
@@ -561,16 +561,19 @@ export default function CustomEventModal({
                 <div className="days-picker">
                   {DAYS_NAMES.map(d => {
                     const isSelected = daysOfWeek.includes(d.day);
+                    const isWeekend = d.day === 6 || d.day === 0;
                     return (
-                      <button
-                        key={d.day}
-                        type="button"
-                        className={`day-pick-btn${isSelected ? ' active' : ''}`}
-                        onClick={() => handleToggleDay(d.day)}
-                        title={d.full}
-                      >
-                        {d.label}
-                      </button>
+                      <span key={d.day} style={{ display: 'contents' }}>
+                        {d.day === 6 && <span className="days-picker-divider" aria-hidden="true" />}
+                        <button
+                          type="button"
+                          className={`day-pick-btn${isSelected ? ' active' : ''}${isWeekend ? ' is-weekend' : ''}`}
+                          onClick={() => handleToggleDay(d.day)}
+                          title={d.full}
+                        >
+                          {d.label}
+                        </button>
+                      </span>
                     );
                   })}
                 </div>

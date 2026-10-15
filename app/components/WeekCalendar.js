@@ -772,18 +772,32 @@ const SWIPE_DOMINANCE_RATIO = 1.35;
 const getPrevDay = (d) => {
   if (!d) return new Date();
   const prev = new Date(d);
-  prev.setDate(prev.getDate() - 1);
-  if (prev.getDay() === 0) prev.setDate(prev.getDate() - 2);
-  else if (prev.getDay() === 6) prev.setDate(prev.getDate() - 1);
+  const day = prev.getDay();
+  if (day === 1) {
+    prev.setDate(prev.getDate() - 3);
+  } else if (day === 0 || day === 6) {
+    prev.setDate(prev.getDate() - 1);
+  } else {
+    prev.setDate(prev.getDate() - 1);
+  }
   return prev;
 };
 
-const getNextDay = (d) => {
+const getNextDay = (d, weekLength = 5) => {
   if (!d) return new Date();
   const next = new Date(d);
-  next.setDate(next.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  else if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  const day = next.getDay();
+  if (day === 5) {
+    if (weekLength >= 6) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 3);
+  } else if (day === 6) {
+    if (weekLength >= 7) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 2);
+  } else if (day === 0) {
+    next.setDate(next.getDate() + 1);
+  } else {
+    next.setDate(next.getDate() + 1);
+  }
   return next;
 };
 
@@ -857,6 +871,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   isDark,
   canSwipeNext,
   canSwipePrev,
+  onCellDoubleClick,
 }, ref) {
   const calendarScrollRef = useRef(null);
   const pinchRef = useRef(null);
@@ -1097,7 +1112,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     }
 
     if (thumbEl && isDayViewRef.current) {
-      if (targetDayIdx >= 0 && targetDayIdx < 5) {
+      if (targetDayIdx >= 0 && targetDayIdx < (weekDates?.length || 5)) {
         thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
         thumbEl.style.transform = `translate3d(${targetDayIdx * 100}%, 0, 0)`;
       }
@@ -1152,7 +1167,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       if (isSlidingRef.current) return;
       const isNext = direction === 'next';
       const targetDates = isDayViewRef.current
-        ? [isNext ? getNextDay(weekDates[0]) : getPrevDay(weekDates[0])]
+        ? [isNext ? getNextDay(weekDates[0], weekDates?.length || 5) : getPrevDay(weekDates[0])]
         : (isNext ? getNextWeek(weekDates) : getPrevWeek(weekDates));
 
       if (ref.current?.triggerSlideTo) {
@@ -1676,7 +1691,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     if (slidePlan && slidePlan.dir === 'next') {
       return slidePlan.dates;
     }
-    return isDayView ? [getNextDay(weekDates[0])] : getNextWeek(weekDates);
+    return isDayView ? [getNextDay(weekDates[0], weekDates?.length || 5)] : getNextWeek(weekDates);
   }, [isDayView, weekDates, slidePlan]);
 
   // Adapt interval, grid lines, and time labels dynamically to vertical zoom and hours range
@@ -1687,7 +1702,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   // Assign distinct colors to the unique subjects in this week's timetable
   updateSubjectColors(lessons, customColors);
 
-  const dayColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / 5);
+  const dayColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / Math.max(1, weekDates?.length || 5));
 
   // Helper to render columns for any panel (prev, current, next) with 100% precomputed layouts
   const renderDayColumns = (datesList, panelKey) => {
@@ -1762,6 +1777,15 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           <div
             className="day-col-inner"
             style={{ height: totalHeight + 'px' }}
+            onDoubleClick={(e) => {
+              if (e.target.closest('.lesson-block')) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const offsetY = e.clientY - rect.top;
+              const clickedMinutes = startMinutes + (offsetY / slotHeight) * 60;
+              const roundedMinutes = Math.round(clickedMinutes / 15) * 15;
+              const clampedMinutes = Math.max(startMinutes, Math.min(endMinutes - 30, roundedMinutes));
+              onCellDoubleClick?.(d, clampedMinutes);
+            }}
           >
 
             {dayLessons.map((lesson, idx) => {

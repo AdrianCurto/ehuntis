@@ -2540,7 +2540,16 @@ html, body {
 /* Day Pickers for weekly recurrence */
 .days-picker {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+}
+
+.days-picker-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 .day-pick-btn {
@@ -2560,10 +2569,15 @@ html, body {
   border-color: var(--text-muted);
 }
 
+.day-pick-btn.is-weekend {
+  opacity: 0.85;
+}
+
 .day-pick-btn.active {
   background: var(--accent);
   color: #FFFFFF;
   border-color: var(--accent);
+  opacity: 1;
 }
 
 .checkbox-row {

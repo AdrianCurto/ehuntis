@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import { hasLocalCustomData, areConfigsEquivalent, mergeConfigs } from './utils/syncUtils';
-import { getResolvedTargetDate, getAcademicYearBounds, toDateNumber } from './utils/dayLogic';
+import { getResolvedTargetDate, getAcademicYearBounds, toDateNumber, getDynamicWeekDates } from './utils/dayLogic';
 import { resolveSubjectColors, swapSubjectColor } from './utils/colorLogic';
 import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
@@ -46,13 +46,6 @@ function getWeekMonday(date) {
   return d;
 }
 
-function getWeekDates(monday) {
-  return Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
 
 function readStoredJson(key, fallback) {
   if (typeof window === 'undefined') return fallback;
@@ -233,14 +226,9 @@ export default function Home() {
   const [editingCustomEvent, setEditingCustomEvent] = useState(null);
   const [showNewEventModal, setShowNewEventModal] = useState(false);
 
-  const weekDates = useMemo(() => getWeekDates(currentMonday), [currentMonday]);
-  const { minDate: _boundsMin, maxDate: _boundsMax } = getAcademicYearBounds();
-  const canSwipePrev = !isDayView
-    ? getWeekMonday(currentMonday) > getWeekMonday(_boundsMin)
-    : (selectedDay || currentMonday) > _boundsMin;
-  const canSwipeNext = !isDayView
-    ? getWeekMonday(currentMonday) < getWeekMonday(_boundsMax)
-    : (selectedDay || currentMonday) < _boundsMax;
+  const [newEventData, setNewEventData] = useState(null);
+  const canSwipePrev = true;
+  const canSwipeNext = true;
 
 
   const groupKey = (g) => String(g.uniqueId || g.id);
@@ -1245,6 +1233,42 @@ export default function Home() {
     return [...filteredTimetable, ...expandedCustomEvents];
   }, [filteredTimetable, expandedCustomEvents]);
 
+  const weekDates = useMemo(() => {
+    return getDynamicWeekDates(currentMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
+  const handleOpenNewEventModal = useCallback((customDate = null) => {
+    let date = customDate;
+    if (!date) {
+      if (isDayView) {
+        date = selectedDay || currentMonday;
+      } else {
+        const today = new Date();
+        const currentWeekMonday = getWeekMonday(today);
+        date = isSameDay(currentMonday, currentWeekMonday) ? today : currentMonday;
+      }
+    }
+    setNewEventData({ date });
+    setShowNewEventModal(true);
+  }, [isDayView, selectedDay, currentMonday]);
+
+  const handleCellDoubleClick = useCallback((date, clampedMinutes) => {
+    const startH = Math.floor(clampedMinutes / 60);
+    const startM = clampedMinutes % 60;
+    const endMinutes = clampedMinutes + 60;
+    const endH = Math.floor(endMinutes / 60);
+    const endM = endMinutes % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    const startStr = `${pad(startH)}:${pad(startM)}`;
+    const endStr = `${pad(endH)}:${pad(endM)}`;
+    setNewEventData({
+      date,
+      startTimeStr: startStr,
+      endTimeStr: endStr,
+    });
+    setShowNewEventModal(true);
+  }, []);
+
   const suggestedEventColor = useMemo(() => {
     return suggestEventColor(semesterTimetable, customEvents, activeConfig.customColors || {});
   }, [semesterTimetable, customEvents, activeConfig.customColors]);
@@ -1255,6 +1279,7 @@ export default function Home() {
     setEditingCustomEvent(null);
     setSelectedCustomEvent(null);
     setShowNewEventModal(false);
+    setNewEventData(null);
   }, [editingCustomEvent, selectedDay, currentMonday]);
 
   const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
@@ -1396,8 +1421,6 @@ export default function Home() {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() - 7);
-      const { minDate } = getAcademicYearBounds();
-      if (d < getWeekMonday(minDate)) return prev;
       return d;
     });
   }, []);
@@ -1406,47 +1429,56 @@ export default function Home() {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() + 7);
-      const { maxDate } = getAcademicYearBounds();
-      if (d > getWeekMonday(maxDate)) return prev;
       return d;
     });
   }, []);
 
   const handlePrevDay = useCallback(() => {
-    const { minDate } = getAcademicYearBounds();
     const base = selectedDay || currentMonday;
     const d = new Date(base);
-    d.setDate(d.getDate() - 1);
-    // Skip weekends
-    if (d.getDay() === 0) d.setDate(d.getDate() - 2);
-    else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
-    // Clamp to bounds
-    if (d < minDate) return;
+    if (d.getDay() === 1) {
+      const prevMonday = new Date(getWeekMonday(d));
+      prevMonday.setDate(prevMonday.getDate() - 7);
+      const prevWeekDates = getDynamicWeekDates(prevMonday, combinedTimetable);
+      if (prevWeekDates.length === 7) d.setDate(d.getDate() - 1);
+      else if (prevWeekDates.length === 6) d.setDate(d.getDate() - 2);
+      else d.setDate(d.getDate() - 3);
+    } else {
+      d.setDate(d.getDate() - 1);
+    }
 
     setSelectedDay(d);
-    if (d < currentMonday) {
+    if (d < currentMonday || d >= new Date(currentMonday.getTime() + 7 * 86400000)) {
       setCurrentMonday(getWeekMonday(d));
     }
-  }, [selectedDay, currentMonday]);
+  }, [selectedDay, currentMonday, combinedTimetable]);
 
   const handleNextDay = useCallback(() => {
-    const { maxDate } = getAcademicYearBounds();
     const base = selectedDay || currentMonday;
     const d = new Date(base);
-    d.setDate(d.getDate() + 1);
-    // Skip weekends
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-    // Clamp to bounds
-    if (d > maxDate) return;
+    const currentWeekDates = getDynamicWeekDates(getWeekMonday(d), combinedTimetable);
+    const weekLength = currentWeekDates.length;
 
-    const nextMonday = new Date(currentMonday);
-    nextMonday.setDate(nextMonday.getDate() + 7);
+    if (d.getDay() === 5) {
+      if (weekLength >= 6) d.setDate(d.getDate() + 1);
+      else d.setDate(d.getDate() + 3);
+    } else if (d.getDay() === 6) {
+      if (weekLength >= 7) d.setDate(d.getDate() + 1);
+      else d.setDate(d.getDate() + 2);
+    } else if (d.getDay() === 0) {
+      d.setDate(d.getDate() + 1);
+    } else {
+      d.setDate(d.getDate() + 1);
+    }
+
     setSelectedDay(d);
-    if (d >= nextMonday) {
+    const currentWeekStart = getWeekMonday(currentMonday);
+    const nextMonday = new Date(currentWeekStart);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    if (d >= nextMonday || d < currentWeekStart) {
       setCurrentMonday(getWeekMonday(d));
     }
-  }, [selectedDay, currentMonday]);
+  }, [selectedDay, currentMonday, combinedTimetable]);
 
   const calendarRef = useRef(null);
   const targetMondayRef = useRef(currentMonday);
@@ -1465,25 +1497,35 @@ export default function Home() {
   }, [isDayView, handleNextDay, handlePrevDay, goToNextWeek, goToPrevWeek]);
 
   const handleSlide = useCallback((direction) => {
-    const { minDate, maxDate } = getAcademicYearBounds();
-    const minMonday = getWeekMonday(minDate);
-    const maxMonday = getWeekMonday(maxDate);
-
     if (isDayView) {
       const base = targetDayRef.current || selectedDay || currentMonday;
       const targetDate = new Date(base);
       if (direction === 'next') {
-        targetDate.setDate(targetDate.getDate() + 1);
-        if (targetDate.getDay() === 6) targetDate.setDate(targetDate.getDate() + 2);
-        else if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() + 1);
+        const currentWeekDates = getDynamicWeekDates(getWeekMonday(targetDate), combinedTimetable);
+        const weekLength = currentWeekDates.length;
+        if (targetDate.getDay() === 5) {
+          if (weekLength >= 6) targetDate.setDate(targetDate.getDate() + 1);
+          else targetDate.setDate(targetDate.getDate() + 3);
+        } else if (targetDate.getDay() === 6) {
+          if (weekLength >= 7) targetDate.setDate(targetDate.getDate() + 1);
+          else targetDate.setDate(targetDate.getDate() + 2);
+        } else if (targetDate.getDay() === 0) {
+          targetDate.setDate(targetDate.getDate() + 1);
+        } else {
+          targetDate.setDate(targetDate.getDate() + 1);
+        }
       } else {
-        targetDate.setDate(targetDate.getDate() - 1);
-        if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() - 2);
-        else if (targetDate.getDay() === 6) targetDate.setDate(targetDate.getDate() - 1);
+        if (targetDate.getDay() === 1) {
+          const prevMonday = new Date(getWeekMonday(targetDate));
+          prevMonday.setDate(prevMonday.getDate() - 7);
+          const prevWeekDates = getDynamicWeekDates(prevMonday, combinedTimetable);
+          if (prevWeekDates.length === 7) targetDate.setDate(targetDate.getDate() - 1);
+          else if (prevWeekDates.length === 6) targetDate.setDate(targetDate.getDate() - 2);
+          else targetDate.setDate(targetDate.getDate() - 3);
+        } else {
+          targetDate.setDate(targetDate.getDate() - 1);
+        }
       }
-
-      // Clamp to bounds: don't animate out of range
-      if (targetDate < minDate || targetDate > maxDate) return;
 
       targetDayRef.current = targetDate;
 
@@ -1513,9 +1555,6 @@ export default function Home() {
         targetMonday.setDate(targetMonday.getDate() - 7);
       }
 
-      // Clamp to bounds: don't animate out of range
-      if (targetMonday < minMonday || targetMonday > maxMonday) return;
-
       targetMondayRef.current = targetMonday;
 
       // If a slide is already running, queue this transition cleanly
@@ -1526,7 +1565,7 @@ export default function Home() {
         return;
       }
 
-      const targetWeekDates = getWeekDates(targetMonday);
+      const targetWeekDates = getDynamicWeekDates(targetMonday, combinedTimetable);
       if (calendarRef.current?.triggerSlideTo) {
         calendarRef.current.triggerSlideTo(targetWeekDates, () => {
           setCurrentMonday(targetMonday);
@@ -1535,14 +1574,14 @@ export default function Home() {
         setCurrentMonday(targetMonday);
       }
     }
-  }, [isDayView, selectedDay, currentMonday]);
+  }, [isDayView, selectedDay, currentMonday, combinedTimetable]);
 
   // Drain pending queued slides sequentially as each completes and state commits
   useEffect(() => {
     if (pendingNavQueueRef.current.length > 0) {
       const nextNav = pendingNavQueueRef.current.shift();
       if (nextNav.type === 'week') {
-        const targetWeekDates = getWeekDates(nextNav.target);
+        const targetWeekDates = getDynamicWeekDates(nextNav.target, combinedTimetable);
         if (calendarRef.current?.triggerSlideTo) {
           calendarRef.current.triggerSlideTo(targetWeekDates, () => {
             setCurrentMonday(nextNav.target);
@@ -1565,7 +1604,7 @@ export default function Home() {
       targetMondayRef.current = currentMonday;
       targetDayRef.current = selectedDay || currentMonday;
     }
-  }, [currentMonday, selectedDay]);
+  }, [currentMonday, selectedDay, combinedTimetable]);
 
   const handleNavClick = useCallback((direction) => {
     handleSlide(direction);
@@ -1629,21 +1668,13 @@ export default function Home() {
 
   const handlePickDate = (pickedDate) => {
     pendingNavQueueRef.current = [];
-    const { minDate, maxDate } = getAcademicYearBounds();
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
-
-    if (date < minDate) date.setTime(minDate.getTime());
-    if (date > maxDate) date.setTime(maxDate.getTime());
-
-    // Sábado o domingo: saltar al viernes de esa misma semana (en vez de ignorar el clic)
-    if (date.getDay() === 6) date.setDate(date.getDate() - 1);
-    else if (date.getDay() === 0) date.setDate(date.getDate() - 2);
 
     targetMondayRef.current = getWeekMonday(date);
     targetDayRef.current = date;
 
-    const targetDates = isDayView ? [date] : getWeekDates(getWeekMonday(date));
+    const targetDates = isDayView ? [date] : getDynamicWeekDates(getWeekMonday(date), combinedTimetable);
 
     if (calendarRef.current?.triggerSlideTo) {
       calendarRef.current.triggerSlideTo(targetDates, () => {
@@ -1699,7 +1730,7 @@ export default function Home() {
             </div>
           )}
 
-          {!loadingTimetable && activeGroups.length === 0 && expandedCustomEvents.length === 0 && (
+          {!loadingTimetable && activeGroups.length === 0 && customEvents.length === 0 && (
             <div className="empty-state">
               <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
                 <CalendarSearch size={48} strokeWidth={1.5} />
@@ -1714,14 +1745,14 @@ export default function Home() {
                 <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
                   Ir a Ajustes
                 </button>
-                <button className="empty-cta-btn" onClick={() => setShowNewEventModal(true)} style={{ background: 'var(--accent)', color: '#fff' }}>
+                <button className="empty-cta-btn" onClick={() => handleOpenNewEventModal()} style={{ background: 'var(--accent)', color: '#fff' }}>
                   + Añadir evento
                 </button>
               </div>
             </div>
           )}
 
-          {(activeGroups.length > 0 || expandedCustomEvents.length > 0) && (
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
             <WeekCalendar
               ref={calendarRef}
               lessons={combinedTimetable}
@@ -1736,13 +1767,14 @@ export default function Home() {
               canSwipePrev={canSwipePrev}
               onSwipeLeft={() => handleSwipeCommit('next')}
               onSwipeRight={() => handleSwipeCommit('prev')}
+              onCellDoubleClick={handleCellDoubleClick}
             />
           )}
 
           {/* Floating Action Button (FAB) para crear eventos personales */}
           <button
             className="fab-add-event"
-            onClick={() => setShowNewEventModal(true)}
+            onClick={() => handleOpenNewEventModal()}
             aria-label="Añadir evento personal"
             title="Añadir evento personal"
           >
@@ -1851,13 +1883,16 @@ export default function Home() {
       {(showNewEventModal || editingCustomEvent) && (
         <CustomEventModal
           event={editingCustomEvent}
-          targetDate={selectedDay || currentMonday}
+          targetDate={editingCustomEvent ? undefined : newEventData?.date}
+          initialStartTimeStr={newEventData?.startTimeStr}
+          initialEndTimeStr={newEventData?.endTimeStr}
           suggestedColor={suggestedEventColor}
           onSave={handleSaveCustomEvent}
           onDelete={handleDeleteCustomEvent}
           onClose={() => {
             setShowNewEventModal(false);
             setEditingCustomEvent(null);
+            setNewEventData(null);
           }}
           isDark={isDark}
         />

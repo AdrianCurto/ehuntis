@@ -434,6 +434,53 @@ function analyzeBreakStreak(targetDate, timetable, schoolYearEndDate) {
   };
 }
 
+/**
+ * Devuelve el array de fechas de la semana (5, 6 o 7 días) de forma dinámica:
+ * - 5 días (L-V) por defecto
+ * - 6 días (L-S) si hay alguna clase/evento el sábado
+ * - 7 días (L-D) si hay alguna clase/evento el domingo (o sábado y domingo)
+ *
+ * @param {Date} monday - Lunes de la semana
+ * @param {Array} lessons - Lista de lecciones / eventos combinados
+ * @returns {Date[]} Array de 5, 6 o 7 objetos Date
+ */
+function getDynamicWeekDates(monday, lessons = []) {
+  if (!monday) return [];
+  const base = new Date(monday);
+  base.setHours(0, 0, 0, 0);
+
+  const satDate = new Date(base);
+  satDate.setDate(base.getDate() + 5);
+  const sunDate = new Date(base);
+  sunDate.setDate(base.getDate() + 6);
+
+  const satNum = toDateNumber(satDate);
+  const sunNum = toDateNumber(sunDate);
+
+  let hasSat = false;
+  let hasSun = false;
+
+  if (Array.isArray(lessons)) {
+    for (const l of lessons) {
+      if (!l) continue;
+      const lDate = typeof l.date === 'number' ? l.date : toDateNumber(l.date);
+      if (lDate === sunNum) {
+        hasSun = true;
+        break; // Con domingo ya son 7 días
+      } else if (lDate === satNum) {
+        hasSat = true;
+      }
+    }
+  }
+
+  const count = hasSun ? 7 : (hasSat ? 6 : 5);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    return d;
+  });
+}
+
 module.exports = {
   getAcademicYearBounds,
   toDateNumber,
@@ -448,4 +495,6 @@ module.exports = {
   findClosestClassDate,
   analyzeBreakStreak,
   computeNextEventTime,
+  getDynamicWeekDates,
 };
+

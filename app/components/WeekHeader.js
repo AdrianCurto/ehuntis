@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 
-const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI'];
+const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'];
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function isSameDay(a, b) {
@@ -83,8 +83,6 @@ export default function WeekHeader({
             className="week-nav-date-input"
             type="date"
             value={toInputDate(pickerDate)}
-            min={toInputDate(minDate)}
-            max={toInputDate(maxDate)}
             onChange={(e) => {
               const picked = fromInputDate(e.target.value);
               if (picked) onPickDate?.(picked);
@@ -115,10 +113,11 @@ export default function WeekHeader({
               {prevWeekDates.map((date, i) => {
                 const isToday = isSameDay(date, today);
                 const isPast = isPastDay(date, today);
+                const isWeekend = date.getDay() === 6 || date.getDay() === 0;
                 return (
                   <div
                     key={toInputDate(date)}
-                    className={`week-day-btn${isToday ? ' today' : ''}${isPast ? ' is-past' : ''}`}
+                    className={`week-day-btn${isToday ? ' today' : ''}${isPast ? ' is-past' : ''}${isWeekend ? ' is-weekend' : ''}`}
                   >
                     <span className="week-day-name">{DAYS_SHORT[i]}</span>
                     <span className="week-day-num">{date.getDate()}</span>
@@ -133,6 +132,7 @@ export default function WeekHeader({
               ? weekDates.findIndex(d => isSameDay(d, selectedDay))
               : -1;
             const isSelectedToday = selectedDayIndex !== -1 && isSameDay(weekDates[selectedDayIndex], today);
+            const colsCount = weekDates?.length || 5;
 
             return (
               <div className={`week-nav-panel panel-current${isDayView && selectedDayIndex !== -1 ? ' has-day-indicator' : ''}`}>
@@ -141,6 +141,7 @@ export default function WeekHeader({
                     <div
                       className="week-day-indicator-thumb"
                       style={{
+                        width: `calc(100% / ${colsCount})`,
                         transform: `translate3d(${selectedDayIndex * 100}%, 0, 0)`
                       }}
                     >
@@ -153,10 +154,11 @@ export default function WeekHeader({
                   const isToday = isSameDay(date, today);
                   const isSelected = isDayView && selectedDay && isSameDay(date, selectedDay);
                   const isPast = isPastDay(date, today);
+                  const isWeekend = date.getDay() === 6 || date.getDay() === 0;
                   return (
                     <button
                       key={toInputDate(date)}
-                      className={`week-day-btn${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isPast ? ' is-past' : ''}`}
+                      className={`week-day-btn${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}${isPast ? ' is-past' : ''}${isWeekend ? ' is-weekend' : ''}`}
                       onClick={() => onSelectDay(date)}
                     >
                       <span className="week-day-name">{DAYS_SHORT[i]}</span>
