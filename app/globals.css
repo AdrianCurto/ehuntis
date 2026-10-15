@@ -2181,8 +2181,8 @@ html, body {
 /* Botón Flotante (FAB) para añadir evento */
 .fab-add-event {
   position: fixed;
-  bottom: calc(var(--tabbar-height, 64px) + 16px);
-  right: 18px;
+  bottom: calc(var(--tab-bar-h, 72px) + 36px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
   width: 52px;
   height: 52px;
   border-radius: 26px;
@@ -2379,6 +2379,86 @@ html, body {
   color: #FFFFFF;
   border-color: var(--accent);
 }
+
+.category-chip-custom {
+  position: relative;
+  gap: 2px;
+}
+
+.category-chip-add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.category-chip-add:hover {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.category-chip-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  background: transparent;
+  border: none;
+  color: currentColor;
+  opacity: 0.65;
+  padding: 1px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.category-chip-delete-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.category-new-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  gap: 3px;
+}
+
+.category-new-input {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  width: 80px;
+  outline: none;
+}
+
+.category-new-confirm-btn,
+.category-new-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.category-new-confirm-btn:hover {
+  color: var(--accent);
+}
+
+.category-new-cancel-btn:hover {
+  color: var(--text-muted);
+}
+
 
 /* Recurrence toggle bar */
 .recurrence-toggle-bar {

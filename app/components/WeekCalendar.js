@@ -649,8 +649,8 @@ function toMinutes(t) {
   return Math.floor(t / 100) * 60 + (t % 100);
 }
 
-function minutesSinceStart(t) {
-  return toMinutes(t) - START_MINUTES;
+function minutesSinceStart(t, startMin = START_MINUTES) {
+  return toMinutes(t) - startMin;
 }
 
 export function getTimeInterval(slotHeight) {
@@ -659,13 +659,13 @@ export function getTimeInterval(slotHeight) {
   return 60;
 }
 
-export function getGridLines(slotHeight, interval) {
+export function getGridLines(slotHeight, interval, startMinutes = START_MINUTES, endMinutes = END_MINUTES) {
   const lines = [];
-  const remainder = START_MINUTES % interval;
-  const firstMinute = remainder === 0 ? START_MINUTES : START_MINUTES + (interval - remainder);
+  const remainder = startMinutes % interval;
+  const firstMinute = remainder === 0 ? startMinutes : startMinutes + (interval - remainder);
 
-  for (let m = firstMinute; m <= END_MINUTES; m += interval) {
-    const top = ((m - START_MINUTES) / 60) * slotHeight;
+  for (let m = firstMinute; m <= endMinutes; m += interval) {
+    const top = ((m - startMinutes) / 60) * slotHeight;
     const isHour = m % 60 === 0;
     const isHalf = !isHour && m % 30 === 0;
     const type = isHour ? 'hour' : (isHalf ? 'half' : 'quarter');
@@ -674,13 +674,13 @@ export function getGridLines(slotHeight, interval) {
   return lines;
 }
 
-export function getTimeLabels(slotHeight, interval) {
+export function getTimeLabels(slotHeight, interval, startMinutes = START_MINUTES, endMinutes = END_MINUTES) {
   const labels = [];
-  const startMinute = 8 * 60;
-  const endMinute = 21 * 60;
+  const startMinute = Math.ceil(startMinutes / 60) * 60;
+  const endMinute = endMinutes > 1320 ? Math.floor(endMinutes / 60) * 60 : 21 * 60;
 
   for (let m = startMinute; m <= endMinute; m += interval) {
-    const top = ((m - START_MINUTES) / 60) * slotHeight;
+    const top = ((m - startMinutes) / 60) * slotHeight;
     const isHour = m % 60 === 0;
     const h = Math.floor(m / 60);
     const mm = m % 60;
@@ -1612,13 +1612,56 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     };
   }, [slotHeight, clearDragStyles, getPanels, resetZoom]);
 
-  const totalHeight = TOTAL_HOURS * slotHeight;
+  const visibleDayNumbers = useMemo(() => {
+    return (weekDates || []).map(d => {
+      if (!d) return 0;
+      const dt = d instanceof Date ? d : new Date(d);
+      return isNaN(dt.getTime()) ? 0 : dt.getFullYear() * 10000 + (dt.getMonth() + 1) * 100 + dt.getDate();
+    }).filter(Boolean);
+  }, [weekDates]);
+
+  const { startMinutes, endMinutes, totalHours } = useMemo(() => {
+    let minStart = 7 * 60 + 30; // 7:30 AM por defecto
+    let maxEnd = 22 * 60;       // 22:00 PM por defecto
+
+    const visibleLessons = (lessons || []).filter(l => l && visibleDayNumbers.includes(l.date));
+
+    for (const l of visibleLessons) {
+      if (typeof l.startTime === 'number') {
+        const startM = toMinutes(l.startTime);
+        if (startM < 8 * 60) {
+          // Dejar margen de 30 min antes del evento más temprano
+          const paddedStart = Math.floor((startM - 30) / 30) * 30;
+          if (paddedStart < minStart) {
+            minStart = Math.max(0, paddedStart);
+          }
+        }
+      }
+      if (typeof l.endTime === 'number') {
+        const endM = toMinutes(l.endTime);
+        if (endM > 21 * 60 + 30) {
+          // Dejar margen de 30 min después del evento más tardío
+          const paddedEnd = Math.ceil((endM + 30) / 30) * 30;
+          if (paddedEnd > maxEnd) {
+            maxEnd = Math.min(24 * 60, paddedEnd);
+          }
+        }
+      }
+    }
+
+    return {
+      startMinutes: minStart,
+      endMinutes: maxEnd,
+      totalHours: (maxEnd - minStart) / 60,
+    };
+  }, [lessons, visibleDayNumbers]);
+
+  const totalHeight = totalHours * slotHeight;
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
   const todayNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-  // Active between 7:30 (450 min) and 21:30 (1290 min)
-  const isTimeInRange = nowMinutes >= 450 && nowMinutes <= 1290;
-  const currentTimeTop = isTimeInRange ? ((nowMinutes - START_MINUTES) / 60) * slotHeight : null;
+  const isTimeInRange = nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+  const currentTimeTop = isTimeInRange ? ((nowMinutes - startMinutes) / 60) * slotHeight : null;
 
   // Compute 3 panels dates: previous, current, next
   const currentDates = weekDates;
@@ -1636,10 +1679,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     return isDayView ? [getNextDay(weekDates[0])] : getNextWeek(weekDates);
   }, [isDayView, weekDates, slidePlan]);
 
-  // Adapt interval, grid lines, and time labels dynamically to vertical zoom
+  // Adapt interval, grid lines, and time labels dynamically to vertical zoom and hours range
   const interval = useMemo(() => getTimeInterval(slotHeight), [slotHeight]);
-  const gridLines = useMemo(() => getGridLines(slotHeight, interval), [slotHeight, interval]);
-  const timeLabels = useMemo(() => getTimeLabels(slotHeight, interval), [slotHeight, interval]);
+  const gridLines = useMemo(() => getGridLines(slotHeight, interval, startMinutes, endMinutes), [slotHeight, interval, startMinutes, endMinutes]);
+  const timeLabels = useMemo(() => getTimeLabels(slotHeight, interval, startMinutes, endMinutes), [slotHeight, interval, startMinutes, endMinutes]);
 
   // Assign distinct colors to the unique subjects in this week's timetable
   updateSubjectColors(lessons, customColors);
@@ -1651,9 +1694,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     if (!Array.isArray(datesList)) return null;
 
     // ── Supresión en cascada de badges magistrales (ámbito de la vista actual) ──
-    // En vista de semana: evalúa toda la semana; si cualquier GA/Magistral no cabe, se quitan todos los de la semana.
-    // En vista de día: evalúa el día actual individualmente.
-    // Las etiquetas de subgrupos (GL, S, GO, etc.) NUNCA se alteran.
     let weekSuppressedMagistralIds = null;
     if (!isDayView) {
       let anyMissingInWeek = false;
@@ -1669,8 +1709,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           if (!isMagistralType(lesson.type)) continue;
           allMagistralInWeek.push(lesson.id);
           const col = layout.get(lesson.id) || { colIdx: 0, total: 1, span: 1 };
-          const startMin = minutesSinceStart(lesson.startTime);
-          const endMin = minutesSinceStart(lesson.endTime);
+          const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+          const endMin = minutesSinceStart(lesson.endTime, startMinutes);
           const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
           const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 2);
           const fit = computeBlockLayoutMemo(lesson, blockWidth, height, false) || DEFAULT_FIT;
@@ -1701,8 +1741,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           let anyMissingBadge = false;
           const magistralFits = magistralLessons.map(lesson => {
             const col = layout.get(lesson.id) || { colIdx: 0, total: 1, span: 1 };
-            const startMin = minutesSinceStart(lesson.startTime);
-            const endMin = minutesSinceStart(lesson.endTime);
+            const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+            const endMin = minutesSinceStart(lesson.endTime, startMinutes);
             const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
             const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 4);
             const fit = computeBlockLayoutMemo(lesson, blockWidth, height, true) || DEFAULT_FIT;
@@ -1725,8 +1765,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           >
 
             {dayLessons.map((lesson, idx) => {
-              const startMin = minutesSinceStart(lesson.startTime);
-              const endMin = minutesSinceStart(lesson.endTime);
+              const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+              const endMin = minutesSinceStart(lesson.endTime, startMinutes);
               const top = (startMin / 60) * slotHeight;
               const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
               const isPastLesson = dateNum < todayNum || (dateNum === todayNum && toMinutes(lesson.endTime) <= nowMinutes);

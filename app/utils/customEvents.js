@@ -8,14 +8,58 @@ const { toDateNumber, parseDateNumber, getAcademicYearBounds } = require('./dayL
 const { PALETTE } = require('./colorLogic');
 
 const CUSTOM_EVENTS_STORAGE_KEY = 'ehuntis_custom_events_v1';
+const CUSTOM_CATEGORIES_STORAGE_KEY = 'ehuntis_custom_categories_v1';
 
-const EVENT_CATEGORIES = [
-  { id: 'estudio', label: 'Estudio', icon: 'BookOpen' },
-  { id: 'deporte', label: 'Deporte', icon: 'Dumbbell' },
-  { id: 'trabajo', label: 'Trabajo', icon: 'Briefcase' },
-  { id: 'ocio', label: 'Ocio', icon: 'Coffee' },
-  { id: 'personal', label: 'Personal', icon: 'User' },
-];
+const DEFAULT_CATEGORIES = ['Estudio', 'Deporte', 'Trabajo', 'Ocio', 'Personal'];
+
+/**
+ * Lee las categorías personalizadas desde localStorage.
+ * @returns {string[]} Lista de nombres de categorías personalizadas creadas por el usuario
+ */
+function getStoredCustomCategories() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_CATEGORIES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Guarda las categorías personalizadas en localStorage.
+ * @param {string[]} categories
+ */
+function saveStoredCustomCategories(categories) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CUSTOM_CATEGORIES_STORAGE_KEY, JSON.stringify(categories || []));
+  } catch (err) {
+    console.error('Error al guardar categorías personalizadas:', err);
+  }
+}
+
+/**
+ * Calcula las horas por defecto para un nuevo evento:
+ * La siguiente hora en punto para inicio (ej. 16:30 -> 17:00) y 1 hora después para fin (18:00).
+ * Si es tarde por la noche (>= 22h) o de madrugada (< 7h), sugiere 08:00 - 09:00.
+ */
+function getDefaultEventTimes() {
+  const now = new Date();
+  const currentHour = now.getHours();
+  let nextHour = currentHour + 1;
+  let endHour = nextHour + 1;
+
+  if (currentHour >= 22 || currentHour < 7) {
+    nextHour = 8;
+    endHour = 9;
+  }
+
+  const startStr = `${String(nextHour).padStart(2, '0')}:00`;
+  const endStr = `${String(endHour).padStart(2, '0')}:00`;
+  return { startStr, endStr };
+}
 
 /**
  * Lee los eventos personalizados desde localStorage de forma segura.
@@ -301,7 +345,11 @@ function saveCustomEventInstance(events, updatedFields, targetDateNum, mode = 's
 
 module.exports = {
   CUSTOM_EVENTS_STORAGE_KEY,
-  EVENT_CATEGORIES,
+  CUSTOM_CATEGORIES_STORAGE_KEY,
+  DEFAULT_CATEGORIES,
+  getStoredCustomCategories,
+  saveStoredCustomCategories,
+  getDefaultEventTimes,
   getStoredCustomEvents,
   saveStoredCustomEvents,
   suggestEventColor,

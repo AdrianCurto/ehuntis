@@ -14,7 +14,8 @@ import {
   Briefcase,
   Coffee,
   User,
-  Tag
+  Tag,
+  Plus
 } from 'lucide-react';
 import {
   PALETTE,
@@ -24,7 +25,10 @@ import {
   getSubjectColorStyle
 } from '../utils/colorLogic';
 import {
-  EVENT_CATEGORIES,
+  DEFAULT_CATEGORIES,
+  getStoredCustomCategories,
+  saveStoredCustomCategories,
+  getDefaultEventTimes,
   timeNumberToString,
   timeStringToNumber
 } from '../utils/customEvents';
@@ -59,14 +63,19 @@ export default function CustomEventModal({
   const isEditing = Boolean(event);
   const rawEvent = event?.rawEvent || event || {};
 
-  // Fecha base para inicializar
-  const initialDate = useMemo(() => {
-    if (event?.date) return parseDateNumber(event.date);
-    if (targetDate) return new Date(targetDate);
-    return new Date();
-  }, [event, targetDate]);
+  // Horas por defecto: siguiente hora en punto para inicio, +1h para fin
+  const defaultTimes = useMemo(() => getDefaultEventTimes(), []);
 
-  // Si hoy es fin de semana, ajustar a lunes para no tener días fuera de rango
+  // Fecha base para inicializar: si es nuevo evento, siempre la fecha de hoy
+  const initialDate = useMemo(() => {
+    if (isEditing) {
+      if (event?.date) return parseDateNumber(event.date);
+      if (rawEvent.recurrence?.date) return parseDateNumber(rawEvent.recurrence.date);
+    }
+    return new Date();
+  }, [isEditing, event, rawEvent]);
+
+  // Si hoy es fin de semana, ajustar a lunes para no tener días fuera de rango en recurrencia
   const safeInitialDate = useMemo(() => {
     const d = new Date(initialDate);
     if (d.getDay() === 6) d.setDate(d.getDate() + 2);
@@ -80,11 +89,24 @@ export default function CustomEventModal({
   // ── Form State ─────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(rawEvent.title || event?.subjects?.[0] || '');
   const [category, setCategory] = useState(rawEvent.category || event?.category || '');
+  const [customCategories, setCustomCategories] = useState(() => getStoredCustomCategories());
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+
   const [startTimeStr, setStartTimeStr] = useState(() => {
-    return timeNumberToString(rawEvent.startTime || event?.startTime || 1200);
+    if (isEditing) {
+      const s = rawEvent.startTime || event?.startTime;
+      if (s) return timeNumberToString(s);
+    }
+    return defaultTimes.startStr;
   });
+
   const [endTimeStr, setEndTimeStr] = useState(() => {
-    return timeNumberToString(rawEvent.endTime || event?.endTime || 1300);
+    if (isEditing) {
+      const e = rawEvent.endTime || event?.endTime;
+      if (e) return timeNumberToString(e);
+    }
+    return defaultTimes.endStr;
   });
 
   const [recurrenceType, setRecurrenceType] = useState(() => {
@@ -93,15 +115,21 @@ export default function CustomEventModal({
   });
 
   const [singleDateStr, setSingleDateStr] = useState(() => {
-    if (rawEvent.recurrence?.date) return formatDateForInput(parseDateNumber(rawEvent.recurrence.date));
-    return formatDateForInput(safeInitialDate);
+    if (isEditing && rawEvent.recurrence?.date) {
+      return formatDateForInput(parseDateNumber(rawEvent.recurrence.date));
+    }
+    if (isEditing && event?.date) {
+      return formatDateForInput(parseDateNumber(event.date));
+    }
+    return formatDateForInput(new Date());
   });
 
   const [daysOfWeek, setDaysOfWeek] = useState(() => {
     if (Array.isArray(rawEvent.recurrence?.daysOfWeek) && rawEvent.recurrence.daysOfWeek.length > 0) {
       return rawEvent.recurrence.daysOfWeek;
     }
-    return [currentDayOfWeek >= 1 && currentDayOfWeek <= 5 ? currentDayOfWeek : 1];
+    const todayDay = new Date().getDay();
+    return [todayDay >= 1 && todayDay <= 5 ? todayDay : 1];
   });
 
   const bounds = getAcademicYearBounds(safeInitialDate);
@@ -138,6 +166,46 @@ export default function CustomEventModal({
     });
   };
 
+  const handleStartTimeChange = (newStart) => {
+    setStartTimeStr(newStart);
+    const startNum = timeStringToNumber(newStart);
+    const endNum = timeStringToNumber(endTimeStr);
+    if (endNum <= startNum) {
+      const nextHour = Math.min(2359, startNum + 100);
+      setEndTimeStr(timeNumberToString(nextHour));
+    }
+  };
+
+  const handleAddCustomCategory = (e) => {
+    e?.preventDefault();
+    const trimmed = newCatName.trim();
+    if (!trimmed) {
+      setIsAddingCategory(false);
+      return;
+    }
+    const allExisting = [...DEFAULT_CATEGORIES, ...customCategories];
+    const exists = allExisting.find(c => c.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      setCategory(exists);
+    } else {
+      const updated = [...customCategories, trimmed];
+      setCustomCategories(updated);
+      saveStoredCustomCategories(updated);
+      setCategory(trimmed);
+    }
+    setNewCatName('');
+    setIsAddingCategory(false);
+  };
+
+  const handleDeleteCustomCategory = (catToDelete) => {
+    const updated = customCategories.filter(c => c.toLowerCase() !== catToDelete.toLowerCase());
+    setCustomCategories(updated);
+    saveStoredCustomCategories(updated);
+    if ((category || '').toLowerCase() === catToDelete.toLowerCase()) {
+      setCategory('');
+    }
+  };
+
   const validate = () => {
     if (!title.trim()) {
       setFormError('Por favor introduce un título para el evento.');
@@ -148,6 +216,14 @@ export default function CustomEventModal({
     if (endNum <= startNum) {
       setFormError('La hora de fin debe ser posterior a la hora de inicio.');
       return false;
+    }
+    if (recurrenceType === 'weekly' && !untilEndOfYear && customEndDateStr) {
+      const endD = new Date(customEndDateStr + 'T23:59:59');
+      const startD = parseDateNumber(rawEvent.recurrence?.startDate || toDateNumber(safeInitialDate));
+      if (endD < startD) {
+        setFormError('La fecha límite no puede ser anterior a la de inicio.');
+        return false;
+      }
     }
     setFormError('');
     return true;
@@ -275,21 +351,100 @@ export default function CustomEventModal({
               >
                 Sin etiqueta
               </button>
-              {EVENT_CATEGORIES.map(cat => (
+              {DEFAULT_CATEGORIES.map(cat => {
+                const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`category-chip${isSelected ? ' active' : ''}`}
+                    onClick={() => setCategory(cat)}
+                  >
+                    {cat.toLowerCase() === 'estudio' && <BookOpen size={13} style={{ marginRight: 4 }} />}
+                    {cat.toLowerCase() === 'deporte' && <Dumbbell size={13} style={{ marginRight: 4 }} />}
+                    {cat.toLowerCase() === 'trabajo' && <Briefcase size={13} style={{ marginRight: 4 }} />}
+                    {cat.toLowerCase() === 'ocio' && <Coffee size={13} style={{ marginRight: 4 }} />}
+                    {cat.toLowerCase() === 'personal' && <User size={13} style={{ marginRight: 4 }} />}
+                    {cat}
+                  </button>
+                );
+              })}
+
+              {customCategories.map(cat => {
+                const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
+                return (
+                  <span
+                    key={cat}
+                    className={`category-chip category-chip-custom${isSelected ? ' active' : ''}`}
+                    onClick={() => setCategory(cat)}
+                  >
+                    <Tag size={12} style={{ marginRight: 4 }} />
+                    {cat}
+                    <button
+                      type="button"
+                      className="category-chip-delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCustomCategory(cat);
+                      }}
+                      title="Eliminar etiqueta"
+                      aria-label={`Eliminar etiqueta ${cat}`}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                );
+              })}
+
+              {isAddingCategory ? (
+                <div className="category-new-inline">
+                  <input
+                    type="text"
+                    className="category-new-input"
+                    placeholder="Nueva..."
+                    value={newCatName}
+                    onChange={e => setNewCatName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomCategory();
+                      } else if (e.key === 'Escape') {
+                        setIsAddingCategory(false);
+                        setNewCatName('');
+                      }
+                    }}
+                    autoFocus
+                    maxLength={25}
+                  />
+                  <button
+                    type="button"
+                    className="category-new-confirm-btn"
+                    onClick={handleAddCustomCategory}
+                    aria-label="Añadir etiqueta"
+                  >
+                    <Check size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="category-new-cancel-btn"
+                    onClick={() => {
+                      setIsAddingCategory(false);
+                      setNewCatName('');
+                    }}
+                    aria-label="Cancelar"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
                 <button
-                  key={cat.id}
                   type="button"
-                  className={`category-chip${category === cat.id ? ' active' : ''}`}
-                  onClick={() => setCategory(cat.id)}
+                  className="category-chip category-chip-add"
+                  onClick={() => setIsAddingCategory(true)}
                 >
-                  {cat.id === 'estudio' && <BookOpen size={13} style={{ marginRight: 4 }} />}
-                  {cat.id === 'deporte' && <Dumbbell size={13} style={{ marginRight: 4 }} />}
-                  {cat.id === 'trabajo' && <Briefcase size={13} style={{ marginRight: 4 }} />}
-                  {cat.id === 'ocio' && <Coffee size={13} style={{ marginRight: 4 }} />}
-                  {cat.id === 'personal' && <User size={13} style={{ marginRight: 4 }} />}
-                  {cat.label}
+                  <Plus size={13} style={{ marginRight: 3 }} /> Nueva
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
@@ -306,7 +461,7 @@ export default function CustomEventModal({
                 step="300"
                 className="event-input-time"
                 value={startTimeStr}
-                onChange={e => setStartTimeStr(e.target.value)}
+                onChange={e => handleStartTimeChange(e.target.value)}
                 required
               />
             </div>
@@ -319,6 +474,7 @@ export default function CustomEventModal({
                 name="endTime"
                 aria-label="Hora de fin"
                 step="300"
+                min={startTimeStr}
                 className="event-input-time"
                 value={endTimeStr}
                 onChange={e => setEndTimeStr(e.target.value)}

@@ -22,6 +22,7 @@ const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: f
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
 const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
 const CustomEventModal = dynamic(() => import('./components/CustomEventModal'), { ssr: false });
+const CustomEventDetailModal = dynamic(() => import('./components/CustomEventDetailModal'), { ssr: false });
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
@@ -228,6 +229,7 @@ export default function Home() {
     if (typeof window === 'undefined') return [];
     return getStoredCustomEvents();
   });
+  const [selectedCustomEvent, setSelectedCustomEvent] = useState(null);
   const [editingCustomEvent, setEditingCustomEvent] = useState(null);
   const [showNewEventModal, setShowNewEventModal] = useState(false);
 
@@ -1237,17 +1239,19 @@ export default function Home() {
     const targetDateNum = editingCustomEvent?.date || toDateNumber(selectedDay || currentMonday);
     setCustomEvents(prev => saveCustomEventInstance(prev, eventData, targetDateNum, mode));
     setEditingCustomEvent(null);
+    setSelectedCustomEvent(null);
     setShowNewEventModal(false);
   }, [editingCustomEvent, selectedDay, currentMonday]);
 
   const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
     setCustomEvents(prev => deleteCustomEventInstance(prev, eventId, dateNum, mode));
     setEditingCustomEvent(null);
+    setSelectedCustomEvent(null);
   }, []);
 
   const handleLessonClick = useCallback((lesson) => {
     if (lesson?.isCustomEvent) {
-      setEditingCustomEvent(lesson);
+      setSelectedCustomEvent(lesson);
     } else {
       setActiveLesson(lesson);
     }
@@ -1813,6 +1817,20 @@ export default function Home() {
           lesson={activeLesson}
           isDark={isDark}
           onClose={() => setActiveLesson(null)}
+        />
+      )}
+
+      {selectedCustomEvent && !editingCustomEvent && (
+        <CustomEventDetailModal
+          event={selectedCustomEvent}
+          isDark={isDark}
+          onEdit={() => {
+            const evt = selectedCustomEvent;
+            setSelectedCustomEvent(null);
+            setEditingCustomEvent(evt);
+          }}
+          onDelete={handleDeleteCustomEvent}
+          onClose={() => setSelectedCustomEvent(null)}
         />
       )}
 
