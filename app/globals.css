@@ -2316,8 +2316,9 @@ html, body {
 .event-input-date,
 .event-input-text {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 12px;
   font-size: 14px;
+  font-weight: 500;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
@@ -2325,6 +2326,52 @@ html, body {
   outline: none;
   box-sizing: border-box;
   font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.event-input-time,
+.event-input-date {
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.event-input-time::-webkit-calendar-picker-indicator,
+.event-input-date::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.8;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.event-input-time::-webkit-calendar-picker-indicator:hover,
+.event-input-date::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+[data-theme='dark'] .event-input-time::-webkit-calendar-picker-indicator,
+[data-theme='dark'] .event-input-date::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+.reset-end-date-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+}
+
+.reset-end-date-link:hover {
+  opacity: 1;
 }
 
 .event-input-time:focus,
@@ -2332,6 +2379,7 @@ html, body {
 .event-input-text:focus,
 .event-input-textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 12, 110, 237), 0.15);
 }
 
 .event-input-textarea {

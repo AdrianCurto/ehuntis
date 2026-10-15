@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -133,13 +133,29 @@ export default function CustomEventModal({
   });
 
   const bounds = getAcademicYearBounds(safeInitialDate);
-  const [untilEndOfYear, setUntilEndOfYear] = useState(() => {
-    return !rawEvent.recurrence?.endDate;
+  const defaultEndOfYearStr = formatDateForInput(bounds.end);
+
+  const [hasNoEndDate, setHasNoEndDate] = useState(() => {
+    if (isEditing && rawEvent.recurrence?.type === 'weekly') {
+      return rawEvent.recurrence.endDate === null || rawEvent.recurrence.endDate === undefined;
+    }
+    return false;
   });
+
   const [customEndDateStr, setCustomEndDateStr] = useState(() => {
     if (rawEvent.recurrence?.endDate) return formatDateForInput(parseDateNumber(rawEvent.recurrence.endDate));
-    return formatDateForInput(bounds.end);
+    return defaultEndOfYearStr;
   });
+
+  const errorBannerRef = useRef(null);
+
+  const handleOpenPicker = (e) => {
+    try {
+      if (typeof e.currentTarget.showPicker === 'function') {
+        e.currentTarget.showPicker();
+      }
+    } catch (_) {}
+  };
 
   const [location, setLocation] = useState(rawEvent.location || event?.rooms?.[0] || '');
   const [notes, setNotes] = useState(rawEvent.notes || '');
@@ -209,19 +225,28 @@ export default function CustomEventModal({
   const validate = () => {
     if (!title.trim()) {
       setFormError('Por favor introduce un título para el evento.');
+      setTimeout(() => {
+        errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
       return false;
     }
     const startNum = timeStringToNumber(startTimeStr);
     const endNum = timeStringToNumber(endTimeStr);
     if (endNum <= startNum) {
       setFormError('La hora de fin debe ser posterior a la hora de inicio.');
+      setTimeout(() => {
+        errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
       return false;
     }
-    if (recurrenceType === 'weekly' && !untilEndOfYear && customEndDateStr) {
+    if (recurrenceType === 'weekly' && !hasNoEndDate && customEndDateStr) {
       const endD = new Date(customEndDateStr + 'T23:59:59');
       const startD = parseDateNumber(rawEvent.recurrence?.startDate || toDateNumber(safeInitialDate));
       if (endD < startD) {
         setFormError('La fecha límite no puede ser anterior a la de inicio.');
+        setTimeout(() => {
+          errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
         return false;
       }
     }
@@ -244,8 +269,27 @@ export default function CustomEventModal({
       recObj.startDate = recObj.date;
     } else {
       recObj.daysOfWeek = daysOfWeek;
-      recObj.startDate = rawEvent.recurrence?.startDate || toDateNumber(safeInitialDate);
-      recObj.endDate = untilEndOfYear ? null : toDateNumber(new Date(customEndDateStr + 'T23:59:59'));
+
+      let computedStartDate;
+      if (rawEvent.recurrence?.startDate) {
+        computedStartDate = rawEvent.recurrence.startDate;
+      } else if (isEditing && (rawEvent.recurrence?.date || event?.date)) {
+        computedStartDate = rawEvent.recurrence?.date || event?.date;
+      } else {
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = Math.floor(startNum / 100) * 60 + (startNum % 100);
+        if (startMinutes > nowMinutes) {
+          computedStartDate = toDateNumber(now);
+        } else {
+          const tomorrow = new Date(now);
+          tomorrow.setDate(now.getDate() + 1);
+          computedStartDate = toDateNumber(tomorrow);
+        }
+      }
+
+      recObj.startDate = computedStartDate;
+      recObj.endDate = hasNoEndDate ? null : toDateNumber(new Date(customEndDateStr + 'T23:59:59'));
     }
 
     return {
@@ -319,19 +363,13 @@ export default function CustomEventModal({
           </button>
         </div>
 
-        {formError && (
-          <div className="custom-event-error-banner">
-            {formError}
-          </div>
-        )}
-
         <form onSubmit={handleSaveClick} className="custom-event-form">
           {/* Título */}
           <div className="form-group">
             <input
               type="text"
               className="event-input-title"
-              placeholder="¿Qué tienes planeado? (ej. Gimnasio, Estudio...)"
+              placeholder="Título"
               value={title}
               onChange={e => setTitle(e.target.value)}
               autoFocus={!isEditing}
@@ -462,6 +500,7 @@ export default function CustomEventModal({
                 className="event-input-time"
                 value={startTimeStr}
                 onChange={e => handleStartTimeChange(e.target.value)}
+                onClick={handleOpenPicker}
                 required
               />
             </div>
@@ -478,6 +517,7 @@ export default function CustomEventModal({
                 className="event-input-time"
                 value={endTimeStr}
                 onChange={e => setEndTimeStr(e.target.value)}
+                onClick={handleOpenPicker}
                 required
               />
             </div>
@@ -512,6 +552,7 @@ export default function CustomEventModal({
                   className="event-input-date"
                   value={singleDateStr}
                   onChange={e => setSingleDateStr(e.target.value)}
+                  onClick={handleOpenPicker}
                   required
                 />
               </div>
@@ -534,26 +575,43 @@ export default function CustomEventModal({
                   })}
                 </div>
 
-                <div className="end-date-toggle" style={{ marginTop: 12 }}>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={untilEndOfYear}
-                      onChange={e => setUntilEndOfYear(e.target.checked)}
-                    />
-                    <span>Hasta fin de curso (30 de junio)</span>
+                <div className="end-date-section" style={{ marginTop: 14 }}>
+                  <label className="form-label" style={{ marginBottom: 6 }}>
+                    <CalendarIcon size={15} style={{ marginRight: 6 }} /> Fecha de finalización
                   </label>
-                  {!untilEndOfYear && (
-                    <div style={{ marginTop: 8 }}>
+                  <input
+                    type="date"
+                    name="endDate"
+                    aria-label="Fecha de finalización"
+                    className="event-input-date"
+                    value={hasNoEndDate ? '' : customEndDateStr}
+                    disabled={hasNoEndDate}
+                    onChange={e => setCustomEndDateStr(e.target.value)}
+                    onClick={handleOpenPicker}
+                    style={{ opacity: hasNoEndDate ? 0.45 : 1 }}
+                    required={!hasNoEndDate}
+                  />
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
+                    <label className="checkbox-row" style={{ cursor: 'pointer' }}>
                       <input
-                        type="date"
-                        className="event-input-date"
-                        value={customEndDateStr}
-                        onChange={e => setCustomEndDateStr(e.target.value)}
-                        required
+                        type="checkbox"
+                        checked={hasNoEndDate}
+                        onChange={e => setHasNoEndDate(e.target.checked)}
                       />
-                    </div>
-                  )}
+                      <span>Sin fecha de finalización</span>
+                    </label>
+
+                    {!hasNoEndDate && customEndDateStr !== defaultEndOfYearStr && (
+                      <button
+                        type="button"
+                        className="reset-end-date-link"
+                        onClick={() => setCustomEndDateStr(defaultEndOfYearStr)}
+                      >
+                        Restablecer a fin de curso (30 de junio)
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -612,6 +670,13 @@ export default function CustomEventModal({
               })}
             </div>
           </div>
+
+          {/* Mensaje de error visible junto a los botones de acción */}
+          {formError && (
+            <div ref={errorBannerRef} className="custom-event-error-banner" style={{ marginBottom: 14 }}>
+              {formError}
+            </div>
+          )}
 
           {/* Botones de Acción */}
           <div className="custom-event-actions">

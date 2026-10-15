@@ -1223,9 +1223,23 @@ export default function Home() {
   }, [timetable, activeGroups, disabledSubjectsByGroup, disabledSubgroupsBySubject, activeConfig.showDimmedSubgroups]);
 
   // ── Custom Events expansion and combined timetable ───────────────────────
+  const customEventsPreviewDates = useMemo(() => {
+    // Expandir fechas en un rango de ±4 semanas alrededor del lunes activo
+    // para que el carrusel de swipe tanto en vista semanal como diaria
+    // muestre de forma instantánea la vista previa de eventos personalizados sin parpadeos.
+    const dates = [];
+    const baseMonday = getWeekMonday(currentMonday);
+    for (let offset = -28; offset <= 28; offset++) {
+      const d = new Date(baseMonday);
+      d.setDate(baseMonday.getDate() + offset);
+      dates.push(d);
+    }
+    return dates;
+  }, [currentMonday]);
+
   const expandedCustomEvents = useMemo(() => {
-    return expandCustomEventsForDates(customEvents, weekDates);
-  }, [customEvents, weekDates]);
+    return expandCustomEventsForDates(customEvents, customEventsPreviewDates);
+  }, [customEvents, customEventsPreviewDates]);
 
   const combinedTimetable = useMemo(() => {
     return [...filteredTimetable, ...expandedCustomEvents];
