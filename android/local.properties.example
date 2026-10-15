@@ -1,0 +1,6 @@
+## Plantilla de configuración local para EHUntis Android Widget
+# Ruta a tu Android SDK local (en Windows ej: C\:\\Users\\TuUsuario\\AppData\\Local\\Android\\Sdk)
+# sdk.dir=C\:\\Users\\TuUsuario\\AppData\\Local\\Android\\Sdk
+
+# Clave pública de PostHog para analíticas (opcional en desarrollo/test)
+# posthog.api.key=phc_...

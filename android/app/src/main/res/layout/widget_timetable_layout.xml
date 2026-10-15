@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_container_bg">
+
+    <!-- Header bar -->
+    <RelativeLayout
+        android:id="@+id/widget_header_bar"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:paddingStart="14dp"
+        android:paddingEnd="10dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_header_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@+id/widget_btn_settings"
+            android:layout_centerVertical="true"
+            android:text="EHUntis"
+            android:textColor="@color/widget_header_text"
+            android:textSize="13.5sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <!-- Botón de ajustes: abre WidgetConfigureActivity con el appWidgetId correcto -->
+        <ImageView
+            android:id="@+id/widget_btn_settings"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_toStartOf="@+id/widget_btn_refresh"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="6dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_settings"
+            android:contentDescription="Ajustes del widget" />
+
+        <ImageView
+            android:id="@+id/widget_btn_refresh"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:padding="6dp"
+            android:src="@drawable/ic_refresh"
+            android:contentDescription="Actualizar horario" />
+    </RelativeLayout>
+
+    <!-- Timetable Canvas Image (clickable -> opens web) -->
+    <ImageView
+        android:id="@+id/widget_timetable_image"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scaleType="fitXY"
+        android:contentDescription="Horario de clases" />
+
+</LinearLayout>

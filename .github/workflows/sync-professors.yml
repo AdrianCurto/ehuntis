@@ -1,0 +1,37 @@
+name: Sync UPV/EHU Professors
+
+on:
+  schedule:
+    # Se ejecuta el día 1 de cada mes a las 03:00 UTC
+    - cron: '0 3 1 * *'
+  workflow_dispatch: # Permite lanzarlo manualmente desde la pestaña Actions de GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sincronizar directorio de profesorado UPV/EHU
+        run: |
+          node scripts/sync_upv_professors.mjs --update-app
+
+      - name: Commit y Push si hay cambios
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add app/utils/teachersData.json scripts/upv_professors_db.json
+          if git diff --staged --quiet; then
+            echo "Sin novedades en el directorio docente."
+          else
+            git commit -m "chore(professors): auto-sync UPV/EHU professor directory [skip ci]"
+            git push
+          fi

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EHUntis Widget</string>
+    <string name="widget_name">EHUntis Horario</string>
+    <string name="widget_description">Horario interactivo de clases para UPV/EHU con actualización en tiempo real.</string>
+</resources>

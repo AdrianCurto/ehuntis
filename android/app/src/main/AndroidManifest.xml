@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!--
+            Widget Configuration Activity.
+            Actividad exclusiva de configuración de widget (APPWIDGET_CONFIGURE).
+            Al no incluir android.intent.action.MAIN ni CATEGORY_LAUNCHER, el icono de la
+            app permanece 100% invisible en el cajón de aplicaciones y en el escritorio,
+            y el instalador de paquetes muestra limpiamente el botón "Listo".
+        -->
+        <activity
+            android:name=".WidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Timetable AppWidget Provider -->
+        <receiver
+            android:name=".TimetableWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="com.ehuntis.widget.ACTION_REDRAW_ALL" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/timetable_widget_info" />
+        </receiver>
+
+        <!-- BroadcastReceiver para el refresco manual desde la cabecera del widget -->
+        <receiver
+            android:name=".receiver.WidgetRefreshReceiver"
+            android:exported="false" />
+
+        <!-- BroadcastReceiver de arranque del sistema -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Recibe la confirmación del sistema al anclar el widget con éxito.
+            Transfiere la configuración al ID real del widget y fuerza el primer renderizado.
+        -->
+        <receiver
+            android:name=".receiver.PinnedReceiver"
+            android:exported="true" />
+
+    </application>
+
+</manifest>
