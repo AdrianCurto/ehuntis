@@ -5,7 +5,15 @@ import dynamic from 'next/dynamic';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import { hasLocalCustomData, areConfigsEquivalent, mergeConfigs } from './utils/syncUtils';
-import { getResolvedTargetDate, getAcademicYearBounds, toDateNumber, getDynamicWeekDates } from './utils/dayLogic';
+import {
+  getResolvedTargetDate,
+  getAcademicYearBounds,
+  toDateNumber,
+  getDynamicWeekDates,
+  getWeekMonday,
+  getNextDayContextual,
+  getPrevDayContextual,
+} from './utils/dayLogic';
 import { resolveSubjectColors, swapSubjectColor } from './utils/colorLogic';
 import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus } from 'lucide-react';
 import posthog from 'posthog-js';
@@ -35,15 +43,6 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
-}
-
-function getWeekMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 
@@ -1237,6 +1236,18 @@ export default function Home() {
     return getDynamicWeekDates(currentMonday, combinedTimetable);
   }, [currentMonday, combinedTimetable]);
 
+  const prevWeekDates = useMemo(() => {
+    const prevMonday = new Date(currentMonday);
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    return getDynamicWeekDates(prevMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
+  const nextWeekDates = useMemo(() => {
+    const nextMonday = new Date(currentMonday);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    return getDynamicWeekDates(nextMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
   const handleOpenNewEventModal = useCallback((customDate = null) => {
     let date = customDate;
     if (!date) {
@@ -1435,48 +1446,21 @@ export default function Home() {
 
   const handlePrevDay = useCallback(() => {
     const base = selectedDay || currentMonday;
-    const d = new Date(base);
-    if (d.getDay() === 1) {
-      const prevMonday = new Date(getWeekMonday(d));
-      prevMonday.setDate(prevMonday.getDate() - 7);
-      const prevWeekDates = getDynamicWeekDates(prevMonday, combinedTimetable);
-      if (prevWeekDates.length === 7) d.setDate(d.getDate() - 1);
-      else if (prevWeekDates.length === 6) d.setDate(d.getDate() - 2);
-      else d.setDate(d.getDate() - 3);
-    } else {
-      d.setDate(d.getDate() - 1);
-    }
-
-    setSelectedDay(d);
-    if (d < currentMonday || d >= new Date(currentMonday.getTime() + 7 * 86400000)) {
-      setCurrentMonday(getWeekMonday(d));
+    const targetDate = getPrevDayContextual(base, combinedTimetable);
+    setSelectedDay(targetDate);
+    const newMonday = getWeekMonday(targetDate);
+    if (newMonday.getTime() !== currentMonday.getTime()) {
+      setCurrentMonday(newMonday);
     }
   }, [selectedDay, currentMonday, combinedTimetable]);
 
   const handleNextDay = useCallback(() => {
     const base = selectedDay || currentMonday;
-    const d = new Date(base);
-    const currentWeekDates = getDynamicWeekDates(getWeekMonday(d), combinedTimetable);
-    const weekLength = currentWeekDates.length;
-
-    if (d.getDay() === 5) {
-      if (weekLength >= 6) d.setDate(d.getDate() + 1);
-      else d.setDate(d.getDate() + 3);
-    } else if (d.getDay() === 6) {
-      if (weekLength >= 7) d.setDate(d.getDate() + 1);
-      else d.setDate(d.getDate() + 2);
-    } else if (d.getDay() === 0) {
-      d.setDate(d.getDate() + 1);
-    } else {
-      d.setDate(d.getDate() + 1);
-    }
-
-    setSelectedDay(d);
-    const currentWeekStart = getWeekMonday(currentMonday);
-    const nextMonday = new Date(currentWeekStart);
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    if (d >= nextMonday || d < currentWeekStart) {
-      setCurrentMonday(getWeekMonday(d));
+    const targetDate = getNextDayContextual(base, combinedTimetable);
+    setSelectedDay(targetDate);
+    const newMonday = getWeekMonday(targetDate);
+    if (newMonday.getTime() !== currentMonday.getTime()) {
+      setCurrentMonday(newMonday);
     }
   }, [selectedDay, currentMonday, combinedTimetable]);
 
@@ -1499,33 +1483,9 @@ export default function Home() {
   const handleSlide = useCallback((direction) => {
     if (isDayView) {
       const base = targetDayRef.current || selectedDay || currentMonday;
-      const targetDate = new Date(base);
-      if (direction === 'next') {
-        const currentWeekDates = getDynamicWeekDates(getWeekMonday(targetDate), combinedTimetable);
-        const weekLength = currentWeekDates.length;
-        if (targetDate.getDay() === 5) {
-          if (weekLength >= 6) targetDate.setDate(targetDate.getDate() + 1);
-          else targetDate.setDate(targetDate.getDate() + 3);
-        } else if (targetDate.getDay() === 6) {
-          if (weekLength >= 7) targetDate.setDate(targetDate.getDate() + 1);
-          else targetDate.setDate(targetDate.getDate() + 2);
-        } else if (targetDate.getDay() === 0) {
-          targetDate.setDate(targetDate.getDate() + 1);
-        } else {
-          targetDate.setDate(targetDate.getDate() + 1);
-        }
-      } else {
-        if (targetDate.getDay() === 1) {
-          const prevMonday = new Date(getWeekMonday(targetDate));
-          prevMonday.setDate(prevMonday.getDate() - 7);
-          const prevWeekDates = getDynamicWeekDates(prevMonday, combinedTimetable);
-          if (prevWeekDates.length === 7) targetDate.setDate(targetDate.getDate() - 1);
-          else if (prevWeekDates.length === 6) targetDate.setDate(targetDate.getDate() - 2);
-          else targetDate.setDate(targetDate.getDate() - 3);
-        } else {
-          targetDate.setDate(targetDate.getDate() - 1);
-        }
-      }
+      const targetDate = direction === 'next'
+        ? getNextDayContextual(base, combinedTimetable)
+        : getPrevDayContextual(base, combinedTimetable);
 
       targetDayRef.current = targetDate;
 
@@ -1711,6 +1671,8 @@ export default function Home() {
         <>
           <WeekHeader
             weekDates={weekDates}
+            prevWeekDates={prevWeekDates}
+            nextWeekDates={nextWeekDates}
             selectedDay={selectedDay}
             isDayView={isDayView}
             onSelectDay={handleSelectDay}
@@ -1762,6 +1724,8 @@ export default function Home() {
               isDayView={isDayView}
               selectedDay={selectedDay}
               fullWeekDates={weekDates}
+              prevWeekDates={prevWeekDates}
+              nextWeekDates={nextWeekDates}
               isDark={isDark}
               canSwipeNext={canSwipeNext}
               canSwipePrev={canSwipePrev}

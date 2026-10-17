@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Pencil, MapPin, AlignLeft, Calendar, Trash2, X } from 'lucide-react';
 import { getSubjectColorStyle } from '../utils/colorLogic';
-import { parseDateNumber } from '../utils/dayLogic';
+import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAYS_SHORT = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
@@ -45,10 +45,6 @@ export default function CustomEventDetailModal({
       ? `hasta ${formatDateShort(parseDateNumber(rawEvent.recurrence.endDate))}`
       : 'hasta fin de curso';
     recurrenceDescription = `Repetición semanal: ${days} (${endStr})`;
-  }
-
-  function formatDateShort(d) {
-    return `${d.getDate()} de ${MONTHS[d.getMonth()]}`;
   }
 
   const handleDeleteClick = () => {
@@ -118,22 +114,7 @@ export default function CustomEventDetailModal({
 
         {/* Categoría si existe */}
         {category && (
-          <div
-            className="modal-subgroup"
-            style={{
-              color: color.text,
-              background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.12)',
-              borderRadius: 6,
-              padding: '2px 8px',
-              display: 'inline-block',
-              alignSelf: 'center',
-              marginBottom: 4,
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase'
-            }}
-          >
+          <div className="modal-subgroup" style={{ color: color.text }}>
             {category}
           </div>
         )}
@@ -158,64 +139,45 @@ export default function CustomEventDetailModal({
           </div>
 
           {notes && (
-            <div style={{
-              marginTop: 10,
-              padding: '10px 14px',
-              borderRadius: 8,
-              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-              fontSize: '0.9rem',
-              lineHeight: 1.4,
-              textAlign: 'left',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.7, marginBottom: 4, fontSize: '0.8rem', fontWeight: 600 }}>
-                <AlignLeft size={13} /> Notas
-              </div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{notes}</div>
+            <div
+              style={{
+                marginTop: 10,
+                padding: '8px 16px',
+                borderRadius: 10,
+                background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                fontSize: '0.88rem',
+                lineHeight: 1.4,
+                textAlign: 'center',
+                maxWidth: '92%',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {notes}
             </div>
           )}
         </div>
 
         {/* Acciones al pie */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20, width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18, width: '100%' }}>
           <button
             type="button"
             onClick={handleDeleteClick}
             style={{
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: isDark ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(239,68,68,0.3)',
-              background: 'rgba(239,68,68,0.12)',
+              padding: '6px 14px',
+              borderRadius: 20,
+              border: isDark ? '1px solid rgba(239,68,68,0.35)' : '1px solid rgba(239,68,68,0.25)',
+              background: 'rgba(239,68,68,0.08)',
               color: '#ef4444',
               fontWeight: 600,
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              cursor: 'pointer'
+              gap: 5,
+              cursor: 'pointer',
             }}
           >
-            <Trash2 size={15} /> Eliminar
-          </button>
-          <button
-            type="button"
-            onClick={onEdit}
-            style={{
-              padding: '8px 18px',
-              borderRadius: 8,
-              border: 'none',
-              background: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.85)',
-              color: isDark ? '#fff' : '#fff',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              cursor: 'pointer'
-            }}
-          >
-            <Pencil size={15} /> Editar
+            <Trash2 size={13} /> Eliminar
           </button>
         </div>
 

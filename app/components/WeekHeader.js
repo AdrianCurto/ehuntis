@@ -45,6 +45,8 @@ export default function WeekHeader({
   onPickDate,
   minDate,
   maxDate,
+  prevWeekDates: prevWeekDatesProp = null,
+  nextWeekDates: nextWeekDatesProp = null,
 }) {
   const dateInputRef = useRef(null);
   const today = new Date();
@@ -57,13 +59,12 @@ export default function WeekHeader({
   const m2 = MONTHS_SHORT[lastDay.getMonth()]?.toUpperCase() || '';
   const pickerDate = isDayView && selectedDay ? selectedDay : firstDay;
 
-
-  const prevWeekDates = (weekDates || []).map(d => {
+  const prevWeekDates = prevWeekDatesProp || (weekDates || []).map(d => {
     const p = new Date(d);
     p.setDate(p.getDate() - 7);
     return p;
   });
-  const nextWeekDates = (weekDates || []).map(d => {
+  const nextWeekDates = nextWeekDatesProp || (weekDates || []).map(d => {
     const n = new Date(d);
     n.setDate(n.getDate() + 7);
     return n;
@@ -175,10 +176,11 @@ export default function WeekHeader({
               {nextWeekDates.map((date, i) => {
                 const isToday = isSameDay(date, today);
                 const isPast = isPastDay(date, today);
+                const isWeekend = date.getDay() === 6 || date.getDay() === 0;
                 return (
                   <div
                     key={toInputDate(date)}
-                    className={`week-day-btn${isToday ? ' today' : ''}${isPast ? ' is-past' : ''}`}
+                    className={`week-day-btn${isToday ? ' today' : ''}${isPast ? ' is-past' : ''}${isWeekend ? ' is-weekend' : ''}`}
                   >
                     <span className="week-day-name">{DAYS_SHORT[i]}</span>
                     <span className="week-day-num">{date.getDate()}</span>

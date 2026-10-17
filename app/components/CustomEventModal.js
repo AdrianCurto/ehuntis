@@ -363,7 +363,7 @@ export default function CustomEventModal({
           </button>
         </div>
 
-        <form onSubmit={handleSaveClick} className="custom-event-form">
+        <form onSubmit={handleSaveClick} className="custom-event-form" noValidate>
           {/* Título */}
           <div className="form-group">
             <input
@@ -501,6 +501,7 @@ export default function CustomEventModal({
                 value={startTimeStr}
                 onChange={e => handleStartTimeChange(e.target.value)}
                 onClick={handleOpenPicker}
+                onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
                 required
               />
             </div>
@@ -518,6 +519,7 @@ export default function CustomEventModal({
                 value={endTimeStr}
                 onChange={e => setEndTimeStr(e.target.value)}
                 onClick={handleOpenPicker}
+                onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
                 required
               />
             </div>
@@ -553,6 +555,7 @@ export default function CustomEventModal({
                   value={singleDateStr}
                   onChange={e => setSingleDateStr(e.target.value)}
                   onClick={handleOpenPicker}
+                  onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
                   required
                 />
               </div>
@@ -591,6 +594,7 @@ export default function CustomEventModal({
                     disabled={hasNoEndDate}
                     onChange={e => setCustomEndDateStr(e.target.value)}
                     onClick={handleOpenPicker}
+                    onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
                     style={{ opacity: hasNoEndDate ? 0.45 : 1 }}
                     required={!hasNoEndDate}
                   />
@@ -623,12 +627,12 @@ export default function CustomEventModal({
           {/* Ubicación y Notas (Opcionales) */}
           <div className="form-group">
             <label className="form-label">
-              <MapPin size={15} style={{ marginRight: 6 }} /> Lugar / Ubicación (opcional)
+              <MapPin size={15} style={{ marginRight: 6 }} /> Lugar (opcional)
             </label>
             <input
               type="text"
               className="event-input-text"
-              placeholder="ej. Biblioteca, Polideportivo, Aula 2.3..."
+              placeholder="Aula, biblioteca, despacho..."
               value={location}
               onChange={e => setLocation(e.target.value)}
             />
@@ -636,11 +640,11 @@ export default function CustomEventModal({
 
           <div className="form-group">
             <label className="form-label">
-              <AlignLeft size={15} style={{ marginRight: 6 }} /> Notas adicionales (opcional)
+              <AlignLeft size={15} style={{ marginRight: 6 }} /> Notas (opcional)
             </label>
             <textarea
               className="event-input-textarea"
-              placeholder="Apuntes, recordatorios, material a llevar..."
+              placeholder="Detalles o recordatorios..."
               rows={2}
               value={notes}
               onChange={e => setNotes(e.target.value)}

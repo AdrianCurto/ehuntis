@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { extractSubgroupNumber, isMagistralType, extractSubgroupKey } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
+import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
 
 import {
   PALETTE,
@@ -868,6 +869,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   onSwipeRight,
   isDayView: propIsDayView,
   selectedDay,
+  fullWeekDates = null,
+  prevWeekDates = null,
+  nextWeekDates = null,
   isDark,
   canSwipeNext,
   canSwipePrev,
@@ -1112,7 +1116,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     }
 
     if (thumbEl && isDayViewRef.current) {
-      if (targetDayIdx >= 0 && targetDayIdx < (weekDates?.length || 5)) {
+      const totalDays = fullWeekDates?.length || weekDates?.length || 5;
+      if (targetDayIdx >= 0 && targetDayIdx < totalDays) {
         thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
         thumbEl.style.transform = `translate3d(${targetDayIdx * 100}%, 0, 0)`;
       }
@@ -1126,7 +1131,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     return () => {
       clearTimeout(timer);
     };
-  }, [slidePlan, getPanels]);
+  }, [slidePlan, getPanels, fullWeekDates, weekDates]);
 
   // Step 2: Whenever weekDates or selectedDay changes, reset all drag styles and clear sliding flags
   useIsomorphicLayoutEffect(() => {
@@ -1167,8 +1172,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       if (isSlidingRef.current) return;
       const isNext = direction === 'next';
       const targetDates = isDayViewRef.current
-        ? [isNext ? getNextDay(weekDates[0], weekDates?.length || 5) : getPrevDay(weekDates[0])]
-        : (isNext ? getNextWeek(weekDates) : getPrevWeek(weekDates));
+        ? [isNext ? getNextDayContextual(weekDates[0], lessons) : getPrevDayContextual(weekDates[0], lessons)]
+        : (isNext ? (nextWeekDates || getNextWeek(weekDates)) : (prevWeekDates || getPrevWeek(weekDates)));
 
       if (ref.current?.triggerSlideTo) {
         ref.current.triggerSlideTo(targetDates, onComplete);
@@ -1176,7 +1181,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
         onComplete?.();
       }
     }
-  }), [weekDates]);
+  }), [weekDates, lessons, nextWeekDates, prevWeekDates]);
 
   // Unified touch gestures: Pinch-to-zoom (2 fingers) & 1:1 real-time swipe (1 finger)
   useEffect(() => {
@@ -1684,15 +1689,21 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     if (slidePlan && slidePlan.dir === 'prev') {
       return slidePlan.dates;
     }
-    return isDayView ? [getPrevDay(weekDates[0])] : getPrevWeek(weekDates);
-  }, [isDayView, weekDates, slidePlan]);
+    if (isDayView) {
+      return [getPrevDayContextual(weekDates[0] || selectedDay, lessons)];
+    }
+    return prevWeekDates || getPrevWeek(weekDates);
+  }, [isDayView, weekDates, selectedDay, lessons, prevWeekDates, slidePlan]);
 
   const nextDates = useMemo(() => {
     if (slidePlan && slidePlan.dir === 'next') {
       return slidePlan.dates;
     }
-    return isDayView ? [getNextDay(weekDates[0], weekDates?.length || 5)] : getNextWeek(weekDates);
-  }, [isDayView, weekDates, slidePlan]);
+    if (isDayView) {
+      return [getNextDayContextual(weekDates[0] || selectedDay, lessons)];
+    }
+    return nextWeekDates || getNextWeek(weekDates);
+  }, [isDayView, weekDates, selectedDay, lessons, nextWeekDates, slidePlan]);
 
   // Adapt interval, grid lines, and time labels dynamically to vertical zoom and hours range
   const interval = useMemo(() => getTimeInterval(slotHeight), [slotHeight]);
@@ -1702,11 +1713,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   // Assign distinct colors to the unique subjects in this week's timetable
   updateSubjectColors(lessons, customColors);
 
-  const dayColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / Math.max(1, weekDates?.length || 5));
-
   // Helper to render columns for any panel (prev, current, next) with 100% precomputed layouts
   const renderDayColumns = (datesList, panelKey) => {
     if (!Array.isArray(datesList)) return null;
+    const panelColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / Math.max(1, datesList.length || 5));
 
     // ── Supresión en cascada de badges magistrales (ámbito de la vista actual) ──
     let weekSuppressedMagistralIds = null;
@@ -1727,7 +1737,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           const startMin = minutesSinceStart(lesson.startTime, startMinutes);
           const endMin = minutesSinceStart(lesson.endTime, startMinutes);
           const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
-          const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 2);
+          const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - 2);
           const fit = computeBlockLayoutMemo(lesson, blockWidth, height, false) || DEFAULT_FIT;
           if (fit.badge?.hide !== false) {
             anyMissingInWeek = true;
@@ -1759,7 +1769,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
             const startMin = minutesSinceStart(lesson.startTime, startMinutes);
             const endMin = minutesSinceStart(lesson.endTime, startMinutes);
             const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
-            const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 4);
+            const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - 4);
             const fit = computeBlockLayoutMemo(lesson, blockWidth, height, true) || DEFAULT_FIT;
             if (fit.badge?.hide !== false) anyMissingBadge = true;
             return { id: lesson.id, hideBadge: fit.badge?.hide !== false };
@@ -1803,7 +1813,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const color = (lesson.isCustomEvent && typeof lesson.colorIndex === 'number')
                 ? getSubjectColorStyle(lesson.colorIndex, isDark)
                 : subjectColor(lesson.subjectIds?.[0] || 0, isDark);
-              const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - (isDayView ? 4 : 2));
+              const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - (isDayView ? 4 : 2));
               let fit = computeBlockLayoutMemo(lesson, blockWidth, height, isDayView) || DEFAULT_FIT;
 
               // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge

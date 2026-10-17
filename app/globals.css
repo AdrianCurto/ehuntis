@@ -2334,6 +2334,25 @@ html, body {
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+  user-select: none;
+  -webkit-user-select: none;
+  caret-color: transparent;
+}
+
+.event-input-time::-webkit-datetime-edit,
+.event-input-time::-webkit-datetime-edit-fields-wrapper,
+.event-input-time::-webkit-datetime-edit-text,
+.event-input-time::-webkit-datetime-edit-minute,
+.event-input-time::-webkit-datetime-edit-hour,
+.event-input-time::-webkit-datetime-edit-ampm-field,
+.event-input-date::-webkit-datetime-edit,
+.event-input-date::-webkit-datetime-edit-fields-wrapper,
+.event-input-date::-webkit-datetime-edit-text,
+.event-input-date::-webkit-datetime-edit-month-field,
+.event-input-date::-webkit-datetime-edit-day-field,
+.event-input-date::-webkit-datetime-edit-year-field {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .event-input-time::-webkit-calendar-picker-indicator,
