@@ -5,12 +5,14 @@
  * de todos los grados de la UPV/EHU desde su portal oficial (ehu.eus/es/web/graduak).
  * 
  * Características:
- * - Descarga el catálogo completo de grados oficiales (~112 titulaciones).
+ * - Descarga el catálogo completo de grados oficiales (~113 titulaciones).
  * - Extrae para cada grado: título, campus, centro/facultad, slug y profesorado.
  * - Para cada profesor extrae: idPdi (identificador docente oficial) y nombre completo.
  * - Normaliza nombres para ehuntis (código corto, segundo apellido, display name).
  * - Opcionalmente actualiza directamente app/utils/teachersData.json con mapa byPdi y global.
  * - Opcionalmente exporta archivos .txt en Profesorado/ o directorio custom.
+ * - Descarga blindada: reintentos con retroceso exponencial ante 429/5xx, segunda pasada de rescate
+ *   y barrera de seguridad (Safety Guard) para evitar sobrescrituras corruptas si ehu.eus falla.
  * 
  * Uso:
  *   node scripts/sync_upv_professors.mjs [--update-app] [--save-txt] [--out-dir=Profesorado]
@@ -111,7 +113,7 @@ function sanitizeFilename(name) {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim();
 }
 
-async function fetchWithRetry(url, retries = 2, delayMs = 1000) {
+async function fetchWithRetry(url, retries = 4, delayMs = 1500) {
   for (let i = 0; i <= retries; i++) {
     try {
       const res = await fetch(url, {
@@ -121,10 +123,18 @@ async function fetchWithRetry(url, retries = 2, delayMs = 1000) {
           'Accept-Language': 'es-ES,es;q=0.9,eu;q=0.8'
         }
       });
+      if (!res.ok && (res.status === 429 || res.status >= 500)) {
+        if (i < retries) {
+          const wait = delayMs * Math.pow(2, i);
+          console.warn(`[HTTP ${res.status}] en ${url}. Reintentando en ${wait}ms (${i + 1}/${retries})...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+      }
       return res;
     } catch (e) {
       if (i === retries) throw e;
-      await new Promise(r => setTimeout(r, delayMs));
+      await new Promise(r => setTimeout(r, delayMs * Math.pow(2, i)));
     }
   }
 }
@@ -213,56 +223,42 @@ export async function getDegreeProfessors(degreeUrl) {
  */
 export async function syncAllDegrees(options = {}) {
   const {
-    concurrency = 5,
-    requestDelay = 150,
+    concurrency = 2,
+    requestDelay = 350,
     saveTxt = false,
     outDir = 'Profesorado',
     saveJson = true,
     jsonPath = 'scripts/upv_professors_db.json',
     updateApp = false,
-    appJsonPath = 'app/utils/teachersData.json'
+    appJsonPath = 'app/utils/teachersData.json',
+    minSuccessRatio = 0.90 // Al menos el 90% de los grados deben tener listado docente
   } = options;
 
   console.log('=== SINCRONIZADOR DE PROFESORADO UPV/EHU ===');
-  console.log(`1. Obteniendo catálogo de grados desde ehu.eus...`);
+  console.log('1. Obteniendo catálogo de grados desde ehu.eus...');
   const degrees = await getEhuDegreeCatalog();
-  console.log(`-> Se encontraron ${degrees.length} grados oficiales.\n`);
+  console.log(`-> Se encontraron ${degrees.length} grados oficiales.\r\n`);
 
-  console.log(`2. Descargando profesorado (concurrencia: ${concurrency})...`);
+  console.log(`2. Descargando profesorado (concurrencia: ${concurrency}, retardo: ${requestDelay}ms)...\r\n`);
   const results = [];
-  const globalProfMap = new Map(); // idPdi -> { idPdi, rawName, degrees: [] }
 
+  async function fetchOneDegree(deg) {
+    const data = await getDegreeProfessors(deg.url);
+    return {
+      ...deg,
+      success: data.success,
+      status: data.status,
+      error: data.error,
+      profCount: data.professors.length,
+      professors: data.professors
+    };
+  }
+
+  // Pase 1: Descarga estructurada con concurrencia controlada
   for (let i = 0; i < degrees.length; i += concurrency) {
     const chunk = degrees.slice(i, i + concurrency);
-    const chunkResults = await Promise.all(
-      chunk.map(async (deg) => {
-        const data = await getDegreeProfessors(deg.url);
-        return {
-          ...deg,
-          success: data.success,
-          status: data.status,
-          profCount: data.professors.length,
-          professors: data.professors
-        };
-      })
-    );
-
-    for (const r of chunkResults) {
-      results.push(r);
-      if (r.success && r.professors.length > 0) {
-        for (const p of r.professors) {
-          if (!globalProfMap.has(p.idPdi)) {
-            globalProfMap.set(p.idPdi, {
-              idPdi: p.idPdi,
-              rawName: p.rawName,
-              degrees: [r.title]
-            });
-          } else {
-            globalProfMap.get(p.idPdi).degrees.push(r.title);
-          }
-        }
-      }
-    }
+    const chunkResults = await Promise.all(chunk.map(fetchOneDegree));
+    results.push(...chunkResults);
 
     process.stdout.write(`Progreso: ${Math.min(results.length, degrees.length)} / ${degrees.length} grados procesados...\r`);
     if (requestDelay > 0) {
@@ -270,17 +266,92 @@ export async function syncAllDegrees(options = {}) {
     }
   }
 
-  console.log('\n\n--- RESUMEN DE LA DESCARGA ---');
+  // Pase 2: Ronda de rescate para grados que sufrieron error de red (HTTP !== 200 o fallo de fetch)
+  const networkFailures = results.filter(r => !r.success || r.status !== 200);
+  if (networkFailures.length > 0) {
+    console.log(`\r\n\r\n-> ${networkFailures.length} grados fallaron por red. Iniciando ronda de rescate tras enfriamiento...`);
+    await new Promise(r => setTimeout(r, 3000));
+
+    for (let i = 0; i < networkFailures.length; i++) {
+      const failed = networkFailures[i];
+      console.log(`  Reintentando (${i + 1}/${networkFailures.length}): ${failed.title}...`);
+      const retryResult = await fetchOneDegree(failed);
+      if (retryResult.success && retryResult.status === 200) {
+        const targetIdx = results.findIndex(r => r.url === failed.url);
+        if (targetIdx !== -1) results[targetIdx] = retryResult;
+        console.log(`  -> Rescatado exitosamente con ${retryResult.profCount} profesores.`);
+      } else {
+        console.warn(`  -> Persistió el fallo (status: ${retryResult.status}).`);
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  // Construcción limpia y no acumulativa de la plantilla activa del curso actual
+  const globalProfMap = new Map(); // idPdi -> { idPdi, rawName, degrees: [] }
   const successful = results.filter(r => r.success && r.profCount > 0);
-  const empty = results.filter(r => !r.success || r.profCount === 0);
+  const empty = results.filter(r => r.success && r.profCount === 0);
+  const remainingErrors = results.filter(r => !r.success || r.status !== 200);
 
-  console.log(`- Grados con profesorado obtenido: ${successful.length} / ${degrees.length}`);
-  console.log(`- Grados sin listado o no disponibles: ${empty.length}`);
-  console.log(`- Total de profesores únicos identificados en la UPV/EHU: ${globalProfMap.size}`);
+  for (const r of successful) {
+    for (const p of r.professors) {
+      if (!globalProfMap.has(p.idPdi)) {
+        globalProfMap.set(p.idPdi, {
+          idPdi: p.idPdi,
+          rawName: p.rawName,
+          degrees: [r.title]
+        });
+      } else {
+        globalProfMap.get(p.idPdi).degrees.push(r.title);
+      }
+    }
+  }
 
-  // Opcional: Generar archivos .txt compatibles con ehuntis
+  console.log('\r\n\r\n--- RESUMEN DE LA DESCARGA ---');
+  console.log(`- Grados analizados en el catálogo: ${degrees.length}`);
+  console.log(`- Grados con profesorado obtenido: ${successful.length}`);
+  console.log(`- Grados sin listado o no asignados (HTTP 200): ${empty.length}`);
+  console.log(`- Grados con error HTTP / red no resuelto: ${remainingErrors.length}`);
+  console.log(`- Total de profesores únicos activos encontrados: ${globalProfMap.size}`);
+
+  // BARRERA DE SEGURIDAD (Safety Guard)
+  // 1. Ratio de grados exitosos
+  const successRatio = successful.length / degrees.length;
+  console.log(`- Ratio de éxito de grados: ${(successRatio * 100).toFixed(1)}% (mínimo requerido: ${(minSuccessRatio * 100).toFixed(0)}%)`);
+
+  // 2. Comprobación comparativa con el mes anterior para detectar caídas anómalas
+  let prevDb = null;
+  if (fs.existsSync(jsonPath)) {
+    try {
+      prevDb = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    } catch (_) {}
+  }
+
+  if (prevDb && prevDb.totalUniqueProfessors) {
+    const minExpectedProfs = Math.floor(prevDb.totalUniqueProfessors * 0.85);
+    console.log(`- Comparación con registro previo: ${globalProfMap.size} vs ${prevDb.totalUniqueProfessors} docentes (mínimo de seguridad: ${minExpectedProfs})`);
+    if (globalProfMap.size < minExpectedProfs) {
+      throw new Error(
+        `[ABORTADO POR SEGURIDAD] Se detectó una caída anómala en el censo docente: ${globalProfMap.size} profesores obtenidos frente a los ${prevDb.totalUniqueProfessors} del mes anterior (umbral mínimo del 85%: ${minExpectedProfs}). Se aborta la actualización para no corromper la base de datos.`
+      );
+    }
+  }
+
+  if (successRatio < minSuccessRatio) {
+    throw new Error(
+      `[ABORTADO POR SEGURIDAD] Solo el ${(successRatio * 100).toFixed(1)}% de los grados pudieron resolverse con éxito (umbral mínimo: ${(minSuccessRatio * 100).toFixed(0)}%). No se sobrescribe la base de datos.`
+    );
+  }
+
+  if (remainingErrors.length > 5) {
+    throw new Error(
+      `[ABORTADO POR SEGURIDAD] Demasiados errores de red (${remainingErrors.length}). Abortando para proteger los datos existentes.`
+    );
+  }
+
+  // Exportar archivos .txt si se solicitó
   if (saveTxt) {
-    console.log(`\n3. Exportando archivos .txt a la carpeta "${outDir}"...`);
+    console.log(`\r\n3. Exportando archivos .txt a la carpeta "${outDir}"...`);
     if (!fs.existsSync(outDir)) {
       fs.mkdirSync(outDir, { recursive: true });
     }
@@ -290,19 +361,19 @@ export async function syncAllDegrees(options = {}) {
       if (r.campus) filename += ` (${r.campus})`;
       const filePath = path.join(outDir, `${filename}.txt`);
       const lines = r.professors.map(p => p.rawName).sort((a, b) => a.localeCompare(b, 'es'));
-      fs.writeFileSync(filePath, lines.join('\n'), 'utf-8');
+      fs.writeFileSync(filePath, lines.join('\r\n'), 'utf-8');
     }
 
     const globalLines = Array.from(globalProfMap.values())
       .map(p => p.rawName)
       .sort((a, b) => a.localeCompare(b, 'es'));
-    fs.writeFileSync(path.join(outDir, 'Profesorado.txt'), globalLines.join('\n'), 'utf-8');
+    fs.writeFileSync(path.join(outDir, 'Profesorado.txt'), globalLines.join('\r\n'), 'utf-8');
     console.log(`-> Se exportaron ${successful.length} archivos de grado + Profesorado.txt.`);
   }
 
-  // Opcional: Guardar JSON maestro de catálogo enriquecido
+  // Guardar JSON maestro limpio del curso actual (no acumulativo)
   if (saveJson) {
-    console.log(`\n4. Guardando base de datos JSON enriquecida en "${jsonPath}"...`);
+    console.log(`\r\n4. Guardando base de datos JSON en "${jsonPath}"...`);
     const dbPayload = {
       updatedAt: new Date().toISOString(),
       academicYear: '2026/2027',
@@ -320,12 +391,12 @@ export async function syncAllDegrees(options = {}) {
       }))
     };
     fs.writeFileSync(jsonPath, JSON.stringify(dbPayload, null, 2), 'utf-8');
-    console.log(`-> JSON de catálogo guardado exitosamente.`);
+    console.log(`-> JSON de catálogo guardado exitosamente (${successful.length} grados y ${globalProfMap.size} docentes).`);
   }
 
-  // Opcional: Actualizar directamente teachersData.json consumido por app/utils/teachers.js
+  // Actualizar app/utils/teachersData.json consumido por la aplicación
   if (updateApp) {
-    console.log(`\n5. Compilando y actualizando "${appJsonPath}"...`);
+    console.log(`\r\n5. Compilando y actualizando "${appJsonPath}"...`);
     const byPdi = {};
     const globalLookup = {};
     const allKnownSurnames = new Set();
@@ -376,7 +447,7 @@ export async function syncAllDegrees(options = {}) {
     console.log(`-> "${appJsonPath}" actualizado con ${Object.keys(byPdi).length} docentes por idPdi y ${Object.keys(globalLookup).length} claves de búsqueda.`);
   }
 
-  console.log('\n=== PROCESO COMPLETADO SATISFACTORIAMENTE ===\n');
+  console.log('\r\n=== PROCESO COMPLETADO SATISFACTORIAMENTE ===\r\n');
   return {
     degrees,
     successful,
@@ -397,5 +468,8 @@ if (process.argv[1] && process.argv[1].endsWith('sync_upv_professors.mjs')) {
   const appJsonArg = process.argv.find(a => a.startsWith('--app-json='));
   const appJsonPath = appJsonArg ? appJsonArg.split('=')[1] : 'app/utils/teachersData.json';
 
-  syncAllDegrees({ saveTxt, outDir, saveJson, jsonPath, updateApp, appJsonPath }).catch(console.error);
+  syncAllDegrees({ saveTxt, outDir, saveJson, jsonPath, updateApp, appJsonPath }).catch((err) => {
+    console.error('\r\nERROR CRÍTICO EN LA SINCRONIZACIÓN:', err.message);
+    process.exit(1);
+  });
 }
