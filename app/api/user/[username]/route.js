@@ -37,11 +37,22 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('users')
-      .select('username, configs, active_config_id, updated_at')
+      .select('username, configs, active_config_id, custom_events, custom_categories, updated_at')
       .eq('username', username)
       .single();
+
+    // Fallback if custom_events or custom_categories columns haven't been created yet in SQL
+    if (error && error.message && (error.message.includes('custom_events') || error.message.includes('custom_categories'))) {
+      const fallback = await supabase
+        .from('users')
+        .select('username, configs, active_config_id, updated_at')
+        .eq('username', username)
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error || !data) {
       if (error?.code === 'PGRST116') {
@@ -62,6 +73,8 @@ export async function GET(request, { params }) {
         username: data.username,
         configs: data.configs || [],
         active_config_id: data.active_config_id || null,
+        custom_events: data.custom_events || [],
+        custom_categories: data.custom_categories || [],
         updated_at: data.updated_at,
         // Palette included so widgets never need hardcoded colors.
         // colorIndex in customColors maps directly to palette[colorIndex].
@@ -185,14 +198,48 @@ export async function PUT(request, { params }) {
     );
   }
 
+  if (body.custom_events !== undefined && !Array.isArray(body.custom_events)) {
+    return NextResponse.json(
+      { error: 'El campo "custom_events" debe ser un array' },
+      { status: 400 }
+    );
+  }
+
+  if (body.custom_categories !== undefined && !Array.isArray(body.custom_categories)) {
+    return NextResponse.json(
+      { error: 'El campo "custom_categories" debe ser un array' },
+      { status: 400 }
+    );
+  }
+
   try {
     const updatedAt = new Date().toISOString();
-    const { error } = await supabase.from('users').upsert({
+    const upsertPayload = {
       username,
       configs: body.configs,
       active_config_id: body.active_config_id || null,
       updated_at: updatedAt,
-    });
+    };
+    if (body.custom_events !== undefined) {
+      upsertPayload.custom_events = body.custom_events;
+    }
+    if (body.custom_categories !== undefined) {
+      upsertPayload.custom_categories = body.custom_categories;
+    }
+
+    let { error } = await supabase.from('users').upsert(upsertPayload);
+
+    // Fallback if custom_events or custom_categories columns don't exist yet in remote Supabase table
+    if (error && error.message && (error.message.includes('custom_events') || error.message.includes('custom_categories'))) {
+      console.warn('custom_events / custom_categories column missing in Supabase, falling back to configs only.');
+      const fallback = await supabase.from('users').upsert({
+        username,
+        configs: body.configs,
+        active_config_id: body.active_config_id || null,
+        updated_at: updatedAt,
+      });
+      error = fallback.error;
+    }
 
     if (error) {
       console.error('Error upserting user in Supabase:', error);

@@ -4,7 +4,15 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
-import { hasLocalCustomData, areConfigsEquivalent, mergeConfigs } from './utils/syncUtils';
+import {
+  hasLocalCustomData,
+  areConfigsEquivalent,
+  areCustomEventsEquivalent,
+  areCustomCategoriesEquivalent,
+  mergeConfigs,
+  mergeCustomEvents,
+  mergeCustomCategories,
+} from './utils/syncUtils';
 import {
   getResolvedTargetDate,
   getAcademicYearBounds,
@@ -20,6 +28,8 @@ import posthog from 'posthog-js';
 import {
   getStoredCustomEvents,
   saveStoredCustomEvents,
+  getStoredCustomCategories,
+  saveStoredCustomCategories,
   expandCustomEventsForDates,
   deleteCustomEventInstance,
   saveCustomEventInstance,
@@ -338,8 +348,8 @@ export default function Home() {
   }, [activeConfig.id]);
 
   // ── Cloud sync helpers ──────────────────────────────────────────────────────
-  // Push local configs to Supabase via the REST API
-  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot) => {
+  // Push local configs and custom events to Supabase via the REST API
+  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot, eventsSnapshot, categoriesSnapshot) => {
     if (!uname) return;
     try {
       setSyncStatus('syncing');
@@ -347,7 +357,12 @@ export default function Home() {
       const res = await fetch(`/api/user/${encodeURIComponent(uname)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configs: cfgsSnapshot, active_config_id: activeIdSnapshot }),
+        body: JSON.stringify({
+          configs: cfgsSnapshot,
+          active_config_id: activeIdSnapshot,
+          custom_events: eventsSnapshot !== undefined ? eventsSnapshot : customEventsRef.current,
+          custom_categories: categoriesSnapshot !== undefined ? categoriesSnapshot : getStoredCustomCategories(),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -367,6 +382,8 @@ export default function Home() {
   configsRef.current = configs;
   const activeConfigIdRef = useRef(activeConfig.id);
   activeConfigIdRef.current = activeConfig.id;
+  const customEventsRef = useRef(customEvents);
+  customEventsRef.current = customEvents;
   const syncStatusRef = useRef(syncStatus);
   syncStatusRef.current = syncStatus;
 
@@ -416,24 +433,48 @@ export default function Home() {
       const data = await res.json();
       const cloudConfigs = data.configs;
       const cloudActiveId = data.active_config_id;
+      const cloudCustomEvents = data.custom_events;
+      const cloudCustomCategories = data.custom_categories;
 
-      if (!Array.isArray(cloudConfigs) || cloudConfigs.length === 0) return;
+      let hasConfigChanges = false;
+      let hasEventChanges = false;
 
-      const currentConfigs = configsRef.current;
-      const currentActiveId = activeConfigIdRef.current;
+      if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
+        const currentConfigs = configsRef.current;
+        const currentActiveId = activeConfigIdRef.current;
+        const isEquivalent = areConfigsEquivalent(currentConfigs, cloudConfigs);
+        const isSameActiveId = currentActiveId === cloudActiveId;
 
-      const isEquivalent = areConfigsEquivalent(currentConfigs, cloudConfigs);
-      const isSameActiveId = currentActiveId === cloudActiveId;
-
-      if (!isEquivalent || !isSameActiveId) {
-        // Cloud has different configs from another device! Adopt them cleanly
-        isRemoteUpdateRef.current = true;
-        setConfigs(cloudConfigs);
-        if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
-          setActiveConfigId(cloudActiveId);
-        } else {
-          setActiveConfigId(cloudConfigs[0].id);
+        if (!isEquivalent || !isSameActiveId) {
+          hasConfigChanges = true;
+          isRemoteUpdateRef.current = true;
+          setConfigs(cloudConfigs);
+          if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
+            setActiveConfigId(cloudActiveId);
+          } else {
+            setActiveConfigId(cloudConfigs[0].id);
+          }
         }
+      }
+
+      if (Array.isArray(cloudCustomEvents)) {
+        const isEventsEquivalent = areCustomEventsEquivalent(customEventsRef.current, cloudCustomEvents);
+        if (!isEventsEquivalent) {
+          hasEventChanges = true;
+          isRemoteUpdateRef.current = true;
+          setCustomEvents(cloudCustomEvents);
+          saveStoredCustomEvents(cloudCustomEvents);
+        }
+      }
+
+      if (Array.isArray(cloudCustomCategories)) {
+        const isCatsEquivalent = areCustomCategoriesEquivalent(getStoredCustomCategories(), cloudCustomCategories);
+        if (!isCatsEquivalent) {
+          saveStoredCustomCategories(cloudCustomCategories);
+        }
+      }
+
+      if (hasConfigChanges || hasEventChanges) {
         setSyncStatus('synced');
         setSyncError(null);
       }
@@ -543,7 +584,7 @@ export default function Home() {
     syncDebounceRef.current = setTimeout(() => {
       syncDebounceRef.current = null;
       isUserDirtyRef.current = false;
-      pushToCloud(username, configs, activeConfig.id);
+      pushToCloud(username, configs, activeConfig.id, customEvents, getStoredCustomCategories());
     }, 800);
     return () => {
       if (syncDebounceRef.current) {
@@ -552,7 +593,7 @@ export default function Home() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, activeConfig.id, username, initDone]);
+  }, [configs, activeConfig.id, customEvents, username, initDone]);
 
   // Flush-on-hide: when the user switches away from the app (iOS kills tabs aggressively),
   // cancel the debounce and immediately push via fetch with keepalive:true, which survives
@@ -565,6 +606,8 @@ export default function Home() {
       const uname = usernameRef.current;
       const cfgs = configsRef.current;
       const activeId = activeConfigIdRef.current;
+      const evts = customEventsRef.current;
+      const cats = getStoredCustomCategories();
       if (!uname || !syncDebounceRef.current) return;
 
       // Cancel the debounce — we're flushing it now
@@ -577,7 +620,12 @@ export default function Home() {
         fetch(`/api/user/${encodeURIComponent(uname)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ configs: cfgs, active_config_id: activeId }),
+          body: JSON.stringify({
+            configs: cfgs,
+            active_config_id: activeId,
+            custom_events: evts,
+            custom_categories: cats,
+          }),
           keepalive: true,
         }).catch(() => {});
       } catch (_) {}
@@ -634,11 +682,16 @@ export default function Home() {
       const errData = await checkRes.json().catch(() => ({}));
       throw new Error(errData.error || `Error inesperado al comprobar el identificador (HTTP ${checkRes.status}).`);
     }
-    // Create the account by pushing current configs
+    // Create the account by pushing current configs and custom events
     const putRes = await fetch(`/api/user/${encodeURIComponent(newUsername)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ configs, active_config_id: activeConfig.id }),
+      body: JSON.stringify({
+        configs,
+        active_config_id: activeConfig.id,
+        custom_events: customEvents,
+        custom_categories: getStoredCustomCategories(),
+      }),
     });
     if (!putRes.ok) {
       const data = await putRes.json().catch(() => ({}));
@@ -665,7 +718,7 @@ export default function Home() {
         });
       }
     } catch (_) {}
-  }, [configs, activeConfig]);
+  }, [configs, activeConfig, customEvents]);
 
   const handleLogin = useCallback(async (newUsername, resolutionChoice = null, conflictCloudData = null) => {
     // Helper to identify in posthog and capture login event
@@ -690,39 +743,55 @@ export default function Home() {
     // 1. If resolutionChoice is passed, user resolved conflict via modal
     if (resolutionChoice && conflictCloudData) {
       if (resolutionChoice === 'cloud') {
-        // Option 1: Adopt cloud configs (overwrite local)
-        const { configs: cConfigs, active_config_id: cActiveId } = conflictCloudData;
-        setConfigs(cConfigs);
-        setActiveConfigId(cActiveId && cConfigs.some(c => c.id === cActiveId) ? cActiveId : cConfigs[0].id);
+        // Option 1: Adopt cloud configs and events (overwrite local)
+        const { configs: cConfigs, active_config_id: cActiveId, custom_events: cEvents, custom_categories: cCats } = conflictCloudData;
+        if (Array.isArray(cConfigs) && cConfigs.length > 0) {
+          setConfigs(cConfigs);
+          setActiveConfigId(cActiveId && cConfigs.some(c => c.id === cActiveId) ? cActiveId : cConfigs[0].id);
+        }
+        if (Array.isArray(cEvents)) {
+          setCustomEvents(cEvents);
+          saveStoredCustomEvents(cEvents);
+        }
+        if (Array.isArray(cCats)) {
+          saveStoredCustomCategories(cCats);
+        }
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        trackPosthogLogin(cConfigs.length, true, 'cloud');
+        trackPosthogLogin(cConfigs?.length || 1, true, 'cloud');
         return { success: true };
       }
 
       if (resolutionChoice === 'local') {
-        // Option 2: Keep local configs (overwrite cloud)
+        // Option 2: Keep local configs and events (overwrite cloud)
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, configs, activeConfig.id);
+        await pushToCloud(newUsername, configs, activeConfig.id, customEvents, getStoredCustomCategories());
         trackPosthogLogin(configs.length, true, 'local');
         return { success: true };
       }
 
       if (resolutionChoice === 'merge') {
-        // Option 3: Merge both (combine local + cloud)
+        // Option 3: Merge both (combine local + cloud configs and events)
         const merged = mergeConfigs(configs, conflictCloudData.configs, conflictCloudData.active_config_id);
+        const mergedEvents = mergeCustomEvents(customEvents, conflictCloudData.custom_events || []);
+        const mergedCats = mergeCustomCategories(getStoredCustomCategories(), conflictCloudData.custom_categories || []);
+
         setConfigs(merged.configs);
         setActiveConfigId(merged.activeConfigId);
+        setCustomEvents(mergedEvents);
+        saveStoredCustomEvents(mergedEvents);
+        saveStoredCustomCategories(mergedCats);
+
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, merged.configs, merged.activeConfigId);
+        await pushToCloud(newUsername, merged.configs, merged.activeConfigId, mergedEvents, mergedCats);
         trackPosthogLogin(merged.configs.length, true, 'merge');
         return { success: true };
       }
@@ -746,23 +815,29 @@ export default function Home() {
     const data = await checkRes.json();
     const cloudConfigs = data.configs || [];
     const cloudActiveId = data.active_config_id;
+    const cloudCustomEvents = data.custom_events || [];
+    const cloudCustomCategories = data.custom_categories || [];
 
     // Check if there is a conflict:
     // Only conflict if local has actual custom data AND differs from cloud
-    const hasLocal = hasLocalCustomData(configs);
-    const isEquivalent = areConfigsEquivalent(configs, cloudConfigs);
+    const hasLocal = hasLocalCustomData(configs, customEvents);
+    const isConfigsEquivalent = areConfigsEquivalent(configs, cloudConfigs);
+    const isEventsEquivalent = areCustomEventsEquivalent(customEvents, cloudCustomEvents);
 
-    if (hasLocal && !isEquivalent) {
+    if (hasLocal && (!isConfigsEquivalent || !isEventsEquivalent)) {
       return {
         conflict: true,
         username: newUsername,
         cloudConfigs,
         cloudActiveId,
+        cloudCustomEvents,
+        cloudCustomCategories,
         localConfigs: configs,
+        localCustomEvents: customEvents,
       };
     }
 
-    // No conflict: adopt cloud configs directly
+    // No conflict: adopt cloud configs and events directly
     if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
       setConfigs(cloudConfigs);
       if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
@@ -771,13 +846,21 @@ export default function Home() {
         setActiveConfigId(cloudConfigs[0].id);
       }
     }
+    if (Array.isArray(cloudCustomEvents)) {
+      setCustomEvents(cloudCustomEvents);
+      saveStoredCustomEvents(cloudCustomEvents);
+    }
+    if (Array.isArray(cloudCustomCategories)) {
+      saveStoredCustomCategories(cloudCustomCategories);
+    }
+
     try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
     setUsername(newUsername);
     setSyncStatus('synced');
     setSyncError(null);
     trackPosthogLogin(cloudConfigs.length || configs.length, false, 'direct');
     return { success: true };
-  }, [configs, activeConfig.id, pushToCloud]);
+  }, [configs, activeConfig.id, customEvents, pushToCloud]);
 
   const handleLogout = useCallback(() => {
     const previousUsername = username;
@@ -1285,6 +1368,7 @@ export default function Home() {
   }, [semesterTimetable, customEvents, activeConfig.customColors]);
 
   const handleSaveCustomEvent = useCallback((eventData, mode) => {
+    isUserDirtyRef.current = true;
     const targetDateNum = editingCustomEvent?.date || toDateNumber(selectedDay || currentMonday);
     setCustomEvents(prev => saveCustomEventInstance(prev, eventData, targetDateNum, mode));
     setEditingCustomEvent(null);
@@ -1294,6 +1378,7 @@ export default function Home() {
   }, [editingCustomEvent, selectedDay, currentMonday]);
 
   const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
+    isUserDirtyRef.current = true;
     setCustomEvents(prev => deleteCustomEventInstance(prev, eventId, dateNum, mode));
     setEditingCustomEvent(null);
     setSelectedCustomEvent(null);

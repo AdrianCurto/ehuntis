@@ -3,9 +3,16 @@ CREATE TABLE IF NOT EXISTS public.users (
   username TEXT PRIMARY KEY,
   configs JSONB NOT NULL DEFAULT '[]'::jsonb,
   active_config_id TEXT,
+  custom_events JSONB NOT NULL DEFAULT '[]'::jsonb,
+  custom_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- Migración segura para bases de datos existentes
+ALTER TABLE public.users 
+  ADD COLUMN IF NOT EXISTS custom_events JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS custom_categories JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- Índices de consulta rápida
 CREATE INDEX IF NOT EXISTS idx_users_updated_at ON public.users(updated_at);

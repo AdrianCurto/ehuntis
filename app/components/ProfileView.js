@@ -137,7 +137,7 @@ export default function ProfileView({
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState(null);
 
-  // Conflict resolution state: null or { username, cloudConfigs, cloudActiveId, localConfigs }
+  // Conflict resolution state: null or { username, cloudConfigs, cloudActiveId, cloudCustomEvents, cloudCustomCategories, localConfigs, localCustomEvents }
   const [conflictData, setConflictData] = useState(null);
 
   const isLoggedIn = Boolean(username);
@@ -173,6 +173,8 @@ export default function ProfileView({
       await onLogin(conflictData.username, choice, {
         configs: conflictData.cloudConfigs,
         active_config_id: conflictData.cloudActiveId,
+        custom_events: conflictData.cloudCustomEvents,
+        custom_categories: conflictData.cloudCustomCategories,
       });
       setConflictData(null);
       setAuthPanel(null);
@@ -278,6 +280,11 @@ export default function ProfileView({
                         <span className="sync-col-item-name" title={c.name}>{c.name || 'Sin nombre'}</span>
                       </div>
                     ))}
+                    {conflictData.cloudCustomEvents?.length > 0 && (
+                      <div className="sync-col-item" style={{ fontStyle: 'italic', opacity: 0.85 }}>
+                        <span>+ {conflictData.cloudCustomEvents.length} {conflictData.cloudCustomEvents.length === 1 ? 'evento pers.' : 'eventos pers.'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -292,6 +299,11 @@ export default function ProfileView({
                         <span className="sync-col-item-name" title={c.name}>{c.name || 'Sin nombre'}</span>
                       </div>
                     ))}
+                    {conflictData.localCustomEvents?.length > 0 && (
+                      <div className="sync-col-item" style={{ fontStyle: 'italic', opacity: 0.85 }}>
+                        <span>+ {conflictData.localCustomEvents.length} {conflictData.localCustomEvents.length === 1 ? 'evento pers.' : 'eventos pers.'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -312,7 +324,7 @@ export default function ProfileView({
                       <Layers size={16} /> Combinar ambas
                     </div>
                     <div className="sync-btn-desc">
-                      Junta todas las configuraciones para no perder nada.
+                      Junta todas las configuraciones y eventos para no perder nada.
                     </div>
                   </div>
                 </button>
@@ -328,7 +340,7 @@ export default function ProfileView({
                       <Cloud size={16} /> Usar datos de la nube
                     </div>
                     <div className="sync-btn-desc">
-                      Descarga las configuraciones de la nube y sobrescribe las de este dispositivo.
+                      Descarga las configuraciones y eventos de la nube y sobrescribe los de este dispositivo.
                     </div>
                   </div>
                 </button>
@@ -344,7 +356,7 @@ export default function ProfileView({
                       <Smartphone size={16} /> Mantener datos de este dispositivo
                     </div>
                     <div className="sync-btn-desc">
-                      Sube tus configuraciones actuales a la nube y sobrescribe las anteriores.
+                      Sube tus configuraciones y eventos actuales a la nube y sobrescribe los anteriores.
                     </div>
                   </div>
                 </button>
