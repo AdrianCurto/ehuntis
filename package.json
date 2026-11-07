@@ -7,7 +7,10 @@
     "sync:teachers": "node scripts/sync_upv_professors.mjs --update-app",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js tests/integration/*.test.js",
+    "test:e2e": "node tests/e2e/e2e-suite.mjs"
   },
   "description": "Horarios de la UPV/EHU personalizados con widgets nativos para Android e iOS",
   "license": "MIT",

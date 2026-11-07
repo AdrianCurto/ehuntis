@@ -321,7 +321,7 @@ function resolveDrift(currentOverrides = {}, lesson, action) {
  * @param {Object} lessonB
  * @returns {Object} Nuevo mapa de overrides con las dos clases permutadas
  */
-function swapLessons(currentOverrides = {}, lessonA, lessonB) {
+function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   if (!lessonA || !lessonB) return currentOverrides;
   const keyA = getLessonKey(lessonA);
   const keyB = getLessonKey(lessonB);
@@ -350,14 +350,35 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB) {
   const subjectNameA = lessonA.subjects?.[0] || 'Clase';
   const subjectNameB = lessonB.subjects?.[0] || 'Clase';
 
-  // Override para clase A: adopta horario y aula de B
+  const keepDuration = options.keepDuration !== false;
+
+  let customStartA = lessonB.startTime;
+  let customEndA = lessonB.endTime;
+  let customStartB = lessonA.startTime;
+  let customEndB = lessonA.endTime;
+
+  if (keepDuration) {
+    const toMinutes = (t) => Math.floor(t / 100) * 60 + (t % 100);
+    const fromMinutes = (m) => Math.floor(m / 60) * 100 + (m % 60);
+
+    const durA = toMinutes(lessonA.endTime) - toMinutes(lessonA.startTime);
+    const durB = toMinutes(lessonB.endTime) - toMinutes(lessonB.startTime);
+
+    customStartA = lessonB.startTime;
+    customEndA = fromMinutes(toMinutes(lessonB.startTime) + durA);
+
+    customStartB = lessonA.startTime;
+    customEndB = fromMinutes(toMinutes(lessonA.startTime) + durB);
+  }
+
+  // Override para clase A: adopta aula de B y horario correspondiente
   const overrideA = {
     ...(currentOverrides[keyA] || {}),
     lessonKey: keyA,
     lessonId: lessonA.id,
     date: lessonA.date,
-    customStartTime: lessonB.startTime,
-    customEndTime: lessonB.endTime,
+    customStartTime: customStartA,
+    customEndTime: customEndA,
     customRooms: lessonB.rooms,
     swappedWith: {
       lessonKey: keyB,
@@ -367,14 +388,14 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB) {
     updatedAt: Date.now(),
   };
 
-  // Override para clase B: adopta horario y aula de A
+  // Override para clase B: adopta aula de A y horario correspondiente
   const overrideB = {
     ...(currentOverrides[keyB] || {}),
     lessonKey: keyB,
     lessonId: lessonB.id,
     date: lessonB.date,
-    customStartTime: lessonA.startTime,
-    customEndTime: lessonA.endTime,
+    customStartTime: customStartB,
+    customEndTime: customEndB,
     customRooms: lessonA.rooms,
     swappedWith: {
       lessonKey: keyA,

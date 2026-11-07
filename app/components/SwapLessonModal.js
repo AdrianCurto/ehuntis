@@ -1,8 +1,10 @@
 'use client';
 
-import { X, ArrowUpDown, Clock, MapPin } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, ArrowUpDown, Clock, MapPin, AlertCircle } from 'lucide-react';
 import { subjectColor } from './WeekCalendar';
 import { formatTime } from '../utils/lessonOverrides';
+import { toMinutes } from '../utils/dayLogic';
 
 function parseDate(dateNum) {
   const y = Math.floor(dateNum / 10000);
@@ -10,6 +12,8 @@ function parseDate(dateNum) {
   const d = dateNum % 100;
   return new Date(y, m, d);
 }
+
+const fromMinutes = (m) => Math.floor(m / 60) * 100 + (m % 60);
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -20,7 +24,36 @@ export default function SwapLessonModal({
   onClose,
   isDark = false,
 }) {
+  const [keepDuration, setKeepDuration] = useState(true);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      onClose?.();
+    }
+    touchStartY.current = null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!lesson) return null;
+
+  const originDuration = toMinutes(lesson.endTime) - toMinutes(lesson.startTime);
 
   const date = parseDate(lesson.date);
   const dayName = DAYS_LONG[date.getDay()];
@@ -36,6 +69,8 @@ export default function SwapLessonModal({
     return true;
   });
 
+  const hasAnyDurationDiff = validCandidates.some(c => (toMinutes(c.endTime) - toMinutes(c.startTime)) !== originDuration);
+
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
@@ -47,7 +82,12 @@ export default function SwapLessonModal({
           maxWidth: '500px',
         }}
       >
-        <div className="modal-drag-handle" />
+        <div
+          className="modal-drag-handle"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ cursor: 'grab', touchAction: 'none' }}
+        />
 
         <div className="custom-event-modal-header" style={{ marginBottom: 12 }}>
           <div>
@@ -95,6 +135,33 @@ export default function SwapLessonModal({
           </div>
         </div>
 
+        {hasAnyDurationDiff && (
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: '0.83rem',
+              fontWeight: 500,
+              padding: '8px 12px',
+              borderRadius: 8,
+              background: 'var(--surface-sunken, rgba(0,0,0,0.03))',
+              border: '1px solid var(--border)',
+              marginBottom: 14,
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={keepDuration}
+              onChange={e => setKeepDuration(e.target.checked)}
+              style={{ accentColor: 'var(--accent)', width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span>Mantener la duración original de cada clase</span>
+          </label>
+        )}
+
         <p style={{ fontSize: '0.86rem', opacity: 0.75, marginBottom: 14 }}>
           Selecciona con qué clase de este día deseas permutar el horario y el aula:
         </p>
@@ -119,6 +186,9 @@ export default function SwapLessonModal({
               const candColor = subjectColor(cand.subjectIds?.[0] || 0, isDark);
               const candSubject = cand.subjects?.[0] || 'Clase';
               const candRoom = (cand.rooms || []).join(', ') || 'Sin aula';
+              const candDuration = toMinutes(cand.endTime) - toMinutes(cand.startTime);
+              const diffDuration = originDuration !== candDuration;
+              const newEndForOrigin = fromMinutes(toMinutes(cand.startTime) + originDuration);
 
               return (
                 <div
@@ -156,7 +226,7 @@ export default function SwapLessonModal({
                         </span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 12, fontSize: '0.8rem', opacity: 0.75 }}>
+                    <div style={{ display: 'flex', gap: 12, fontSize: '0.8rem', opacity: 0.75, flexWrap: 'wrap' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={12} /> {formatTime(cand.startTime)}–{formatTime(cand.endTime)}
                       </span>
@@ -166,13 +236,35 @@ export default function SwapLessonModal({
                         </span>
                       )}
                     </div>
+                    {diffDuration && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          fontSize: '0.74rem',
+                          color: isDark ? '#93c5fd' : '#1d4ed8',
+                          background: isDark ? 'rgba(59, 130, 246, 0.12)' : 'rgba(239, 246, 255, 0.95)',
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Clock size={11} />
+                        <span>
+                          {keepDuration
+                            ? `Mantendrá ${originDuration}m (${formatTime(cand.startTime)}–${formatTime(newEndForOrigin)})`
+                            : `Se adaptará a ${candDuration}m (${formatTime(cand.startTime)}–${formatTime(cand.endTime)})`}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="button"
                     className="settings-btn-primary"
                     onClick={() => {
-                      onSwap(lesson, cand);
+                      onSwap(lesson, cand, { keepDuration });
                       onClose();
                     }}
                     style={{

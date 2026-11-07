@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pencil, MapPin, AlignLeft, Calendar, Trash2, X } from 'lucide-react';
 import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
@@ -22,6 +22,35 @@ export default function CustomEventDetailModal({
   isDark = false
 }) {
   const [confirmScopeDelete, setConfirmScopeDelete] = useState(false);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      onClose?.();
+    }
+    touchStartY.current = null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (confirmScopeDelete) {
+          setConfirmScopeDelete(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmScopeDelete, onClose]);
 
   if (!event) return null;
 
@@ -69,7 +98,12 @@ export default function CustomEventDetailModal({
         style={{ background: color.bg, borderTop: color.border ? `1px solid ${color.border}` : undefined }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="modal-drag-handle" style={{ background: color.text, opacity: 0.3 }} />
+        <div
+          className="modal-drag-handle"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
+        />
 
         {/* Botón Cerrar (Izquierda) */}
         <button

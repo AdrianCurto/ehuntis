@@ -81,7 +81,7 @@ object CustomEventsLogic {
                 val matches = when (rec.type.lowercase()) {
                     "none" -> rec.date == dateNum
                     "weekly" -> {
-                        val isDayMatched = rec.daysOfWeek.contains(jsDayOfWeek)
+                        val isDayMatched = rec.daysOfWeek.contains(jsDayOfWeek) || (jsDayOfWeek == 0 && rec.daysOfWeek.contains(7))
                         val isAfterStart = rec.startDate == null || dateNum >= rec.startDate
                         val isBeforeEnd = rec.endDate == null || dateNum <= rec.endDate
                         isDayMatched && isAfterStart && isBeforeEnd

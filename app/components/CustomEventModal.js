@@ -148,6 +148,20 @@ export default function CustomEventModal({
   });
 
   const errorBannerRef = useRef(null);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      onClose();
+    }
+    touchStartY.current = null;
+  };
 
   const handleOpenPicker = (e) => {
     try {
@@ -168,6 +182,24 @@ export default function CustomEventModal({
   // Modal para preguntar si editar/borrar solo esta fecha o la serie recurrente
   const [confirmScopeModal, setConfirmScopeModal] = useState(null); // 'save' | 'delete' | null
   const [formError, setFormError] = useState('');
+
+  // Atajo de teclado: Escape cierra confirmaciones o el modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (confirmScopeModal) {
+          setConfirmScopeModal(null);
+        } else if (isAddingCategory) {
+          setIsAddingCategory(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmScopeModal, isAddingCategory, onClose]);
 
   const isRecurringEvent = rawEvent.recurrence?.type === 'weekly' || (isEditing && event?.recurrenceType === 'weekly');
 
@@ -241,7 +273,7 @@ export default function CustomEventModal({
     }
     if (recurrenceType === 'weekly' && !hasNoEndDate && customEndDateStr) {
       const endD = new Date(customEndDateStr + 'T23:59:59');
-      const startD = parseDateNumber(rawEvent.recurrence?.startDate || toDateNumber(safeInitialDate));
+      const startD = parseDateNumber(rawEvent.recurrence?.startDate || toDateNumber(initialDate));
       if (endD < startD) {
         setFormError('La fecha límite no puede ser anterior a la de inicio.');
         setTimeout(() => {
@@ -352,7 +384,12 @@ export default function CustomEventModal({
           borderTop: `4px solid ${activeColorStyle.bg}`,
         }}
       >
-        <div className="modal-drag-handle" />
+        <div
+          className="modal-drag-handle"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ cursor: 'grab', touchAction: 'none' }}
+        />
 
         <div className="custom-event-modal-header">
           <div className="custom-event-modal-title">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Clock, MapPin, AlignLeft, AlertCircle } from 'lucide-react';
 import { subjectColor } from './WeekCalendar';
 
@@ -33,6 +33,43 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   const [roomsStr, setRoomsStr] = useState(() => (lesson?.rooms || []).join(', '));
   const [notes, setNotes] = useState(() => lesson?.notes || '');
   const [error, setError] = useState('');
+
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      onClose?.();
+    }
+    touchStartY.current = null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleStartTimeChange = (newStart) => {
+    setStartTimeStr(newStart);
+    setError('');
+    const startNum = timeStringToNumber(newStart);
+    const endNum = timeStringToNumber(endTimeStr);
+    if (endNum <= startNum) {
+      const nextHour = Math.min(2359, startNum + 100);
+      setEndTimeStr(timeNumberToString(nextHour));
+    }
+  };
 
   if (!lesson) return null;
 
@@ -78,7 +115,12 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
           maxWidth: '460px',
         }}
       >
-        <div className="modal-drag-handle" />
+        <div
+          className="modal-drag-handle"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ cursor: 'grab', touchAction: 'none' }}
+        />
 
         <div className="custom-event-modal-header" style={{ marginBottom: 12 }}>
           <div>
@@ -136,18 +178,17 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input
                 type="time"
+                step="300"
                 className="event-input-time"
                 value={startTimeStr}
-                onChange={e => {
-                  setStartTimeStr(e.target.value);
-                  setError('');
-                }}
+                onChange={e => handleStartTimeChange(e.target.value)}
                 required
                 style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
               />
               <span style={{ opacity: 0.5 }}>–</span>
               <input
                 type="time"
+                step="300"
                 className="event-input-time"
                 value={endTimeStr}
                 onChange={e => {

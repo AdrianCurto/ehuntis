@@ -1788,6 +1788,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
             className="day-col-inner"
             style={{ height: totalHeight + 'px' }}
             onDoubleClick={(e) => {
+              e.stopPropagation();
               if (e.target.closest('.lesson-block')) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const offsetY = e.clientY - rect.top;

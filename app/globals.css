@@ -861,6 +861,8 @@ html, body {
   background: rgba(0,0,0,0.2);
   border-radius: 2px;
   margin: 0 auto 20px;
+  cursor: grab;
+  touch-action: none;
 }
 
 .modal-close-btn {
@@ -2158,6 +2160,11 @@ html, body {
 
 .color-swatch-btn:active {
   transform: scale(0.92);
+}
+
+.color-swatch-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  transform: scale(1.15);
 }
 
 

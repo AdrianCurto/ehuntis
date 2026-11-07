@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { 
   X, 
   Clock, 
@@ -36,6 +37,32 @@ export default function LessonModal({
   onResetOverride,
   onResolveDrift,
 }) {
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (deltaY > 60) {
+      onClose?.();
+    }
+    touchStartY.current = null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!lesson) return null;
 
   const date = parseDate(lesson.date);
@@ -67,7 +94,12 @@ export default function LessonModal({
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="modal-drag-handle" style={{ background: color.text, opacity: 0.3 }} />
+        <div
+          className="modal-drag-handle"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
+        />
 
         <button
           className="modal-close-btn"
