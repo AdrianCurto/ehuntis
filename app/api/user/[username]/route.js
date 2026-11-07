@@ -39,12 +39,16 @@ export async function GET(request, { params }) {
   try {
     let { data, error } = await supabase
       .from('users')
-      .select('username, configs, active_config_id, custom_events, custom_categories, updated_at')
+      .select('username, configs, active_config_id, custom_events, custom_categories, lesson_overrides, updated_at')
       .eq('username', username)
       .single();
 
-    // Fallback if custom_events or custom_categories columns haven't been created yet in SQL
-    if (error && error.message && (error.message.includes('custom_events') || error.message.includes('custom_categories'))) {
+    // Fallback if custom_events, custom_categories or lesson_overrides columns haven't been created yet in SQL
+    if (error && error.message && (
+      error.message.includes('custom_events') || 
+      error.message.includes('custom_categories') ||
+      error.message.includes('lesson_overrides')
+    )) {
       const fallback = await supabase
         .from('users')
         .select('username, configs, active_config_id, updated_at')
@@ -75,6 +79,7 @@ export async function GET(request, { params }) {
         active_config_id: data.active_config_id || null,
         custom_events: data.custom_events || [],
         custom_categories: data.custom_categories || [],
+        lesson_overrides: data.lesson_overrides || {},
         updated_at: data.updated_at,
         // Palette included so widgets never need hardcoded colors.
         // colorIndex in customColors maps directly to palette[colorIndex].
@@ -212,6 +217,13 @@ export async function PUT(request, { params }) {
     );
   }
 
+  if (body.lesson_overrides !== undefined && (typeof body.lesson_overrides !== 'object' || Array.isArray(body.lesson_overrides) || body.lesson_overrides === null)) {
+    return NextResponse.json(
+      { error: 'El campo "lesson_overrides" debe ser un objeto' },
+      { status: 400 }
+    );
+  }
+
   try {
     const updatedAt = new Date().toISOString();
     const upsertPayload = {
@@ -226,12 +238,19 @@ export async function PUT(request, { params }) {
     if (body.custom_categories !== undefined) {
       upsertPayload.custom_categories = body.custom_categories;
     }
+    if (body.lesson_overrides !== undefined) {
+      upsertPayload.lesson_overrides = body.lesson_overrides;
+    }
 
     let { error } = await supabase.from('users').upsert(upsertPayload);
 
-    // Fallback if custom_events or custom_categories columns don't exist yet in remote Supabase table
-    if (error && error.message && (error.message.includes('custom_events') || error.message.includes('custom_categories'))) {
-      console.warn('custom_events / custom_categories column missing in Supabase, falling back to configs only.');
+    // Fallback if custom_events, custom_categories or lesson_overrides columns don't exist yet in remote Supabase table
+    if (error && error.message && (
+      error.message.includes('custom_events') || 
+      error.message.includes('custom_categories') ||
+      error.message.includes('lesson_overrides')
+    )) {
+      console.warn('Extended columns missing in Supabase, falling back to configs only.');
       const fallback = await supabase.from('users').upsert({
         username,
         configs: body.configs,

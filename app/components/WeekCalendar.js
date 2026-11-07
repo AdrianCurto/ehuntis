@@ -1824,7 +1824,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               return (
                 <div
                   key={blockKey}
-                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}`}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,
@@ -1844,6 +1844,50 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
+                  {/* Remote drift alert badge */}
+                  {lesson.hasRemoteDrift && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 3,
+                        background: '#f59e0b',
+                        color: '#ffffff',
+                        borderRadius: '50%',
+                        width: 12,
+                        height: 12,
+                        fontSize: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                        zIndex: 5,
+                      }}
+                      title="WebUntis ha actualizado esta clase"
+                    >
+                      !
+                    </div>
+                  )}
+
+                  {/* Custom override indicator */}
+                  {lesson.isOverridden && !lesson.isUserCancelled && !lesson.hasRemoteDrift && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 3,
+                        opacity: 0.65,
+                        fontSize: 8,
+                        lineHeight: 1,
+                        zIndex: 4,
+                      }}
+                      title={lesson.swappedWith ? `Horario permutado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
+                    >
+                      {lesson.swappedWith ? '🔄' : '✏️'}
+                    </div>
+                  )}
+
                   {/* Subgroup Badge */}
                   {!fit.badge?.hide && (
                     <div

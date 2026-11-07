@@ -175,6 +175,7 @@ export default function ProfileView({
         active_config_id: conflictData.cloudActiveId,
         custom_events: conflictData.cloudCustomEvents,
         custom_categories: conflictData.cloudCustomCategories,
+        lesson_overrides: conflictData.cloudLessonOverrides,
       });
       setConflictData(null);
       setAuthPanel(null);
@@ -285,6 +286,11 @@ export default function ProfileView({
                         <span>+ {conflictData.cloudCustomEvents.length} {conflictData.cloudCustomEvents.length === 1 ? 'evento pers.' : 'eventos pers.'}</span>
                       </div>
                     )}
+                    {conflictData.cloudLessonOverrides && Object.keys(conflictData.cloudLessonOverrides).length > 0 && (
+                      <div className="sync-col-item" style={{ fontStyle: 'italic', opacity: 0.85 }}>
+                        <span>+ {Object.keys(conflictData.cloudLessonOverrides).length} {Object.keys(conflictData.cloudLessonOverrides).length === 1 ? 'clase editada' : 'clases editadas'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -302,6 +308,11 @@ export default function ProfileView({
                     {conflictData.localCustomEvents?.length > 0 && (
                       <div className="sync-col-item" style={{ fontStyle: 'italic', opacity: 0.85 }}>
                         <span>+ {conflictData.localCustomEvents.length} {conflictData.localCustomEvents.length === 1 ? 'evento pers.' : 'eventos pers.'}</span>
+                      </div>
+                    )}
+                    {conflictData.localLessonOverrides && Object.keys(conflictData.localLessonOverrides).length > 0 && (
+                      <div className="sync-col-item" style={{ fontStyle: 'italic', opacity: 0.85 }}>
+                        <span>+ {Object.keys(conflictData.localLessonOverrides).length} {Object.keys(conflictData.localLessonOverrides).length === 1 ? 'clase editada' : 'clases editadas'}</span>
                       </div>
                     )}
                   </div>

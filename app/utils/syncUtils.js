@@ -8,8 +8,9 @@
  * A pristine/default installation (e.g. 1 configuration with 0 selected groups,
  * default name 'Configuración 1', no disabled subjects, no custom events) returns false.
  */
-function hasLocalCustomData(configs, customEvents = []) {
+function hasLocalCustomData(configs, customEvents = [], lessonOverrides = {}) {
   if (Array.isArray(customEvents) && customEvents.length > 0) return true;
+  if (lessonOverrides && typeof lessonOverrides === 'object' && Object.keys(lessonOverrides).length > 0) return true;
   if (!Array.isArray(configs) || configs.length === 0) return false;
 
   // More than 1 configuration means the user has organized multiple profiles
@@ -303,12 +304,75 @@ function mergeCustomCategories(localCats = [], cloudCats = []) {
   return result;
 }
 
+/**
+ * Checks if two lesson overrides maps are structurally equivalent.
+ */
+function areLessonOverridesEquivalent(ovA, ovB) {
+  const safeA = ovA && typeof ovA === 'object' && !Array.isArray(ovA) ? ovA : {};
+  const safeB = ovB && typeof ovB === 'object' && !Array.isArray(ovB) ? ovB : {};
+
+  const keysA = Object.keys(safeA).sort();
+  const keysB = Object.keys(safeB).sort();
+  if (keysA.length !== keysB.length) return false;
+  for (let i = 0; i < keysA.length; i++) {
+    if (keysA[i] !== keysB[i]) return false;
+  }
+
+  const normalizeOverride = (o) => {
+    if (!o || typeof o !== 'object') return {};
+    return {
+      lessonKey: o.lessonKey,
+      userCancelled: Boolean(o.userCancelled),
+      customStartTime: o.customStartTime,
+      customEndTime: o.customEndTime,
+      customRooms: Array.isArray(o.customRooms) ? [...o.customRooms].sort() : [],
+      customNotes: (o.customNotes || '').trim(),
+      swappedWithKey: o.swappedWith?.lessonKey || null,
+    };
+  };
+
+  for (const k of keysA) {
+    if (JSON.stringify(normalizeOverride(safeA[k])) !== JSON.stringify(normalizeOverride(safeB[k]))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Merges local and cloud lesson overrides without losing any custom edits.
+ * If the same key is modified on both, the one with the higher updatedAt timestamp wins.
+ */
+function mergeLessonOverrides(localOverrides = {}, cloudOverrides = {}) {
+  const safeLocal = localOverrides && typeof localOverrides === 'object' && !Array.isArray(localOverrides) ? localOverrides : {};
+  const safeCloud = cloudOverrides && typeof cloudOverrides === 'object' && !Array.isArray(cloudOverrides) ? cloudOverrides : {};
+
+  const merged = { ...safeCloud };
+
+  for (const [key, localOv] of Object.entries(safeLocal)) {
+    if (!localOv || typeof localOv !== 'object') continue;
+    if (!merged[key]) {
+      merged[key] = { ...localOv };
+    } else {
+      const cloudOv = merged[key];
+      const localUpdated = Number(localOv.updatedAt || 0);
+      const cloudUpdated = Number(cloudOv.updatedAt || 0);
+      merged[key] = localUpdated >= cloudUpdated ? { ...localOv } : { ...cloudOv };
+    }
+  }
+
+  return merged;
+}
+
 module.exports = {
   hasLocalCustomData,
   areConfigsEquivalent,
   areCustomEventsEquivalent,
   areCustomCategoriesEquivalent,
+  areLessonOverridesEquivalent,
   mergeConfigs,
   mergeCustomEvents,
   mergeCustomCategories,
+  mergeLessonOverrides,
 };

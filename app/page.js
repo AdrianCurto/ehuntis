@@ -9,10 +9,23 @@ import {
   areConfigsEquivalent,
   areCustomEventsEquivalent,
   areCustomCategoriesEquivalent,
+  areLessonOverridesEquivalent,
   mergeConfigs,
   mergeCustomEvents,
   mergeCustomCategories,
+  mergeLessonOverrides,
 } from './utils/syncUtils';
+import {
+  LESSON_OVERRIDES_STORAGE_KEY,
+  getLessonKey,
+  getStoredLessonOverrides,
+  saveStoredLessonOverrides,
+  applyLessonOverrides,
+  setLessonOverride,
+  removeLessonOverride,
+  resolveDrift,
+  swapLessons,
+} from './utils/lessonOverrides';
 import {
   getResolvedTargetDate,
   getAcademicYearBounds,
@@ -39,6 +52,8 @@ import {
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
 const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
+const EditLessonModal = dynamic(() => import('./components/EditLessonModal'), { ssr: false });
+const SwapLessonModal = dynamic(() => import('./components/SwapLessonModal'), { ssr: false });
 const CustomEventModal = dynamic(() => import('./components/CustomEventModal'), { ssr: false });
 const CustomEventDetailModal = dynamic(() => import('./components/CustomEventDetailModal'), { ssr: false });
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
@@ -226,6 +241,12 @@ export default function Home() {
   const [isDayView, setIsDayView] = useState(false);
 
   const [activeLesson, setActiveLesson] = useState(null);
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [swappingLesson, setSwappingLesson] = useState(null);
+  const [lessonOverrides, setLessonOverrides] = useState(() => {
+    if (typeof window === 'undefined') return {};
+    return getStoredLessonOverrides();
+  });
   const [showGroupSearch, setShowGroupSearch] = useState(false);
   const [customEvents, setCustomEvents] = useState(() => {
     if (typeof window === 'undefined') return [];
@@ -337,6 +358,12 @@ export default function Home() {
     }
   }, [customEvents, initDone]);
 
+  useEffect(() => {
+    if (initDone && typeof window !== 'undefined') {
+      saveStoredLessonOverrides(lessonOverrides);
+    }
+  }, [lessonOverrides, initDone]);
+
   const updateActiveConfig = useCallback((updater) => {
     isUserDirtyRef.current = true;
     setConfigs(prev => prev.map(c => {
@@ -349,7 +376,7 @@ export default function Home() {
 
   // ── Cloud sync helpers ──────────────────────────────────────────────────────
   // Push local configs and custom events to Supabase via the REST API
-  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot, eventsSnapshot, categoriesSnapshot) => {
+  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot, eventsSnapshot, categoriesSnapshot, overridesSnapshot) => {
     if (!uname) return;
     try {
       setSyncStatus('syncing');
@@ -362,6 +389,7 @@ export default function Home() {
           active_config_id: activeIdSnapshot,
           custom_events: eventsSnapshot !== undefined ? eventsSnapshot : customEventsRef.current,
           custom_categories: categoriesSnapshot !== undefined ? categoriesSnapshot : getStoredCustomCategories(),
+          lesson_overrides: overridesSnapshot !== undefined ? overridesSnapshot : lessonOverridesRef.current,
         }),
       });
       if (!res.ok) {
@@ -384,6 +412,8 @@ export default function Home() {
   activeConfigIdRef.current = activeConfig.id;
   const customEventsRef = useRef(customEvents);
   customEventsRef.current = customEvents;
+  const lessonOverridesRef = useRef(lessonOverrides);
+  lessonOverridesRef.current = lessonOverrides;
   const syncStatusRef = useRef(syncStatus);
   syncStatusRef.current = syncStatus;
 
@@ -435,9 +465,11 @@ export default function Home() {
       const cloudActiveId = data.active_config_id;
       const cloudCustomEvents = data.custom_events;
       const cloudCustomCategories = data.custom_categories;
+      const cloudLessonOverrides = data.lesson_overrides;
 
       let hasConfigChanges = false;
       let hasEventChanges = false;
+      let hasOverrideChanges = false;
 
       if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
         const currentConfigs = configsRef.current;
@@ -474,7 +506,17 @@ export default function Home() {
         }
       }
 
-      if (hasConfigChanges || hasEventChanges) {
+      if (cloudLessonOverrides && typeof cloudLessonOverrides === 'object') {
+        const isOverridesEquivalent = areLessonOverridesEquivalent(lessonOverridesRef.current, cloudLessonOverrides);
+        if (!isOverridesEquivalent) {
+          hasOverrideChanges = true;
+          isRemoteUpdateRef.current = true;
+          setLessonOverrides(cloudLessonOverrides);
+          saveStoredLessonOverrides(cloudLessonOverrides);
+        }
+      }
+
+      if (hasConfigChanges || hasEventChanges || hasOverrideChanges) {
         setSyncStatus('synced');
         setSyncError(null);
       }
@@ -514,7 +556,14 @@ export default function Home() {
 
     const handleOnline = () => {
       if (usernameRef.current && (syncStatusRef.current === 'error' || syncStatusRef.current === 'syncing')) {
-        pushToCloud(usernameRef.current, configsRef.current, activeConfigIdRef.current);
+        pushToCloud(
+          usernameRef.current,
+          configsRef.current,
+          activeConfigIdRef.current,
+          customEventsRef.current,
+          getStoredCustomCategories(),
+          lessonOverridesRef.current
+        );
       } else {
         pullFromCloud({ force: true });
       }
@@ -538,6 +587,17 @@ export default function Home() {
           isRemoteUpdateRef.current = true;
           setActiveConfigId(e.newValue);
         }
+      }
+      if (e.key === LESSON_OVERRIDES_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') {
+            if (!areLessonOverridesEquivalent(lessonOverridesRef.current, parsed)) {
+              isRemoteUpdateRef.current = true;
+              setLessonOverrides(parsed);
+            }
+          }
+        } catch (_) {}
       }
       if (e.key === USERNAME_STORAGE_KEY) {
         const newUname = e.newValue || '';
@@ -584,7 +644,7 @@ export default function Home() {
     syncDebounceRef.current = setTimeout(() => {
       syncDebounceRef.current = null;
       isUserDirtyRef.current = false;
-      pushToCloud(username, configs, activeConfig.id, customEvents, getStoredCustomCategories());
+      pushToCloud(username, configs, activeConfig.id, customEvents, getStoredCustomCategories(), lessonOverrides);
     }, 800);
     return () => {
       if (syncDebounceRef.current) {
@@ -593,7 +653,7 @@ export default function Home() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, activeConfig.id, customEvents, username, initDone]);
+  }, [configs, activeConfig.id, customEvents, lessonOverrides, username, initDone]);
 
   // Flush-on-hide: when the user switches away from the app (iOS kills tabs aggressively),
   // cancel the debounce and immediately push via fetch with keepalive:true, which survives
@@ -625,6 +685,7 @@ export default function Home() {
             active_config_id: activeId,
             custom_events: evts,
             custom_categories: cats,
+            lesson_overrides: lessonOverridesRef.current,
           }),
           keepalive: true,
         }).catch(() => {});
@@ -682,7 +743,7 @@ export default function Home() {
       const errData = await checkRes.json().catch(() => ({}));
       throw new Error(errData.error || `Error inesperado al comprobar el identificador (HTTP ${checkRes.status}).`);
     }
-    // Create the account by pushing current configs and custom events
+    // Create the account by pushing current configs, custom events, and lesson overrides
     const putRes = await fetch(`/api/user/${encodeURIComponent(newUsername)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -691,6 +752,7 @@ export default function Home() {
         active_config_id: activeConfig.id,
         custom_events: customEvents,
         custom_categories: getStoredCustomCategories(),
+        lesson_overrides: lessonOverridesRef.current,
       }),
     });
     if (!putRes.ok) {
@@ -743,8 +805,8 @@ export default function Home() {
     // 1. If resolutionChoice is passed, user resolved conflict via modal
     if (resolutionChoice && conflictCloudData) {
       if (resolutionChoice === 'cloud') {
-        // Option 1: Adopt cloud configs and events (overwrite local)
-        const { configs: cConfigs, active_config_id: cActiveId, custom_events: cEvents, custom_categories: cCats } = conflictCloudData;
+        // Option 1: Adopt cloud configs, events, and lesson overrides (overwrite local)
+        const { configs: cConfigs, active_config_id: cActiveId, custom_events: cEvents, custom_categories: cCats, lesson_overrides: cOverrides } = conflictCloudData;
         if (Array.isArray(cConfigs) && cConfigs.length > 0) {
           setConfigs(cConfigs);
           setActiveConfigId(cActiveId && cConfigs.some(c => c.id === cActiveId) ? cActiveId : cConfigs[0].id);
@@ -756,6 +818,10 @@ export default function Home() {
         if (Array.isArray(cCats)) {
           saveStoredCustomCategories(cCats);
         }
+        if (cOverrides && typeof cOverrides === 'object') {
+          setLessonOverrides(cOverrides);
+          saveStoredLessonOverrides(cOverrides);
+        }
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
@@ -765,33 +831,36 @@ export default function Home() {
       }
 
       if (resolutionChoice === 'local') {
-        // Option 2: Keep local configs and events (overwrite cloud)
+        // Option 2: Keep local configs, events, and overrides (overwrite cloud)
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, configs, activeConfig.id, customEvents, getStoredCustomCategories());
+        await pushToCloud(newUsername, configs, activeConfig.id, customEvents, getStoredCustomCategories(), lessonOverridesRef.current);
         trackPosthogLogin(configs.length, true, 'local');
         return { success: true };
       }
 
       if (resolutionChoice === 'merge') {
-        // Option 3: Merge both (combine local + cloud configs and events)
+        // Option 3: Merge both (combine local + cloud configs, events, and overrides)
         const merged = mergeConfigs(configs, conflictCloudData.configs, conflictCloudData.active_config_id);
         const mergedEvents = mergeCustomEvents(customEvents, conflictCloudData.custom_events || []);
         const mergedCats = mergeCustomCategories(getStoredCustomCategories(), conflictCloudData.custom_categories || []);
+        const mergedOverrides = mergeLessonOverrides(lessonOverridesRef.current, conflictCloudData.lesson_overrides || {});
 
         setConfigs(merged.configs);
         setActiveConfigId(merged.activeConfigId);
         setCustomEvents(mergedEvents);
         saveStoredCustomEvents(mergedEvents);
         saveStoredCustomCategories(mergedCats);
+        setLessonOverrides(mergedOverrides);
+        saveStoredLessonOverrides(mergedOverrides);
 
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, merged.configs, merged.activeConfigId, mergedEvents, mergedCats);
+        await pushToCloud(newUsername, merged.configs, merged.activeConfigId, mergedEvents, mergedCats, mergedOverrides);
         trackPosthogLogin(merged.configs.length, true, 'merge');
         return { success: true };
       }
@@ -817,14 +886,16 @@ export default function Home() {
     const cloudActiveId = data.active_config_id;
     const cloudCustomEvents = data.custom_events || [];
     const cloudCustomCategories = data.custom_categories || [];
+    const cloudLessonOverrides = data.lesson_overrides || {};
 
     // Check if there is a conflict:
     // Only conflict if local has actual custom data AND differs from cloud
-    const hasLocal = hasLocalCustomData(configs, customEvents);
+    const hasLocal = hasLocalCustomData(configs, customEvents, lessonOverridesRef.current);
     const isConfigsEquivalent = areConfigsEquivalent(configs, cloudConfigs);
     const isEventsEquivalent = areCustomEventsEquivalent(customEvents, cloudCustomEvents);
+    const isOverridesEquivalent = areLessonOverridesEquivalent(lessonOverridesRef.current, cloudLessonOverrides);
 
-    if (hasLocal && (!isConfigsEquivalent || !isEventsEquivalent)) {
+    if (hasLocal && (!isConfigsEquivalent || !isEventsEquivalent || !isOverridesEquivalent)) {
       return {
         conflict: true,
         username: newUsername,
@@ -832,12 +903,14 @@ export default function Home() {
         cloudActiveId,
         cloudCustomEvents,
         cloudCustomCategories,
+        cloudLessonOverrides,
         localConfigs: configs,
         localCustomEvents: customEvents,
+        localLessonOverrides: lessonOverridesRef.current,
       };
     }
 
-    // No conflict: adopt cloud configs and events directly
+    // No conflict: adopt cloud configs, events, and overrides directly
     if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
       setConfigs(cloudConfigs);
       if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
@@ -852,6 +925,10 @@ export default function Home() {
     }
     if (Array.isArray(cloudCustomCategories)) {
       saveStoredCustomCategories(cloudCustomCategories);
+    }
+    if (cloudLessonOverrides && typeof cloudLessonOverrides === 'object') {
+      setLessonOverrides(cloudLessonOverrides);
+      saveStoredLessonOverrides(cloudLessonOverrides);
     }
 
     try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
@@ -1311,9 +1388,13 @@ export default function Home() {
     return expandCustomEventsForDates(customEvents, customEventsPreviewDates);
   }, [customEvents, customEventsPreviewDates]);
 
+  const timetableWithOverrides = useMemo(() => {
+    return applyLessonOverrides(filteredTimetable, lessonOverrides);
+  }, [filteredTimetable, lessonOverrides]);
+
   const combinedTimetable = useMemo(() => {
-    return [...filteredTimetable, ...expandedCustomEvents];
-  }, [filteredTimetable, expandedCustomEvents]);
+    return [...timetableWithOverrides, ...expandedCustomEvents];
+  }, [timetableWithOverrides, expandedCustomEvents]);
 
   const weekDates = useMemo(() => {
     return getDynamicWeekDates(currentMonday, combinedTimetable);
@@ -1390,6 +1471,73 @@ export default function Home() {
     } else {
       setActiveLesson(lesson);
     }
+  }, []);
+
+  // Derives the currently displayed lesson with its active overrides without requiring a cascading setState effect
+  const displayedActiveLesson = useMemo(() => {
+    if (!activeLesson) return null;
+    return timetableWithOverrides.find(l => 
+      (l.lessonKey && l.lessonKey === activeLesson.lessonKey) || 
+      (l.id !== undefined && activeLesson.id !== undefined && l.id === activeLesson.id)
+    ) || activeLesson;
+  }, [activeLesson, timetableWithOverrides]);
+
+  const swapCandidateLessons = useMemo(() => {
+    if (!swappingLesson) return [];
+    return timetableWithOverrides.filter(l => 
+      !l.isCustomEvent && 
+      l.date === swappingLesson.date && 
+      l.lessonKey !== swappingLesson.lessonKey
+    );
+  }, [swappingLesson, timetableWithOverrides]);
+
+  const handleToggleLessonCancelled = useCallback((lesson) => {
+    isUserDirtyRef.current = true;
+    const nextCancelled = !lesson.isUserCancelled;
+    setLessonOverrides(prev => {
+      const updated = setLessonOverride(prev, lesson, { userCancelled: nextCancelled });
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleSaveLessonOverride = useCallback((lesson, patch) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = setLessonOverride(prev, lesson, patch);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+    setEditingLesson(null);
+  }, []);
+
+  const handleRemoveLessonOverride = useCallback((lesson) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const key = lesson.lessonKey || getLessonKey(lesson);
+      const updated = removeLessonOverride(prev, key);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleResolveLessonDrift = useCallback((lesson, action) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = resolveDrift(prev, lesson, action);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleSwapLessons = useCallback((lessonA, lessonB) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = swapLessons(prev, lessonA, lessonB);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+    setSwappingLesson(null);
   }, []);
 
   // ── Group and Subgroup management ──────────────────────────────────────────
@@ -1907,11 +2055,35 @@ export default function Home() {
       </nav>
 
       {/* Modals */}
-      {activeLesson && (
+      {displayedActiveLesson && (
         <LessonModal
-          lesson={activeLesson}
+          lesson={displayedActiveLesson}
           isDark={isDark}
           onClose={() => setActiveLesson(null)}
+          onToggleCancelled={handleToggleLessonCancelled}
+          onOpenEdit={(lesson) => setEditingLesson(lesson)}
+          onOpenSwap={(lesson) => setSwappingLesson(lesson)}
+          onResetOverride={handleRemoveLessonOverride}
+          onResolveDrift={handleResolveLessonDrift}
+        />
+      )}
+
+      {editingLesson && (
+        <EditLessonModal
+          lesson={editingLesson}
+          isDark={isDark}
+          onSave={handleSaveLessonOverride}
+          onClose={() => setEditingLesson(null)}
+        />
+      )}
+
+      {swappingLesson && (
+        <SwapLessonModal
+          lesson={swappingLesson}
+          candidateLessons={swapCandidateLessons}
+          isDark={isDark}
+          onSwap={handleSwapLessons}
+          onClose={() => setSwappingLesson(null)}
         />
       )}
 
