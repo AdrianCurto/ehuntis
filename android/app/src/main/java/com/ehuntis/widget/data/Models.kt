@@ -26,13 +26,61 @@ data class ApiPalette(
 )
 
 @Serializable
+data class CustomEventRecurrenceDto(
+    val type: String = "none",
+    val date: Int? = null,
+    val startDate: Int? = null,
+    val endDate: Int? = null,
+    val daysOfWeek: List<Int> = emptyList(),
+    val exceptions: List<Int> = emptyList()
+)
+
+@Serializable
+data class CustomEventDto(
+    val id: String = "",
+    val title: String = "",
+    val location: String = "",
+    val notes: String = "",
+    val category: String = "",
+    val colorIndex: Int = 4,
+    val startTime: Int = 800,
+    val endTime: Int = 900,
+    val recurrence: CustomEventRecurrenceDto = CustomEventRecurrenceDto(),
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
+)
+
+@Serializable
+data class SwappedWithDto(
+    val lessonKey: String? = null,
+    val subjectName: String? = null
+)
+
+@Serializable
+data class LessonOverrideDto(
+    val lessonKey: String = "",
+    val lessonId: Long? = null,
+    val date: Int? = null,
+    val userCancelled: Boolean? = null,
+    val customStartTime: Int? = null,
+    val customEndTime: Int? = null,
+    val customRooms: List<String>? = null,
+    val customNotes: String? = null,
+    val swappedWith: SwappedWithDto? = null,
+    val updatedAt: Long = 0L
+)
+
+@Serializable
 data class UserResponse(
     val username: String = "",
     val configs: List<UserConfig> = emptyList(),
     val active_config_id: String? = null,
     val updated_at: String? = null,
     /** Palette provided by the server — widgets use this instead of hardcoded colors */
-    val palette: ApiPalette? = null
+    val palette: ApiPalette? = null,
+    val custom_events: List<CustomEventDto> = emptyList(),
+    val custom_categories: List<String> = emptyList(),
+    val lesson_overrides: Map<String, LessonOverrideDto> = emptyMap()
 )
 
 @Serializable(with = SelectedGroupSerializer::class)
@@ -235,7 +283,13 @@ data class TimetableLesson(
     val teachers: List<String> = emptyList(),
     val code: String? = null,
     val type: String? = null,
-    var isDimmed: Boolean = false
+    var isDimmed: Boolean = false,
+    val isCustomEvent: Boolean = false,
+    val isUserCancelled: Boolean = false,
+    val isOverridden: Boolean = false,
+    val colorIndex: Int? = null,
+    val notes: String? = null,
+    val swappedWith: SwappedWithDto? = null
 )
 
 enum class BreakStreakType {

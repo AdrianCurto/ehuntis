@@ -27,8 +27,8 @@ android {
         applicationId = "com.ehuntis.widget"
         minSdk = 26
         targetSdk = 34
-        versionCode = 57
-        versionName = "4.3.8"
+        versionCode = 58
+        versionName = "5.0.0"
 
         buildConfigField("String", "POSTHOG_API_KEY", "\"$posthogApiKey\"")
 

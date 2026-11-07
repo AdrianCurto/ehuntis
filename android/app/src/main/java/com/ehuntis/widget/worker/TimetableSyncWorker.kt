@@ -64,6 +64,8 @@ class TimetableSyncWorker(
                         cache.saveTimetable(lessons)
                         cache.saveLastSyncTime(System.currentTimeMillis())
                     }
+                } else {
+                    cache.saveLastSyncTime(System.currentTimeMillis())
                 }
             }
 

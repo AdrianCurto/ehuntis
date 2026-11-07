@@ -86,11 +86,19 @@ object DayLogic {
      * Filtra las lecciones correspondientes a una fecha YYYYMMDD.
      * Por defecto excluye lecciones canceladas o atenuadas (isDimmed) para cálculos de saltos de día.
      * Si includeDimmed es true, incluye lecciones atenuadas para que el motor de renderizado las dibuje con su estilo visual propio.
+     * Si includeCancelled es true, incluye lecciones canceladas para renderizar su bloque con aspecto tachado/atenuado.
      */
-    fun getLessonsForDate(timetable: List<TimetableLesson>, dateNum: Int, includeDimmed: Boolean = false): List<TimetableLesson> {
+    fun getLessonsForDate(
+        timetable: List<TimetableLesson>,
+        dateNum: Int,
+        includeDimmed: Boolean = false,
+        includeCancelled: Boolean = false
+    ): List<TimetableLesson> {
         if (timetable.isEmpty()) return emptyList()
         return timetable.filter { l ->
-            l.date == dateNum && l.code != "cancelled" && (includeDimmed || !l.isDimmed)
+            l.date == dateNum &&
+            (includeCancelled || (l.code != "cancelled" && !l.isUserCancelled)) &&
+            (includeDimmed || !l.isDimmed)
         }
     }
 

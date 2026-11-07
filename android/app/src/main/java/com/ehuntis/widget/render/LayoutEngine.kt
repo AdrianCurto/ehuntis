@@ -488,7 +488,15 @@ object LayoutEngine {
         var bestBadgeFont = if (isDayView) 9.5f * density * fontScale else 8.5f * density
         var bestBadgeHeight = 0f
 
-        val badgeCandidates = getBadgeCandidates(lesson.type)
+        val isCancelled = (lesson.code == "cancelled" || lesson.isUserCancelled)
+        val badgeCandidates = if (isCancelled) {
+            listOf("CANCELADA", "CANC.")
+        } else if (lesson.isCustomEvent) {
+            val cat = if (!lesson.type.isNullOrBlank() && lesson.type != "PERSONAL") lesson.type else null
+            if (cat != null) listOf(cat) else emptyList()
+        } else {
+            getBadgeCandidates(lesson.type)
+        }
         val badgeFonts = if (isDayView) {
             listOf(10.5f, 10f, 9.5f, 9f, 8.5f, 8f).map { it * density * fontScale }
         } else {
