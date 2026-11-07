@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'];
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -101,8 +102,8 @@ export default function WeekHeader({
           />
         </div>
         <div className="week-nav-arrows">
-          <button className="week-nav-arrow-mini" onClick={prevHandler} aria-label={isDayView ? "Día anterior" : "Semana anterior"}>‹</button>
-          <button className="week-nav-arrow-mini" onClick={nextHandler} aria-label={isDayView ? "Día siguiente" : "Semana siguiente"}>›</button>
+          <button className="week-nav-arrow-mini" onClick={prevHandler} aria-label={isDayView ? "Día anterior" : "Semana anterior"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronLeft size={16} strokeWidth={2.5} /></button>
+          <button className="week-nav-arrow-mini" onClick={nextHandler} aria-label={isDayView ? "Día siguiente" : "Semana siguiente"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={16} strokeWidth={2.5} /></button>
         </div>
       </div>
 

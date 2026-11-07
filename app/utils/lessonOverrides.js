@@ -203,6 +203,8 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
       rawCode: lesson.code,
 
       // Valores modificados (o fallback a los originales si no se alteró ese campo)
+      date: ov.customDate !== undefined ? ov.customDate : lesson.date,
+      rawDate: lesson.rawDate ?? lesson.date,
       startTime: ov.customStartTime !== undefined ? ov.customStartTime : lesson.startTime,
       endTime: ov.customEndTime !== undefined ? ov.customEndTime : lesson.endTime,
       rooms: ov.customRooms !== undefined ? ov.customRooms : lesson.rooms,
@@ -377,12 +379,14 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     lessonKey: keyA,
     lessonId: lessonA.id,
     date: lessonA.date,
+    customDate: lessonB.date,
     customStartTime: customStartA,
     customEndTime: customEndA,
     customRooms: lessonB.rooms,
     swappedWith: {
       lessonKey: keyB,
       subjectName: subjectNameB,
+      date: lessonB.date,
     },
     originalSnapshot: snapA,
     updatedAt: Date.now(),
@@ -394,12 +398,14 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     lessonKey: keyB,
     lessonId: lessonB.id,
     date: lessonB.date,
+    customDate: lessonA.date,
     customStartTime: customStartB,
     customEndTime: customEndB,
     customRooms: lessonA.rooms,
     swappedWith: {
       lessonKey: keyA,
       subjectName: subjectNameA,
+      date: lessonA.date,
     },
     originalSnapshot: snapB,
     updatedAt: Date.now(),

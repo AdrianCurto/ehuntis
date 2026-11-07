@@ -386,6 +386,48 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(swappedSnap['20261109_2002'].customEndTime, 1030);
     });
 
+    test('swaps across different days and sets customDate bidirectionally', () => {
+      const lessonMonday = {
+        id: 3001,
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['Aula Mon'],
+        subjects: ['Sistemas'],
+      };
+      const lessonFriday = {
+        id: 3002,
+        date: 20261113,
+        startTime: 1200,
+        endTime: 1400,
+        rooms: ['Aula Fri'],
+        subjects: ['Redes'],
+      };
+
+      const overrides = swapLessons({}, lessonMonday, lessonFriday);
+      const ovMon = overrides['20261109_3001'];
+      const ovFri = overrides['20261113_3002'];
+
+      assert.equal(ovMon.customDate, 20261113);
+      assert.equal(ovMon.customStartTime, 1200);
+      assert.equal(ovMon.customEndTime, 1400);
+      assert.deepEqual(ovMon.customRooms, ['Aula Fri']);
+
+      assert.equal(ovFri.customDate, 20261109);
+      assert.equal(ovFri.customStartTime, 900);
+      assert.equal(ovFri.customEndTime, 1100);
+      assert.deepEqual(ovFri.customRooms, ['Aula Mon']);
+
+      const applied = applyLessonOverrides([lessonMonday, lessonFriday], overrides);
+      const resMon = applied.find(l => l.id === 3001);
+      const resFri = applied.find(l => l.id === 3002);
+
+      assert.equal(resMon.date, 20261113);
+      assert.equal(resMon.rawDate, 20261109);
+      assert.equal(resFri.date, 20261109);
+      assert.equal(resFri.rawDate, 20261113);
+    });
+
     test('swapLessons aborts if lessons are invalid or identical', () => {
       const lesson = { id: 1001, date: 20261109 };
       assert.deepEqual(swapLessons({}, lesson, lesson), {});

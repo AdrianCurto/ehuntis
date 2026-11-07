@@ -917,6 +917,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   canSwipeNext,
   canSwipePrev,
   onCellDoubleClick,
+  swapOriginLesson = null,
 }, ref) {
   const calendarScrollRef = useRef(null);
   const pinchRef = useRef(null);
@@ -1863,10 +1864,16 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 fit = { ...fit, badge: { ...(fit.badge || {}), hide: true } };
               }
 
+              const isSwapOrigin = Boolean(swapOriginLesson && (
+                (lesson.lessonKey && lesson.lessonKey === swapOriginLesson.lessonKey) ||
+                (lesson.id && swapOriginLesson.id && lesson.id === swapOriginLesson.id)
+              ));
+              const isSwapTargetCandidate = Boolean(swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent);
+
               return (
                 <div
                   key={blockKey}
-                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}`}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,
@@ -1875,6 +1882,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     background: color.bg,
                     color: color.text,
                     border: color.border ? `1px solid ${color.border}` : undefined,
+                    outline: isSwapOrigin ? '3px solid var(--accent)' : undefined,
+                    boxShadow: isSwapOrigin ? '0 0 16px rgba(99, 102, 241, 0.45)' : undefined,
+                    zIndex: isSwapOrigin ? 12 : undefined,
+                    cursor: isSwapTargetCandidate ? 'pointer' : undefined,
                     position: 'absolute',
                     padding: fit.padding,
                     display: 'flex',
@@ -1886,6 +1897,30 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
+                  {/* Swap origin indicator */}
+                  {isSwapOrigin && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'var(--accent)',
+                        color: '#ffffff',
+                        fontSize: 8,
+                        fontWeight: 800,
+                        padding: '1px 5px',
+                        borderRadius: 4,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                        zIndex: 6,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      Origen
+                    </div>
+                  )}
                   {/* Remote drift alert badge */}
                   {lesson.hasRemoteDrift && (
                     <div

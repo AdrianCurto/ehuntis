@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Search, X, Check } from 'lucide-react';
 
 function normalizeStr(str) {
   if (!str) return '';
@@ -34,8 +35,10 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
         <div className="group-picker-handle" />
 
         <div className="group-picker-header">
-          <button className="group-picker-close" onClick={onClose} aria-label="Cerrar">✕</button>
-          <span className="group-picker-title">Seleccionar grupo</span>
+          <button className="group-picker-close" onClick={onClose} aria-label="Cerrar">
+            <X size={18} />
+          </button>
+          <span className="group-picker-title">Seleccionar grupo o titulación</span>
           <div style={{ width: 32 }} />
         </div>
 
@@ -48,7 +51,9 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
             }}
             className="search-icon-wrap"
           >
-            <span className="search-icon">🔍</span>
+            <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
+              <Search size={16} />
+            </span>
             <input
               type="text"
               className="group-search-input"
@@ -63,17 +68,35 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
               enterKeyHint="search"
               autoFocus
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                aria-label="Borrar búsqueda"
+              >
+                <X size={14} />
+              </button>
+            )}
           </form>
         </div>
 
         <div className="group-picker-list">
           {query.length < 2 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-              Escribe al menos 2 caracteres para buscar
+            <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+              Escribe al menos 2 caracteres para buscar tu grupo
             </div>
           )}
           {query.length >= 2 && results.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+            <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
               Sin resultados para &ldquo;{query}&rdquo;
             </div>
           )}
@@ -83,13 +106,17 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
               className={`group-picker-item${isSelected(c) ? ' selected' : ''}`}
               onClick={() => toggle(c)}
             >
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="group-picker-item-name">{c.longName || c.name}</div>
                 {c.longName && c.name && (
                   <div className="group-picker-item-code">{c.name}</div>
                 )}
               </div>
-              {isSelected(c) && <span className="group-picker-checkmark">✓</span>}
+              {isSelected(c) && (
+                <span className="group-picker-checkmark" style={{ display: 'flex', alignItems: 'center' }}>
+                  <Check size={16} strokeWidth={2.5} />
+                </span>
+              )}
             </div>
           ))}
         </div>

@@ -44,6 +44,7 @@ object CustomEventsLogic {
             } else {
                 val isUserCancelled = ov.userCancelled == true
                 lesson.copy(
+                    date = ov.customDate ?: lesson.date,
                     startTime = ov.customStartTime ?: lesson.startTime,
                     endTime = ov.customEndTime ?: lesson.endTime,
                     rooms = ov.customRooms ?: lesson.rooms,

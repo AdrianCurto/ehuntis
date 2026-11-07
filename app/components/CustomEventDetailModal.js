@@ -111,9 +111,20 @@ export default function CustomEventDetailModal({
           className="modal-close-btn"
           onClick={onClose}
           aria-label="Cerrar"
-          style={{ color: color.text }}
+          style={{ 
+            color: color.text,
+            background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
         >
-          ✕
+          <X size={18} />
         </button>
 
         {/* Botón Editar con icono de lápiz (Derecha) */}

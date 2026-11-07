@@ -53,7 +53,8 @@ data class CustomEventDto(
 @Serializable
 data class SwappedWithDto(
     val lessonKey: String? = null,
-    val subjectName: String? = null
+    val subjectName: String? = null,
+    val date: Int? = null
 )
 
 @Serializable
@@ -61,6 +62,7 @@ data class LessonOverrideDto(
     val lessonKey: String = "",
     val lessonId: Long? = null,
     val date: Int? = null,
+    val customDate: Int? = null,
     val userCancelled: Boolean? = null,
     val customStartTime: Int? = null,
     val customEndTime: Int? = null,

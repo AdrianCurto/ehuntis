@@ -22,6 +22,7 @@ import { formatRooms } from '../utils/subgroups';
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 function parseDate(dateNum) {
+  if (!dateNum) return new Date();
   const y = Math.floor(dateNum / 10000);
   const m = Math.floor((dateNum % 10000) / 100) - 1;
   const d = dateNum % 100;
@@ -106,9 +107,20 @@ export default function LessonModal({
           className="modal-close-btn"
           onClick={onClose}
           aria-label="Cerrar"
-          style={{ color: color.text }}
+          style={{ 
+            color: color.text,
+            background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 32,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
         >
-          ✕
+          <X size={18} />
         </button>
 
         {/* Cabecera */}
@@ -116,7 +128,7 @@ export default function LessonModal({
           <div className="modal-day" style={{ color: color.text, opacity: 0.75 }}>
             {dayName} {dateStr}
           </div>
-          <div className="modal-time" style={{ color: color.text, opacity: 0.7, fontWeight: 600 }}>
+          <div className="modal-time" style={{ color: color.text, opacity: 0.85, fontWeight: 700 }}>
             {timeStr}
           </div>
         </div>
@@ -129,7 +141,7 @@ export default function LessonModal({
               border: '1px solid #f59e0b',
               color: isDark ? '#fbbf24' : '#92400e',
               padding: '12px 14px',
-              borderRadius: 10,
+              borderRadius: 12,
               marginBottom: 16,
               fontSize: '0.86rem',
               textAlign: 'left',
@@ -153,7 +165,7 @@ export default function LessonModal({
                   background: '#f59e0b',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: 6,
+                  borderRadius: 8,
                   padding: '6px 12px',
                   fontWeight: 600,
                   fontSize: '0.8rem',
@@ -169,7 +181,7 @@ export default function LessonModal({
                   background: 'transparent',
                   color: 'inherit',
                   border: '1px solid currentColor',
-                  borderRadius: 6,
+                  borderRadius: 8,
                   padding: '6px 12px',
                   fontWeight: 600,
                   fontSize: '0.8rem',
@@ -280,9 +292,39 @@ export default function LessonModal({
         </div>
 
         {/* Detalles: Profesor y Aula */}
-        <div className="modal-detail" style={{ color: color.text, marginBottom: 12 }}>
-          {teacher && <div>{teacher}</div>}
-          {room && <div>{room}</div>}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          {teacher && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              background: 'rgba(0,0,0,0.08)',
+              color: color.text,
+              padding: '5px 12px',
+              borderRadius: 8,
+              fontSize: '0.84rem',
+              fontWeight: 500,
+            }}>
+              <User size={13} />
+              <span>{teacher}</span>
+            </div>
+          )}
+          {room && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              background: 'rgba(0,0,0,0.08)',
+              color: color.text,
+              padding: '5px 12px',
+              borderRadius: 8,
+              fontSize: '0.84rem',
+              fontWeight: 600,
+            }}>
+              <MapPin size={13} />
+              <span>{room}</span>
+            </div>
+          )}
         </div>
 
         {/* Notas personales */}
@@ -318,7 +360,6 @@ export default function LessonModal({
         >
           {/* Fila de acciones principales: Cancelar toggle + Editar */}
           <div style={{ display: 'flex', gap: 8 }}>
-            {/* Toggle Cancelar */}
             <button
               type="button"
               onClick={() => onToggleCancelled?.(lesson)}
@@ -336,7 +377,7 @@ export default function LessonModal({
                 fontWeight: 700,
                 fontSize: '0.86rem',
                 cursor: 'pointer',
-                transition: 'background 0.15s',
+                transition: 'all 0.15s ease',
               }}
             >
               {isUserCancelled ? (
@@ -345,12 +386,11 @@ export default function LessonModal({
                 </>
               ) : (
                 <>
-                  <Ban size={16} /> Marcar como cancelada
+                  <Ban size={16} /> Marcar cancelada
                 </>
               )}
             </button>
 
-            {/* Editar clase */}
             <button
               type="button"
               onClick={() => onOpenEdit?.(lesson)}
@@ -368,6 +408,7 @@ export default function LessonModal({
                 fontWeight: 700,
                 fontSize: '0.86rem',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               <Pencil size={15} /> Editar clase
@@ -392,6 +433,7 @@ export default function LessonModal({
               fontWeight: 600,
               fontSize: '0.86rem',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             <ArrowUpDown size={15} /> Intercambiar horario
@@ -416,6 +458,7 @@ export default function LessonModal({
                 fontWeight: 600,
                 fontSize: '0.84rem',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
               title="Descartar todas las modificaciones y volver al estado oficial de WebUntis"
             >

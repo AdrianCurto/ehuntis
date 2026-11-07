@@ -1072,6 +1072,8 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
       ...lesson,
       lessonKey: key,
       isOverridden: true,
+      date: ov.customDate !== undefined ? ov.customDate : lesson.date,
+      rawDate: lesson.date,
       rawStartTime: lesson.startTime,
       rawEndTime: lesson.endTime,
       rawRooms: lesson.rooms,
