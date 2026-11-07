@@ -157,23 +157,27 @@ object DayLogic {
             lastHour += addAfter
         }
 
-        // Limitar estrictamente al horario oficial (8:00 a 21:00)
-        if (lastHour > 21) {
-            val overflow = lastHour - 21
-            lastHour = 21
-            firstHour = maxOf(8, firstHour - overflow)
+        // Horario estándar lectivo base [8, 21]. Si existen clases que empiezan antes de las 8:00
+        // o terminan después de las 21:00, el rango se expande dinámicamente como en la versión web.
+        val minAllowedHour = minOf(8, minClassMins / 60).coerceAtLeast(0)
+        val maxAllowedHour = maxOf(21, (maxClassMins + 59) / 60).coerceAtMost(24)
+
+        if (lastHour > maxAllowedHour) {
+            val overflow = lastHour - maxAllowedHour
+            lastHour = maxAllowedHour
+            firstHour = maxOf(minAllowedHour, firstHour - overflow)
         }
-        if (firstHour < 8) {
-            val underflow = 8 - firstHour
-            firstHour = 8
-            lastHour = minOf(21, lastHour + underflow)
+        if (firstHour < minAllowedHour) {
+            val underflow = minAllowedHour - firstHour
+            firstHour = minAllowedHour
+            lastHour = minOf(maxAllowedHour, lastHour + underflow)
         }
 
-        firstHour = firstHour.coerceIn(8, 21 - minHoursSpan)
-        lastHour = lastHour.coerceIn(firstHour + minHoursSpan, 21)
+        firstHour = firstHour.coerceIn(minAllowedHour, maxOf(minAllowedHour, maxAllowedHour - minHoursSpan))
+        lastHour = lastHour.coerceIn(firstHour + minOf(minHoursSpan, maxAllowedHour - firstHour), maxAllowedHour)
 
-        val startMins = firstHour * 60 - 10
-        val endMins = lastHour * 60 + 15
+        val startMins = maxOf(0, firstHour * 60 - 10)
+        val endMins = minOf(24 * 60, lastHour * 60 + 15)
 
         return VisibleTimeRange(
             firstHour = firstHour,

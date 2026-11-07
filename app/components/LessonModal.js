@@ -17,6 +17,7 @@ import {
 import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/lessonOverrides';
+import { formatRooms } from '../utils/subgroups';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -73,7 +74,7 @@ export default function LessonModal({
 
   const subjectName = lesson.subjects?.[0] || 'Sin asignatura';
   const teacher = formatTeacher(lesson.teachers?.[0] || '');
-  const room = (lesson.rooms || []).join(', ') || '';
+  const room = formatRooms(lesson.rooms);
   const classes = lesson.classes || [];
   const subgroupStr = classes.length > 0 ? classes.join(', ') : '';
 
@@ -236,7 +237,7 @@ export default function LessonModal({
                 fontWeight: 700,
               }}
             >
-              ⚠️ Cancelada por la universidad
+              <AlertTriangle size={14} /> Cancelada por la universidad
             </div>
           )}
 
@@ -373,13 +374,36 @@ export default function LessonModal({
             </button>
           </div>
 
-          {/* Fila secundaria: Intercambiar + Restablecer */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Intercambiar horario */}
+          <button
+            type="button"
+            onClick={() => onOpenSwap?.(lesson)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '10px 12px',
+              borderRadius: 10,
+              border: 'none',
+              background: 'rgba(0, 0, 0, 0.08)',
+              color: color.text,
+              fontWeight: 600,
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowUpDown size={15} /> Intercambiar horario
+          </button>
+
+          {/* Restablecer clase original (debajo de intercambiar) */}
+          {isOverridden && (
             <button
               type="button"
-              onClick={() => onOpenSwap?.(lesson)}
+              onClick={() => onResetOverride?.(lesson)}
               style={{
-                flex: 1,
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -387,40 +411,17 @@ export default function LessonModal({
                 padding: '9px 12px',
                 borderRadius: 10,
                 border: 'none',
-                background: 'rgba(0, 0, 0, 0.08)',
-                color: color.text,
+                background: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.12)',
+                color: isDark ? '#fca5a5' : '#b91c1c',
                 fontWeight: 600,
                 fontSize: '0.84rem',
                 cursor: 'pointer',
               }}
+              title="Descartar todas las modificaciones y volver al estado oficial de WebUntis"
             >
-              <ArrowUpDown size={15} /> Intercambiar horario
+              <RotateCcw size={14} /> Restablecer a versión original
             </button>
-
-            {isOverridden && (
-              <button
-                type="button"
-                onClick={() => onResetOverride?.(lesson)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '9px 12px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: 'rgba(0, 0, 0, 0.08)',
-                  color: color.text,
-                  fontWeight: 600,
-                  fontSize: '0.84rem',
-                  cursor: 'pointer',
-                }}
-                title="Descartar todas las modificaciones y volver al estado oficial de WebUntis"
-              >
-                <RotateCcw size={14} /> Restablecer
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -521,12 +521,15 @@ function computeVisibleTimeRange(dayLessons, isToday = false, nowMinutes = 0) {
   let firstHour = Math.floor(minClassMins / 60);
   let lastHour  = Math.ceil(maxClassMins / 60);
 
-  // Redondear a horas en punto dentro de la franja lectiva [8, 21]
-  firstHour = Math.max(8, Math.min(20, firstHour));
-  lastHour  = Math.max(firstHour + 1, Math.min(21, lastHour));
+  // Franja estándar lectiva [8, 21]. Si existen clases que empiezan antes o terminan después, expandir dinámicamente.
+  const minAllowedHour = Math.max(0, Math.min(8, firstHour));
+  const maxAllowedHour = Math.min(24, Math.max(21, lastHour));
 
-  const startMins = firstHour * 60 - 10;
-  const endMins   = lastHour  * 60 + 15;
+  firstHour = Math.max(minAllowedHour, Math.min(maxAllowedHour - 1, firstHour));
+  lastHour  = Math.max(firstHour + 1, Math.min(maxAllowedHour, lastHour));
+
+  const startMins = Math.max(0, firstHour * 60 - 10);
+  const endMins   = Math.min(24 * 60, lastHour * 60 + 15);
   return { firstHour, lastHour, startMinutes: startMins, endMinutes: endMins, totalMinutes: endMins - startMins };
 }
 
@@ -2421,7 +2424,18 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const nowMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
   const accentColor= new Color("#4F6EF7");
 
-  const weekDates   = [0,1,2,3,4].map(i => addDays(weekStartDate, i));
+  // Días dinámicos de la semana (Lunes a Viernes, o extendido a Sábado/Domingo si hay clases)
+  const satDate = addDays(weekStartDate, 5);
+  const sunDate = addDays(weekStartDate, 6);
+  const satNum = toDateNumber(satDate);
+  const sunNum = toDateNumber(sunDate);
+
+  const hasSun = (allLessons || []).some(l => l && (l.date === sunNum || toDateNumber(l.date) === sunNum));
+  const hasSat = (allLessons || []).some(l => l && (l.date === satNum || toDateNumber(l.date) === satNum));
+
+  const numDays = hasSun ? 7 : (hasSat ? 6 : 5);
+  const dayIndices = Array.from({ length: numDays }, (_, i) => i);
+  const weekDates   = dayIndices.map(i => addDays(weekStartDate, i));
   const weekDateNums= weekDates.map(toDateNumber);
 
   const lessonsByDate = {};
@@ -2459,8 +2473,8 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const colDivColor    = isDark ? new Color("#152033") : new Color("#F1F5F9");
 
   const totalDaysW = safeW - timeAxisW - rightMargin;
-  const colW       = totalDaysW / 5;
-  const dayNames   = ["L","M","X","J","V"];
+  const colW       = totalDaysW / numDays;
+  const dayNames   = ["L","M","X","J","V","S","D"].slice(0, numDays);
 
   // Línea horizontal bajo cabeceras
   dc.setFillColor(dividerColor);
@@ -2469,7 +2483,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   dc.fillRect(new Rect(timeAxisW - 0.5 * scale, 0, 0.5 * scale, safeH - bottomPad));
 
   // Cabeceras de días
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const date      = weekDates[i];
     const colLeft   = timeAxisW + i * colW;
     const isToday2  = sameDay(date, todayDate);
@@ -2530,7 +2544,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const allWeekMagistrals = [];
   let anyMagistralMissingInWeek = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const dateNum   = weekDateNums[i];
     const dayLess   = lessonsByDate[dateNum] || [];
     const dayColX0  = timeAxisW + i * colW;
@@ -2562,7 +2576,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
 
   const suppressedWeekKeys = anyMagistralMissingInWeek ? new Set(allWeekMagistrals) : new Set();
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const date      = weekDates[i];
     const dateNum   = weekDateNums[i];
     const dayLess   = lessonsByDate[dateNum] || [];

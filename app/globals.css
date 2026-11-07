@@ -715,7 +715,6 @@ html, body {
 
 .lesson-block.cancelled {
   opacity: 0.5;
-  text-decoration: line-through;
 }
 
 /* Past lessons subtle dimming & soft desaturation */
@@ -767,6 +766,7 @@ html, body {
   opacity: 0.75;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: clip;
   flex-shrink: 0;
   line-height: 1.1;
 }
@@ -776,7 +776,7 @@ html, body {
   opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   flex-shrink: 0;
   line-height: 1.1;
 }
@@ -2187,7 +2187,7 @@ html, body {
 
 /* Botón Flotante (FAB) para añadir evento */
 .fab-add-event {
-  position: fixed;
+  position: absolute;
   bottom: calc(var(--tab-bar-h, 72px) + 36px + env(safe-area-inset-bottom, 0px));
   right: 20px;
   width: 52px;

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Pencil, MapPin, AlignLeft, Calendar, Trash2, X } from 'lucide-react';
 import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
+import { formatRooms } from '../utils/subgroups';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAYS_SHORT = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
@@ -62,7 +63,7 @@ export default function CustomEventDetailModal({
   const color = getSubjectColorStyle(event.colorIndex ?? 4, isDark);
 
   const title = event.subjects?.[0] || rawEvent.title || 'Evento personal';
-  const location = event.rooms?.[0] || rawEvent.location || '';
+  const location = formatRooms(event.rooms) || formatRooms(rawEvent.location) || '';
   const notes = event.notes || rawEvent.notes || '';
   const category = event.category || rawEvent.category || '';
   const isRecurring = rawEvent.recurrence?.type === 'weekly';

@@ -5,6 +5,7 @@ import { X, ArrowUpDown, Clock, MapPin, AlertCircle } from 'lucide-react';
 import { subjectColor } from './WeekCalendar';
 import { formatTime } from '../utils/lessonOverrides';
 import { toMinutes } from '../utils/dayLogic';
+import { formatRooms } from '../utils/subgroups';
 
 function parseDate(dateNum) {
   const y = Math.floor(dateNum / 10000);
@@ -185,7 +186,7 @@ export default function SwapLessonModal({
             {validCandidates.map((cand, idx) => {
               const candColor = subjectColor(cand.subjectIds?.[0] || 0, isDark);
               const candSubject = cand.subjects?.[0] || 'Clase';
-              const candRoom = (cand.rooms || []).join(', ') || 'Sin aula';
+              const candRoom = formatRooms(cand.rooms) || 'Sin aula';
               const candDuration = toMinutes(cand.endTime) - toMinutes(cand.startTime);
               const diffDuration = originDuration !== candDuration;
               const newEndForOrigin = fromMinutes(toMinutes(cand.startTime) + originDuration);

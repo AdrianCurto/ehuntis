@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { extractSubgroupNumber, isMagistralType, extractSubgroupKey } from '../utils/subgroups';
+import { ArrowUpDown, Pencil } from 'lucide-react';
+import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
 import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
 
@@ -129,7 +130,7 @@ export function buildSubjectTiers(fullName, lesson = null) {
 
 export function getRoomCandidates(rawRoom) {
   if (!rawRoom) return [];
-  const raw = rawRoom.trim().replace(/\s+/g, '');
+  const raw = formatRoom(rawRoom).replace(/\s+/g, '');
   const candidates = [raw];
 
   // EHU room codes like P2G1A, P1I2S, P2E3A, S1A8A -> allow dropping the last letter (A, S, I)
@@ -334,12 +335,31 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const availHeight = Math.max(0, blockHeight - padTop - padBottom - (isDayView ? 2 : 0));
 
   const isMagistral = !lesson.isCustomEvent && isMagistralType(lesson.type);
+  const isCancelled = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
 
   // 1. Badge candidate options
   const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
 
-  if (lesson.isCustomEvent) {
+  if (isCancelled) {
+    const cancelTexts = ['Cancelada', 'Canc.'];
+    for (const text of cancelTexts) {
+      for (const style of BADGE_STYLES) {
+        if (measureText(text, style.font, '800') + style.padX * 2 <= availWidth) {
+          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+          badgeCandidates.push({
+            hide: false,
+            text,
+            font: style.font,
+            padding: `${style.padY}px ${style.padX}px`,
+            lineHeight: 1.1,
+            height,
+          });
+          break;
+        }
+      }
+    }
+  } else if (lesson.isCustomEvent) {
     if (lesson.category) {
       const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
       for (const style of BADGE_STYLES) {
@@ -424,13 +444,34 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const roomCandidates = [];
   if (lesson.rooms?.[0]) {
     const texts = getRoomCandidates(lesson.rooms[0]);
-    const baseFonts = isDayView ? [12, 11, 10, 9, 8] : [10, 9, 8, 7, 6.5];
+    const baseFonts = isDayView ? [12, 11, 10, 9, 8] : [10, 9, 8];
+    const smallerFonts = isDayView ? [7.5, 7] : [7.5, 7, 6.5];
+
+    // 1. Intentar primero con el texto completo del aula bajando el tamaño
     for (const font of baseFonts) {
-      for (const text of texts) {
-        if (measureText(text, font, '500') <= availWidth) {
+      if (measureText(texts[0], font, '500') <= availWidth - 1) {
+        const height = Math.round(font * (font <= 8 ? 1.05 : 1.1)) + (blockHeight < 36 ? 0.5 : 1);
+        roomCandidates.push({ show: true, text: texts[0], font, height });
+      }
+    }
+
+    // 2. Si no entra con fuentes base, probar fuentes más pequeñas
+    if (roomCandidates.length === 0) {
+      for (const font of smallerFonts) {
+        if (measureText(texts[0], font, '500') <= availWidth - 1) {
+          const height = Math.round(font * 1.05) + (blockHeight < 36 ? 0.5 : 1);
+          roomCandidates.push({ show: true, text: texts[0], font, height });
+        }
+      }
+    }
+
+    // 3. Si aún no entra y existe versión sin última letra, probar
+    if (roomCandidates.length === 0 && texts.length > 1) {
+      const dropFonts = isDayView ? [10, 9, 8, 7.5, 7] : [9, 8, 7.5, 7, 6.5];
+      for (const font of dropFonts) {
+        if (measureText(texts[1], font, '500') <= availWidth - 1) {
           const height = Math.round(font * (font <= 8 ? 1.05 : 1.1)) + (blockHeight < 36 ? 0.5 : 1);
-          roomCandidates.push({ show: true, text, font, height });
-          break;
+          roomCandidates.push({ show: true, text: texts[1], font, height });
         }
       }
     }
@@ -1878,26 +1919,39 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         position: 'absolute',
                         top: 2,
                         right: 3,
-                        opacity: 0.65,
-                        fontSize: 8,
-                        lineHeight: 1,
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        background: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
+                        color: isDark ? '#93c5fd' : '#2563eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(0, 0, 0, 0.08)',
                         zIndex: 4,
                       }}
                       title={lesson.swappedWith ? `Horario permutado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
                     >
-                      {lesson.swappedWith ? '🔄' : '✏️'}
+                      {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.5} /> : <Pencil size={8} strokeWidth={2.5} />}
                     </div>
                   )}
 
-                  {/* Subgroup Badge */}
+                  {/* Subgroup / Cancelled Badge */}
                   {!fit.badge?.hide && (
                     <div
                       style={{
                         fontSize: fit.badge?.font || 8,
                         fontWeight: 800,
-                        background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)',
-                        color: isDark ? '#FFFFFF' : 'inherit',
-                        border: isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none',
+                        background: (lesson.code === 'cancelled' || lesson.isUserCancelled)
+                          ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
+                          : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
+                        color: (lesson.code === 'cancelled' || lesson.isUserCancelled)
+                          ? (isDark ? '#fca5a5' : '#b91c1c')
+                          : (isDark ? '#FFFFFF' : 'inherit'),
+                        border: (lesson.code === 'cancelled' || lesson.isUserCancelled)
+                          ? '1px solid rgba(239, 68, 68, 0.35)'
+                          : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
                         padding: fit.badge?.padding || '0px 2px',
                         borderRadius: 3,
                         marginBottom: 1,
@@ -1910,6 +1964,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         overflow: 'hidden',
                         alignSelf: 'center',
                         boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                        textDecoration: 'none',
                       }}
                     >
                       {fit.badge?.text}
@@ -1956,7 +2011,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                               display: 'block',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
-                              textOverflow: 'ellipsis',
+                              textOverflow: 'clip',
+                              textDecoration: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? 'line-through' : 'none',
                               lineHeight: fit.subject?.lineHeight || 1.1,
                               textAlign: 'center',
                             }}
@@ -1993,7 +2049,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                             textAlign: 'center',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            textOverflow: 'clip',
+                            textDecoration: 'none',
                             width: '100%',
                             lineHeight: fit.room.font <= 8 ? 1.05 : 1.1,
                             flexShrink: 0,
@@ -2014,7 +2071,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                             textAlign: 'center',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            textOverflow: 'clip',
+                            textDecoration: 'none',
                             width: '100%',
                             lineHeight: 1.1,
                             flexShrink: 0,
@@ -2024,11 +2082,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Cancelled badge */}
-                  {lesson.code === 'cancelled' && (
-                    <div className="cancelled-badge">Cancelada</div>
                   )}
                 </div>
               );

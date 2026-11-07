@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Clock, MapPin, AlignLeft, AlertCircle } from 'lucide-react';
 import { subjectColor } from './WeekCalendar';
+import { formatRoom, formatRooms } from '../utils/subgroups';
 
 function timeNumberToString(t) {
   if (typeof t !== 'number') return '08:00';
@@ -27,10 +28,9 @@ function parseDate(dateNum) {
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export default function EditLessonModal({ lesson, onSave, onClose, isDark = false }) {
-  // State hooks must always be called unconditionally
   const [startTimeStr, setStartTimeStr] = useState(() => timeNumberToString(lesson?.startTime));
   const [endTimeStr, setEndTimeStr] = useState(() => timeNumberToString(lesson?.endTime));
-  const [roomsStr, setRoomsStr] = useState(() => (lesson?.rooms || []).join(', '));
+  const [roomsStr, setRoomsStr] = useState(() => formatRooms(lesson?.rooms));
   const [notes, setNotes] = useState(() => lesson?.notes || '');
   const [error, setError] = useState('');
 
@@ -92,7 +92,7 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
 
     const roomsArr = roomsStr
       .split(',')
-      .map(r => r.trim())
+      .map(r => formatRoom(r.trim()))
       .filter(Boolean);
 
     onSave(lesson, {
@@ -107,12 +107,10 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
       <div
-        className="custom-event-modal"
+        className="modal-sheet custom-event-modal"
         onClick={e => e.stopPropagation()}
         style={{
           borderTop: `4px solid ${color.bg}`,
-          width: '100%',
-          maxWidth: '460px',
         }}
       >
         <div
@@ -124,7 +122,7 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
 
         <div className="custom-event-modal-header" style={{ marginBottom: 12 }}>
           <div>
-            <div className="custom-event-modal-title" style={{ fontSize: '1.15rem' }}>
+            <div className="custom-event-modal-title">
               Personalizar clase
             </div>
             <div style={{ fontSize: '0.82rem', opacity: 0.65, marginTop: 2 }}>
@@ -159,23 +157,13 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
           )}
         </div>
 
-        {error && (
-          <div
-            className="custom-event-error-banner"
-            style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem' }}
-          >
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="custom-event-form" noValidate>
-          {/* Horario */}
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', marginBottom: 6 }}>
-              <Clock size={14} /> Horario de la clase
-            </label>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Horas de Inicio y Fin (precisión 5 min) */}
+          <div className="form-row">
+            <div className="form-group flex-1">
+              <label className="form-label">
+                <Clock size={15} style={{ marginRight: 6 }} /> Inicio
+              </label>
               <input
                 type="time"
                 step="300"
@@ -183,9 +171,12 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
                 value={startTimeStr}
                 onChange={e => handleStartTimeChange(e.target.value)}
                 required
-                style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
               />
-              <span style={{ opacity: 0.5 }}>–</span>
+            </div>
+            <div className="form-group flex-1">
+              <label className="form-label">
+                <Clock size={15} style={{ marginRight: 6 }} /> Fin
+              </label>
               <input
                 type="time"
                 step="300"
@@ -196,70 +187,61 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
                   setError('');
                 }}
                 required
-                style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
               />
             </div>
           </div>
 
           {/* Aula */}
-          <div className="form-group" style={{ marginBottom: 14 }}>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', marginBottom: 6 }}>
-              <MapPin size={14} /> Aula / Ubicación
+          <div className="form-group">
+            <label className="form-label">
+              <MapPin size={15} style={{ marginRight: 6 }} /> Aula / Ubicación (opcional)
             </label>
             <input
               type="text"
-              placeholder="Ej: Aula 1.4, Lab 2"
+              className="event-input-text"
+              placeholder="Aula o ubicación..."
               value={roomsStr}
               onChange={e => setRoomsStr(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9rem',
-              }}
             />
           </div>
 
           {/* Notas personales */}
-          <div className="form-group" style={{ marginBottom: 18 }}>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', marginBottom: 6 }}>
-              <AlignLeft size={14} /> Notas personales (opcional)
+          <div className="form-group">
+            <label className="form-label">
+              <AlignLeft size={15} style={{ marginRight: 6 }} /> Notas personales (opcional)
             </label>
             <textarea
-              placeholder="Ej: Llevar práctica impresa, dudas del tema 3..."
+              className="event-input-textarea"
+              placeholder="Detalles o recordatorios..."
+              rows={2}
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9rem',
-                resize: 'vertical',
-              }}
             />
           </div>
 
-          {/* Botones de acción */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+          {error && (
+            <div
+              className="custom-event-error-banner"
+              style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem' }}
+            >
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Botones de Acción */}
+          <div className="custom-event-actions">
+            <div style={{ flex: 1 }} />
             <button
               type="button"
-              className="settings-btn-secondary"
+              className="event-btn-cancel"
               onClick={onClose}
-              style={{ padding: '9px 16px', borderRadius: 8, fontSize: '0.9rem' }}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="settings-btn-primary"
-              style={{ padding: '9px 18px', borderRadius: 8, fontSize: '0.9rem' }}
+              className="event-btn-save"
             >
               Guardar cambios
             </button>

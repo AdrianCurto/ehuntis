@@ -280,5 +280,24 @@ class DayLogicTest {
         assertEquals(21 * 60 + 30, range.endMinutes)
         assertEquals(840, range.totalMinutes)
     }
-}
 
+    @Test
+    fun testComputeVisibleTimeRange_EarlyClassExpandsFirstHour() {
+        val lessons = listOf(
+            TimetableLesson(id = 1, startTime = 630, endTime = 830)
+        )
+        val range = DayLogic.computeVisibleTimeRange(lessons, isToday = false)
+        assertEquals(6, range.firstHour)
+        assertTrue("startMinutes must accommodate 6:30", range.startMinutes <= 6 * 60)
+    }
+
+    @Test
+    fun testComputeVisibleTimeRange_LateClassExpandsLastHour() {
+        val lessons = listOf(
+            TimetableLesson(id = 1, startTime = 2000, endTime = 2230)
+        )
+        val range = DayLogic.computeVisibleTimeRange(lessons, isToday = false)
+        assertEquals(23, range.lastHour)
+        assertTrue("endMinutes must accommodate 22:30", range.endMinutes >= 22 * 60 + 30)
+    }
+}

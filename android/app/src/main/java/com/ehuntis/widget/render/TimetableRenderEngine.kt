@@ -254,8 +254,22 @@ object TimetableRenderEngine {
         val boundsRect = RectF(0f, 0f, safeW.toFloat(), safeH.toFloat())
         canvas.drawRoundRect(boundsRect, 14f * density, 14f * density, bgPaint)
 
-        // Días de lunes a viernes
-        val weekDates = (0L..4L).map { weekStartDate.plusDays(it) }
+        // Días dinámicos de la semana (Lunes a Viernes, o extendido a Sábado/Domingo si hay clases)
+        val satDate = weekStartDate.plusDays(5)
+        val sunDate = weekStartDate.plusDays(6)
+        val satDateNum = DayLogic.toDateNumber(satDate)
+        val sunDateNum = DayLogic.toDateNumber(sunDate)
+
+        val hasSun = allLessons.any { it.date == sunDateNum }
+        val hasSat = allLessons.any { it.date == satDateNum }
+
+        val numDays = when {
+            hasSun -> 7
+            hasSat -> 6
+            else -> 5
+        }
+
+        val weekDates = (0L until numDays.toLong()).map { weekStartDate.plusDays(it) }
         val weekDateNums = weekDates.map { DayLogic.toDateNumber(it) }
 
         val lessonsByDate = weekDateNums.associateWith { dateNum ->
@@ -290,10 +304,10 @@ object TimetableRenderEngine {
             return topPad + ((clamped - timeRange.startMinutes).toFloat() / timeRange.totalMinutes) * contentH
         }
 
-        // Cabeceras de días (Lunes a Viernes)
+        // Cabeceras de días (Lunes a Viernes, con Sábado/Domingo si procede)
         val totalDaysW = safeW - timeAxisWidth - rightMargin
-        val colW = totalDaysW / 5f
-        val dayNames = listOf("L", "M", "X", "J", "V")
+        val colW = totalDaysW / numDays.toFloat()
+        val dayNames = listOf("L", "M", "X", "J", "V", "S", "D").take(numDays)
 
         val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = dividerColor
@@ -316,7 +330,7 @@ object TimetableRenderEngine {
             textSize = 10f * density
         }
 
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val date = weekDates[i]
             val colLeft = timeAxisWidth + i * colW
             val isToday = (date == todayDate)
@@ -392,7 +406,7 @@ object TimetableRenderEngine {
         // ── Supresión en cascada de badges magistrales (ámbito: toda la semana) ──
         // Si cualquier bloque GA/Magistral de la semana no cabe, se suprimen todos los de la semana.
         var anyMagistralMissingInWeek = false
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val dateNum = weekDateNums[i]
             val dayLessons = lessonsByDate[dateNum] ?: emptyList()
             val dayColLeft = timeAxisWidth + i * colW
@@ -420,7 +434,7 @@ object TimetableRenderEngine {
         val suppressMagistralBadgesWeek = anyMagistralMissingInWeek
         // ──────────────────────────────────────────────────────────────────────
 
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val date = weekDates[i]
             val dateNum = weekDateNums[i]
             val dayLessons = lessonsByDate[dateNum] ?: emptyList()

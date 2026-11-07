@@ -137,4 +137,31 @@ describe('dayLogic and colorLogic feature test suite', () => {
       assert.equal(wrapped.bg, PALETTE[expectedIdx].bg);
     });
   });
+
+  describe('formatRoom and formatRooms from subgroups', () => {
+    const { formatRoom, formatRooms } = require('../../app/utils/subgroups');
+
+    test('removes internal spaces in alphanumeric room codes like P2G3A', () => {
+      assert.equal(formatRoom('P2 G3A'), 'P2G3A');
+      assert.equal(formatRoom('P1 I2S'), 'P1I2S');
+      assert.equal(formatRoom('P 2 G 3 A'), 'P2G3A');
+      assert.equal(formatRoom('S1 A8A'), 'S1A8A');
+      assert.equal(formatRoom('P2G3A'), 'P2G3A');
+      assert.equal(formatRoom('P2 G3A_123'), 'P2G3A');
+    });
+
+    test('preserves descriptive room names without compressing words', () => {
+      assert.equal(formatRoom('Aula 1.4'), 'Aula 1.4');
+      assert.equal(formatRoom('Lab 2'), 'Lab 2');
+      assert.equal(formatRoom('Despacho 2.14'), 'Despacho 2.14');
+      assert.equal(formatRoom('Aula Magna'), 'Aula Magna');
+    });
+
+    test('formatRooms handles arrays and strings', () => {
+      assert.equal(formatRooms(['P2 G3A', 'Lab 2']), 'P2G3A, Lab 2');
+      assert.equal(formatRooms('P1 I2S'), 'P1I2S');
+      assert.equal(formatRooms([]), '');
+      assert.equal(formatRooms(null), '');
+    });
+  });
 });

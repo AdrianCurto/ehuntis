@@ -255,4 +255,20 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.equal(res.length, 2);
     });
   });
+
+  describe('computeVisibleTimeRange out-of-normal hours in iOS script', () => {
+    test('adapts firstHour downward when early classes exist before 8:00', () => {
+      const earlyLesson = { startTime: 645, endTime: 830 };
+      const range = widgetEnv.computeVisibleTimeRange([earlyLesson]);
+      assert.equal(range.firstHour, 6);
+      assert.ok(range.startMinutes <= 6 * 60);
+    });
+
+    test('adapts lastHour upward when late classes exist after 21:00', () => {
+      const lateLesson = { startTime: 2000, endTime: 2230 };
+      const range = widgetEnv.computeVisibleTimeRange([lateLesson]);
+      assert.equal(range.lastHour, 23);
+      assert.ok(range.endMinutes >= 22 * 60 + 30);
+    });
+  });
 });
