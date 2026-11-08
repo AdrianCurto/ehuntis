@@ -253,7 +253,7 @@ export default function LessonModal({
             </div>
           )}
 
-          {lesson.swappedWith && (
+          {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
             <div
               style={{
                 display: 'inline-flex',

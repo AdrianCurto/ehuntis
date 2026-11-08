@@ -1869,11 +1869,12 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 (lesson.id && swapOriginLesson.id && lesson.id === swapOriginLesson.id)
               ));
               const isSwapTargetCandidate = Boolean(swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent);
+              const isCancelledLesson = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
 
               return (
                 <div
                   key={blockKey}
-                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}`}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${isCancelledLesson ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden && !isCancelledLesson ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,
@@ -1882,9 +1883,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     background: color.bg,
                     color: color.text,
                     border: color.border ? `1px solid ${color.border}` : undefined,
-                    outline: isSwapOrigin ? '3px solid var(--accent)' : undefined,
+                    outline: isSwapOrigin ? '2.5px solid var(--accent)' : undefined,
+                    outlineOffset: isSwapOrigin ? '-1px' : undefined,
                     boxShadow: isSwapOrigin ? '0 0 16px rgba(99, 102, 241, 0.45)' : undefined,
-                    zIndex: isSwapOrigin ? 12 : undefined,
+                    zIndex: isSwapOrigin ? 15 : undefined,
                     cursor: isSwapTargetCandidate ? 'pointer' : undefined,
                     position: 'absolute',
                     padding: fit.padding,
@@ -1897,30 +1899,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
-                  {/* Swap origin indicator */}
-                  {isSwapOrigin && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 2,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'var(--accent)',
-                        color: '#ffffff',
-                        fontSize: 8,
-                        fontWeight: 800,
-                        padding: '1px 5px',
-                        borderRadius: 4,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.4px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                        zIndex: 6,
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      Origen
-                    </div>
-                  )}
                   {/* Remote drift alert badge */}
                   {lesson.hasRemoteDrift && (
                     <div
@@ -1948,90 +1926,151 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   )}
 
                   {/* Status Indicator Icons (Top-Right): Cancelled, Swapped, Edited */}
-                  {((lesson.code === 'cancelled' || lesson.isUserCancelled) || (lesson.isOverridden && !lesson.hasRemoteDrift)) && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 2,
-                        right: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        zIndex: 4,
-                      }}
-                    >
-                      {(lesson.code === 'cancelled' || lesson.isUserCancelled) && (
-                        <div
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 3,
-                            background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
-                            color: isDark ? '#fca5a5' : '#b91c1c',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title="Clase cancelada"
-                        >
-                          <Ban size={9} strokeWidth={2.8} />
-                        </div>
-                      )}
+                  {(() => {
+                    const showCancelledIcon = isCancelledLesson;
+                    // Solo mostrar icono de editada/intercambiada si NO está cancelada (evita doble badge)
+                    const showEditedIcon = !isCancelledLesson && lesson.isOverridden && !lesson.hasRemoteDrift;
+                    const showCompactOriginIcon = isSwapOrigin && (height < 34 && fit.badge?.hide);
 
-                      {lesson.isOverridden && !lesson.hasRemoteDrift && (
-                        <div
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 3,
-                            background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
-                            color: color.text,
-                            opacity: 0.85,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
-                        >
-                          {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    if (!showCancelledIcon && !showEditedIcon && !showCompactOriginIcon) return null;
 
-                  {/* Subgroup / Cancelled Badge */}
-                  {!fit.badge?.hide && (
-                    <div
-                      style={{
-                        fontSize: fit.badge?.font || 8,
-                        fontWeight: 800,
-                        background: (lesson.code === 'cancelled' || lesson.isUserCancelled)
-                          ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
-                          : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
-                        color: (lesson.code === 'cancelled' || lesson.isUserCancelled)
-                          ? (isDark ? '#fca5a5' : '#b91c1c')
-                          : (isDark ? '#FFFFFF' : 'inherit'),
-                        border: (lesson.code === 'cancelled' || lesson.isUserCancelled)
-                          ? '1px solid rgba(239, 68, 68, 0.35)'
-                          : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
-                        padding: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? '1px 4px' : (fit.badge?.padding || '0px 2px'),
-                        borderRadius: 3,
-                        marginBottom: 1,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        lineHeight: fit.badge?.lineHeight || 1.1,
-                        flexShrink: 0,
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        alignSelf: 'center',
-                        boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <span>{fit.badge?.text}</span>
-                    </div>
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 2,
+                          right: 3,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          zIndex: 4,
+                        }}
+                      >
+                        {showCancelledIcon && (
+                          <div
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 3,
+                              background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
+                              color: isDark ? '#fca5a5' : '#b91c1c',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title="Clase cancelada"
+                          >
+                            <Ban size={9} strokeWidth={2.8} />
+                          </div>
+                        )}
+
+                        {showEditedIcon && (
+                          <div
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 3,
+                              background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
+                              color: color.text,
+                              opacity: 0.85,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
+                          >
+                            {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
+                          </div>
+                        )}
+
+                        {showCompactOriginIcon && (
+                          <div
+                            style={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: 3,
+                              background: 'var(--accent)',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title="Clase de origen para intercambio"
+                          >
+                            <ArrowUpDown size={9} strokeWidth={2.8} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Subgroup / Cancelled / Swap Origin Badge (en flujo natural, nunca superpuesto) */}
+                  {isSwapOrigin ? (
+                    (height >= 34 || !fit.badge?.hide) && (
+                      <div
+                        className="swap-origin-badge"
+                        style={{
+                          fontSize: fit.badge?.font || 8,
+                          fontWeight: 800,
+                          background: 'var(--accent)',
+                          color: '#ffffff',
+                          border: '1px solid rgba(255, 255, 255, 0.45)',
+                          padding: '1px 5px',
+                          borderRadius: 3,
+                          marginBottom: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          lineHeight: fit.badge?.lineHeight || 1.1,
+                          flexShrink: 0,
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          alignSelf: 'center',
+                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.4px',
+                        }}
+                      >
+                        <ArrowUpDown size={8} strokeWidth={2.8} />
+                        <span>Origen</span>
+                      </div>
+                    )
+                  ) : (
+                    !fit.badge?.hide && (
+                      <div
+                        style={{
+                          fontSize: fit.badge?.font || 8,
+                          fontWeight: 800,
+                          background: isCancelledLesson
+                            ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
+                            : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
+                          color: isCancelledLesson
+                            ? (isDark ? '#fca5a5' : '#b91c1c')
+                            : (isDark ? '#FFFFFF' : 'inherit'),
+                          border: isCancelledLesson
+                            ? '1px solid rgba(239, 68, 68, 0.35)'
+                            : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
+                          padding: isCancelledLesson ? '1px 4px' : (fit.badge?.padding || '0px 2px'),
+                          borderRadius: 3,
+                          marginBottom: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          lineHeight: fit.badge?.lineHeight || 1.1,
+                          flexShrink: 0,
+                          maxWidth: '100%',
+                          textAlign: 'center',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          alignSelf: 'center',
+                          boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <span>{fit.badge?.text}</span>
+                      </div>
+                    )
                   )}
 
                   {/* Center Area: Vertically centered Subject Name */}
