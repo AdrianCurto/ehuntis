@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { ArrowUpDown, Pencil } from 'lucide-react';
+import { ArrowUpDown, Pencil, Ban } from 'lucide-react';
 import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
 import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
@@ -1947,7 +1947,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     </div>
                   )}
 
-                  {/* Custom override indicator */}
+                  {/* Custom override indicator (Swapped / Edited) - blends with lesson color */}
                   {lesson.isOverridden && !lesson.isUserCancelled && !lesson.hasRemoteDrift && (
                     <div
                       style={{
@@ -1956,19 +1956,41 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         right: 3,
                         width: 14,
                         height: 14,
-                        borderRadius: '50%',
-                        background: isDark ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
-                        color: isDark ? '#93c5fd' : '#2563eb',
+                        borderRadius: 3,
+                        background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
+                        color: color.text,
+                        opacity: 0.85,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
-                        border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(0, 0, 0, 0.08)',
                         zIndex: 4,
                       }}
                       title={lesson.swappedWith ? `Horario permutado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
                     >
-                      {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.5} /> : <Pencil size={8} strokeWidth={2.5} />}
+                      {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
+                    </div>
+                  )}
+
+                  {/* Icon for cancelled classes if badge is hidden */}
+                  {fit.badge?.hide && (lesson.code === 'cancelled' || lesson.isUserCancelled) && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 3,
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
+                        color: isDark ? '#fca5a5' : '#b91c1c',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 4,
+                      }}
+                      title="Clase cancelada"
+                    >
+                      <Ban size={9} strokeWidth={2.8} />
                     </div>
                   )}
 
@@ -1987,10 +2009,12 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         border: (lesson.code === 'cancelled' || lesson.isUserCancelled)
                           ? '1px solid rgba(239, 68, 68, 0.35)'
                           : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
-                        padding: fit.badge?.padding || '0px 2px',
+                        padding: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? '1px 4px' : (fit.badge?.padding || '0px 2px'),
                         borderRadius: 3,
                         marginBottom: 1,
-                        display: 'inline-block',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
                         lineHeight: fit.badge?.lineHeight || 1.1,
                         flexShrink: 0,
                         maxWidth: '100%',
@@ -2002,7 +2026,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         textDecoration: 'none',
                       }}
                     >
-                      {fit.badge?.text}
+                      {(lesson.code === 'cancelled' || lesson.isUserCancelled) && (
+                        <Ban size={fit.badge?.font ? Math.max(7, fit.badge.font) : 8} strokeWidth={2.8} />
+                      )}
+                      <span>{fit.badge?.text}</span>
                     </div>
                   )}
 

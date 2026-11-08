@@ -35,7 +35,7 @@ import {
   getNextDayContextual,
   getPrevDayContextual,
 } from './utils/dayLogic';
-import { resolveSubjectColors, swapSubjectColor } from './utils/colorLogic';
+import { resolveSubjectColors, swapSubjectColor, getSubjectColorStyle } from './utils/colorLogic';
 import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, Search, X } from 'lucide-react';
 import posthog from 'posthog-js';
 import {
@@ -1956,57 +1956,62 @@ export default function Home() {
             maxDate={getAcademicYearBounds().maxDate}
           />
 
-          {calendarSwapOrigin && (
-            <div className="swap-banner-wrap" aria-live="polite">
-              <div className="swap-banner">
-                <div className="swap-banner-info">
-                  <div className="swap-banner-badge">
-                    <ArrowUpDown size={12} />
-                    <span>Modo intercambio</span>
+          {calendarSwapOrigin && (() => {
+            const originColorIdx = resolvedSubjectColors?.[calendarSwapOrigin.subjectIds?.[0]] ?? 0;
+            const originColor = getSubjectColorStyle(originColorIdx, isDark);
+            return (
+              <div className="swap-banner-wrap" aria-live="polite">
+                <div className="swap-banner">
+                  <div className="swap-banner-info">
+                    <div className="swap-banner-badge">
+                      <ArrowUpDown size={12} />
+                      <span>Modo intercambio</span>
+                    </div>
+                    <div className="swap-banner-text">
+                      Pulsa en una clase del horario para intercambiar con:
+                    </div>
+                    <div className="swap-banner-origin">
+                      <span
+                        className="swap-banner-dot"
+                        style={{
+                          background: originColor.bg,
+                          border: `1px solid ${originColor.border || 'currentColor'}`,
+                        }}
+                      />
+                      <strong>{calendarSwapOrigin.subjects?.[0] || 'Clase'}</strong>
+                      <span className="swap-banner-meta">
+                        ({formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)})
+                      </span>
+                    </div>
                   </div>
-                  <div className="swap-banner-text">
-                    Pulsa en una clase del horario para intercambiar con:
-                  </div>
-                  <div className="swap-banner-origin">
-                    <span
-                      className="swap-banner-dot"
-                      style={{
-                        background: subjectColor(calendarSwapOrigin.subjectIds?.[0] || 0, isDark).bg,
+                  <div className="swap-banner-actions">
+                    <button
+                      type="button"
+                      className="swap-banner-btn list-btn"
+                      onClick={() => setShowSwapListModal(true)}
+                      title="Buscar o elegir de la lista"
+                    >
+                      <Search size={13} />
+                      <span>Lista</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="swap-banner-btn cancel-btn"
+                      onClick={() => {
+                        setCalendarSwapOrigin(null);
+                        setCalendarSwapTarget(null);
+                        setShowSwapListModal(false);
                       }}
-                    />
-                    <strong>{calendarSwapOrigin.subjects?.[0] || 'Clase'}</strong>
-                    <span className="swap-banner-meta">
-                      ({formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)})
-                    </span>
+                      title="Cancelar intercambio"
+                    >
+                      <X size={14} />
+                      <span>Cancelar</span>
+                    </button>
                   </div>
-                </div>
-                <div className="swap-banner-actions">
-                  <button
-                    type="button"
-                    className="swap-banner-btn list-btn"
-                    onClick={() => setShowSwapListModal(true)}
-                    title="Buscar o elegir de la lista"
-                  >
-                    <Search size={13} />
-                    <span>Lista</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="swap-banner-btn cancel-btn"
-                    onClick={() => {
-                      setCalendarSwapOrigin(null);
-                      setCalendarSwapTarget(null);
-                      setShowSwapListModal(false);
-                    }}
-                    title="Cancelar intercambio"
-                  >
-                    <X size={14} />
-                    <span>Cancelar</span>
-                  </button>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {loadingTimetable && activeGroups.length > 0 && (
             <div className="updating-pill" aria-live="polite">

@@ -5,11 +5,9 @@ import {
   ChevronRight, 
   Trash2, 
   Library, 
-  RefreshCw, 
   Plus, 
   Edit2, 
   Copy, 
-  AlertTriangle, 
   Sun, 
   Moon, 
   Monitor, 
@@ -25,7 +23,9 @@ import {
   Pencil,
   Check,
   X,
-  FileText
+  Search,
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import {
   PALETTE,
@@ -36,6 +36,7 @@ import {
 } from '../utils/colorLogic';
 import { formatRooms } from '../utils/subgroups';
 import { formatTime } from '../utils/lessonOverrides';
+import { toDateNumber } from '../utils/dayLogic';
 
 function parseDateNumber(dateNum) {
   if (!dateNum) return new Date();
@@ -47,6 +48,7 @@ function parseDateNumber(dateNum) {
 
 const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -79,8 +81,6 @@ export default function SettingsView({
   onDuplicateConfig,
   onDeleteConfig,
 
-  onForceRefresh,
-  isRefreshingTimetable,
   timetableByGroup,
   availableSubgroupsBySubject = {},
 
@@ -113,8 +113,13 @@ export default function SettingsView({
 }) {
   const [settingsTab, setSettingsTab] = useState('groups'); // 'groups' | 'custom' | 'appearance'
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [isRefreshPressed, setIsRefreshPressed] = useState(false);
   const [pickerSubjectId, setPickerSubjectId] = useState(null);
+
+  // Filters & State for Custom Events and Overrides Manager
+  const [timeScope, setTimeScope] = useState('upcoming'); // 'upcoming' | 'past' | 'all'
+  const [typeFilter, setTypeFilter] = useState('all');     // 'all' | 'cancelled' | 'swapped' | 'edited' | 'custom'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [visibleLimit, setVisibleLimit] = useState(25);
 
   // Modals state
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -152,17 +157,6 @@ export default function SettingsView({
   };
 
   const groupKey = (g) => String(g.uniqueId || g.id);
-  const isRefreshing = isRefreshPressed || isRefreshingTimetable;
-
-  const handleRefresh = async () => {
-    if (isRefreshPressed) return;
-    setIsRefreshPressed(true);
-    try {
-      await Promise.resolve(onForceRefresh?.());
-    } finally {
-      setTimeout(() => setIsRefreshPressed(false), 450);
-    }
-  };
 
   const openRenameModal = () => {
     setRenameValue(activeConfig.name);
@@ -185,59 +179,227 @@ export default function SettingsView({
     }
   };
 
-  // Compute active overrides list for UI
-  const overridesList = useMemo(() => {
-    const list = [];
-    if (!lessonOverrides || typeof lessonOverrides !== 'object') return list;
+  // ── Unified, Sorted and Filtered Overrides & Custom Events ───────────────
+  const today = useMemo(() => new Date(), []);
+  const todayNum = useMemo(() => toDateNumber(today), [today]);
 
-    Object.entries(lessonOverrides).forEach(([key, ov]) => {
-      if (!ov) return;
-      // Find matching lesson from timetable or reconstruct from snapshot
-      const matched = timetable.find(l => (l.lessonKey && l.lessonKey === key) || (l.id && l.id === ov.lessonId));
-      const snap = ov.originalSnapshot || {};
-      const subjectName = matched?.subjects?.[0] || ov.swappedWith?.subjectName || 'Clase';
-      const dateNum = ov.date || matched?.date || snap.date;
-      const dateObj = parseDateNumber(dateNum);
-      const isCancelled = Boolean(ov.userCancelled);
-      const isSwapped = Boolean(ov.swappedWith);
-      const isEdited = Boolean(ov.customStartTime || ov.customRooms || ov.customNotes);
+  const currentMonday = useMemo(() => {
+    const d = new Date(today);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [today]);
 
-      list.push({
-        key,
-        override: ov,
-        subjectName,
-        dateNum,
-        dateObj,
-        isCancelled,
-        isSwapped,
-        isEdited,
-        matched,
-        snap,
+  const endOfWeekNum = useMemo(() => {
+    const sun = new Date(currentMonday);
+    sun.setDate(sun.getDate() + 6);
+    return toDateNumber(sun);
+  }, [currentMonday]);
+
+  const endOfMonthNum = useMemo(() => {
+    const endM = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return toDateNumber(endM);
+  }, [today]);
+
+  // Aggregate all items: overrides + custom events
+  const allCustomItems = useMemo(() => {
+    const items = [];
+
+    // 1. Lesson Overrides
+    if (lessonOverrides && typeof lessonOverrides === 'object') {
+      Object.entries(lessonOverrides).forEach(([key, ov]) => {
+        if (!ov) return;
+        const matched = timetable.find(l => (l.lessonKey && l.lessonKey === key) || (l.id && l.id === ov.lessonId));
+        const snap = ov.originalSnapshot || {};
+        const subjectName = matched?.subjects?.[0] || ov.swappedWith?.subjectName || 'Clase';
+        const dateNum = ov.customDate || ov.date || matched?.date || snap.date || 0;
+        const dateObj = parseDateNumber(dateNum);
+
+        let type = 'edited';
+        if (ov.userCancelled) type = 'cancelled';
+        else if (ov.swappedWith) type = 'swapped';
+
+        const isPast = dateNum < todayNum;
+        const isThisWeek = dateNum >= todayNum && dateNum <= endOfWeekNum;
+        const isThisMonth = dateNum > endOfWeekNum && dateNum <= endOfMonthNum;
+
+        items.push({
+          id: key,
+          key,
+          itemKind: 'override',
+          type,
+          title: subjectName,
+          dateNum,
+          dateObj,
+          startTime: ov.customStartTime ?? matched?.startTime ?? snap.startTime ?? 0,
+          endTime: ov.customEndTime ?? matched?.endTime ?? snap.endTime ?? 0,
+          rooms: ov.customRooms || matched?.rooms || snap.rooms || [],
+          notes: ov.customNotes || '',
+          swappedWith: ov.swappedWith || null,
+          snap,
+          isPast,
+          isThisWeek,
+          isThisMonth,
+        });
       });
+    }
+
+    // 2. Custom Events
+    if (Array.isArray(customEvents)) {
+      customEvents.forEach(evt => {
+        const raw = evt.rawEvent || evt;
+        const isWeekly = raw.recurrence?.type === 'weekly';
+        const dateNum = raw.recurrence?.date || 0;
+        const dateObj = parseDateNumber(dateNum);
+
+        // Weekly events are considered active/upcoming unless an explicit end date has passed
+        let isPast = false;
+        if (!isWeekly && dateNum > 0) {
+          isPast = dateNum < todayNum;
+        } else if (isWeekly && raw.recurrence?.endDate) {
+          isPast = raw.recurrence.endDate < todayNum;
+        }
+
+        const isThisWeek = !isPast && (isWeekly || (dateNum >= todayNum && dateNum <= endOfWeekNum));
+        const isThisMonth = !isPast && !isThisWeek && (dateNum > endOfWeekNum && dateNum <= endOfMonthNum);
+
+        items.push({
+          id: raw.id,
+          key: raw.id,
+          itemKind: 'custom_event',
+          type: 'custom',
+          title: raw.title || 'Evento personal',
+          category: raw.category || '',
+          colorIndex: raw.colorIndex ?? 4,
+          isWeekly,
+          recurrence: raw.recurrence,
+          dateNum,
+          dateObj,
+          startTime: raw.startTime ?? 800,
+          endTime: raw.endTime ?? 900,
+          rooms: raw.location ? [raw.location] : [],
+          notes: raw.notes || '',
+          rawEvent: raw,
+          isPast,
+          isThisWeek,
+          isThisMonth,
+        });
+      });
+    }
+
+    return items;
+  }, [lessonOverrides, timetable, customEvents, todayNum, endOfWeekNum, endOfMonthNum]);
+
+  // Counts for filters and stats
+  const stats = useMemo(() => {
+    let upcomingCount = 0;
+    let pastCount = 0;
+    let cancelledCount = 0;
+    let swappedCount = 0;
+    let editedCount = 0;
+    let customCount = 0;
+
+    allCustomItems.forEach(item => {
+      if (item.isPast) pastCount++;
+      else upcomingCount++;
+
+      if (item.type === 'cancelled') cancelledCount++;
+      else if (item.type === 'swapped') swappedCount++;
+      else if (item.type === 'edited') editedCount++;
+      else if (item.type === 'custom') customCount++;
     });
 
-    return list.sort((a, b) => (a.dateNum || 0) - (b.dateNum || 0));
-  }, [lessonOverrides, timetable]);
+    return {
+      total: allCustomItems.length,
+      upcomingCount,
+      pastCount,
+      cancelledCount,
+      swappedCount,
+      editedCount,
+      customCount,
+    };
+  }, [allCustomItems]);
 
-  const totalCustomCount = customEvents.length + overridesList.length;
+  // Filter and sort items based on user selection
+  const filteredItems = useMemo(() => {
+    let list = allCustomItems.filter(item => {
+      // 1. Time scope filter
+      if (timeScope === 'upcoming' && item.isPast) return false;
+      if (timeScope === 'past' && !item.isPast) return false;
+
+      // 2. Type filter
+      if (typeFilter !== 'all') {
+        if (typeFilter === 'custom' && item.itemKind !== 'custom_event') return false;
+        if (typeFilter !== 'custom' && item.type !== typeFilter) return false;
+      }
+
+      // 3. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const t = (item.title || '').toLowerCase();
+        const r = (item.rooms || []).join(' ').toLowerCase();
+        const n = (item.notes || '').toLowerCase();
+        const c = (item.category || '').toLowerCase();
+        const sw = (item.swappedWith?.subjectName || '').toLowerCase();
+        if (!t.includes(q) && !r.includes(q) && !n.includes(q) && !c.includes(q) && !sw.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Sort order:
+    // Past: descending (most recent first)
+    // Upcoming/All: ascending (nearest first, weekly events floating cleanly)
+    list.sort((a, b) => {
+      if (timeScope === 'past') {
+        return (b.dateNum || 0) - (a.dateNum || 0) || b.startTime - a.startTime;
+      }
+      return (a.dateNum || 0) - (b.dateNum || 0) || a.startTime - b.startTime;
+    });
+
+    return list;
+  }, [allCustomItems, timeScope, typeFilter, searchQuery]);
+
+  // Group by timeline section
+  const groupedItems = useMemo(() => {
+    const groups = {
+      thisWeek: [],
+      thisMonth: [],
+      later: [],
+      past: [],
+    };
+
+    filteredItems.forEach(item => {
+      if (item.isPast) {
+        groups.past.push(item);
+      } else if (item.isThisWeek || item.isWeekly) {
+        groups.thisWeek.push(item);
+      } else if (item.isThisMonth) {
+        groups.thisMonth.push(item);
+      } else {
+        groups.later.push(item);
+      }
+    });
+
+    return groups;
+  }, [filteredItems]);
+
+  const displayedList = useMemo(() => {
+    return filteredItems.slice(0, visibleLimit);
+  }, [filteredItems, visibleLimit]);
 
   return (
     <div className="settings-view">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
         <div className="settings-title">Ajustes</div>
-        <button
-          className={`primary-btn refresh-btn${isRefreshing ? ' is-refreshing' : ''}`}
-          onClick={handleRefresh}
-          aria-busy={isRefreshing}
-          style={{ flexShrink: 0 }}
-        >
-          <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-          Refrescar horarios
-        </button>
       </div>
 
-      {/* ── Segmented Tab Navigation ────────────────────────────────────────── */}
+      {/* ── Modern Segmented Nav ────────────────────────────────────────────── */}
       <div className="settings-segmented-nav" role="tablist" aria-label="Secciones de ajustes">
         <button
           type="button"
@@ -246,7 +408,7 @@ export default function SettingsView({
           className={`settings-nav-tab${settingsTab === 'groups' ? ' active' : ''}`}
           onClick={() => setSettingsTab('groups')}
         >
-          <Layers size={15} />
+          <Layers size={14} />
           <span>Horario y Grupos</span>
         </button>
 
@@ -257,10 +419,10 @@ export default function SettingsView({
           className={`settings-nav-tab${settingsTab === 'custom' ? ' active' : ''}`}
           onClick={() => setSettingsTab('custom')}
         >
-          <Sparkles size={15} />
+          <Sparkles size={14} />
           <span>Eventos y Cambios</span>
-          {totalCustomCount > 0 && (
-            <span className="settings-nav-badge">{totalCustomCount}</span>
+          {stats.total > 0 && (
+            <span className="settings-nav-badge">{stats.upcomingCount > 0 ? stats.upcomingCount : stats.total}</span>
           )}
         </button>
 
@@ -271,7 +433,7 @@ export default function SettingsView({
           className={`settings-nav-tab${settingsTab === 'appearance' ? ' active' : ''}`}
           onClick={() => setSettingsTab('appearance')}
         >
-          <Palette size={15} />
+          <Palette size={14} />
           <span>Apariencia</span>
         </button>
       </div>
@@ -281,7 +443,7 @@ export default function SettingsView({
       ══════════════════════════════════════════════════════════════════════ */}
       {settingsTab === 'groups' && (
         <>
-          {/* Configuration Selector & Manager */}
+          {/* Active Configuration Card */}
           <div className="settings-section" style={{ paddingBottom: 0 }}>
             <div className="settings-section-label">Configuración activa</div>
             <div className="config-selector-card">
@@ -303,6 +465,7 @@ export default function SettingsView({
               <div className="config-actions" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <button
+                    type="button"
                     className="config-icon-btn"
                     onClick={openRenameModal}
                     title="Renombrar configuración"
@@ -312,6 +475,7 @@ export default function SettingsView({
                   </button>
 
                   <button
+                    type="button"
                     className="config-icon-btn"
                     onClick={() => onDuplicateConfig(activeConfig.id)}
                     title="Duplicar configuración"
@@ -322,6 +486,7 @@ export default function SettingsView({
 
                   {configs.length > 1 && (
                     <button
+                      type="button"
                       className="config-icon-btn destructive"
                       onClick={handleDeleteClick}
                       title="Eliminar configuración"
@@ -333,6 +498,7 @@ export default function SettingsView({
 
                   {Boolean(activeConfig.customColors && Object.keys(activeConfig.customColors).length > 0) && (
                     <button
+                      type="button"
                       className="config-icon-btn"
                       onClick={onResetSubjectColors}
                       title="Restablecer colores predeterminados"
@@ -344,6 +510,7 @@ export default function SettingsView({
                 </div>
 
                 <button
+                  type="button"
                   className="config-icon-btn"
                   style={{ background: 'var(--accent)', color: 'white', borderColor: 'var(--accent)' }}
                   onClick={() => onCreateConfig()}
@@ -430,7 +597,7 @@ export default function SettingsView({
               </div>
             ) : (
               <div className="settings-card">
-                {selectedGroups.map((g, gIdx) => {
+                {selectedGroups.map((g) => {
                   const key = groupKey(g);
                   const isExpanded = expandedGroups[key];
                   const isGroupDisabled = disabledGroupIds.includes(key);
@@ -491,6 +658,7 @@ export default function SettingsView({
                         )}
 
                         <button
+                          type="button"
                           style={{
                             background: 'none',
                             border: 'none',
@@ -799,18 +967,18 @@ export default function SettingsView({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 2: EVENTOS Y CAMBIOS (CENTRALIZED DASHBOARD)
+          TAB 2: EVENTOS Y CAMBIOS (FILTERED, SORTED, TIMELINE DASHBOARD)
       ══════════════════════════════════════════════════════════════════════ */}
       {settingsTab === 'custom' && (
         <div className="settings-section">
-          {/* Header summary card */}
+          {/* Header Card with Stats & Primary Action */}
           <div
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 14,
               padding: '16px 18px',
-              marginBottom: 18,
+              marginBottom: 16,
               boxShadow: 'var(--shadow-card)',
               display: 'flex',
               alignItems: 'center',
@@ -821,167 +989,473 @@ export default function SettingsView({
           >
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Gestión de eventos y modificaciones
+                Modificaciones y Eventos
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-                {customEvents.length} {customEvents.length === 1 ? 'evento personal' : 'eventos personales'} • {overridesList.length} {overridesList.length === 1 ? 'clase modificada' : 'clases modificadas'}
+                {stats.upcomingCount} {stats.upcomingCount === 1 ? 'próximo' : 'próximos'} • {stats.total} en total
               </div>
             </div>
 
-            <button
-              type="button"
-              className="settings-btn-primary"
-              onClick={onCreateCustomEvent}
-              style={{
-                padding: '9px 16px',
-                borderRadius: 10,
-                background: 'var(--accent)',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '0.86rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: 'var(--shadow-card)',
-              }}
-            >
-              <Plus size={16} /> Nuevo evento
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {stats.cancelledCount + stats.swappedCount + stats.editedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setResetAllOverridesModalOpen(true)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                  title="Restablecer todas las clases a su horario oficial"
+                >
+                  <RotateCcw size={13} />
+                  <span>Restablecer clases</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="settings-btn-primary"
+                onClick={onCreateCustomEvent}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  background: 'var(--accent)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  boxShadow: 'var(--shadow-card)',
+                }}
+              >
+                <Plus size={15} />
+                <span>Nuevo evento</span>
+              </button>
+            </div>
           </div>
 
-          {/* Subsección 1: Eventos Personales */}
-          <div style={{ marginBottom: 24 }}>
+          {/* ── Filters & Search Controls Toolbar ─────────────────────────────── */}
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              marginBottom: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            {/* Search Input */}
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 10,
+                gap: 8,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '6px 10px',
               }}
             >
-              <div className="settings-section-label" style={{ margin: 0 }}>
-                Eventos personales ({customEvents.length})
-              </div>
+              <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Buscar por asignatura, evento, aula..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '0.84rem',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
-            {customEvents.length === 0 ? (
+            {/* Time Horizon Scope Filter (Próximos / Pasados / Todos) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div
                 style={{
-                  background: 'var(--surface)',
+                  display: 'inline-flex',
+                  background: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '24px 20px',
-                  textAlign: 'center',
+                  borderRadius: 8,
+                  padding: 2,
                 }}
               >
-                <div style={{ color: 'var(--text-muted)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-                  <CalendarIcon size={36} strokeWidth={1.5} />
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  No has creado ningún evento personal
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Añade exámenes, entregas, sesiones de estudio o recordatorios que se mostrarán en tu horario.
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setTimeScope('upcoming')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: timeScope === 'upcoming' ? 'var(--surface)' : 'transparent',
+                    color: timeScope === 'upcoming' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: timeScope === 'upcoming' ? 700 : 500,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    boxShadow: timeScope === 'upcoming' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  Próximos ({stats.upcomingCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTimeScope('past')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: timeScope === 'past' ? 'var(--surface)' : 'transparent',
+                    color: timeScope === 'past' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: timeScope === 'past' ? 700 : 500,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    boxShadow: timeScope === 'past' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  Pasados ({stats.pastCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTimeScope('all')}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: timeScope === 'all' ? 'var(--surface)' : 'transparent',
+                    color: timeScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: timeScope === 'all' ? 700 : 500,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    boxShadow: timeScope === 'all' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  Todos ({stats.total})
+                </button>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {customEvents.map(evt => {
-                  const raw = evt.rawEvent || evt;
-                  const isWeekly = raw.recurrence?.type === 'weekly';
-                  const dateStr = raw.recurrence?.date
-                    ? (() => {
-                        const d = parseDateNumber(raw.recurrence.date);
-                        return `${DAYS_FULL[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                      })()
-                    : 'Evento puntual';
-                  const daysStr = isWeekly
-                    ? (raw.recurrence.daysOfWeek || []).map(d => DAYS_SHORT[d]).join(', ')
-                    : '';
-                  const timeRange = `${formatTime(raw.startTime)}–${formatTime(raw.endTime)}`;
-                  const colorStyle = getSubjectColorStyle(raw.colorIndex ?? 4, isDark);
 
-                  return (
-                    <div
-                      key={raw.id}
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 12,
-                        padding: '12px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        boxShadow: 'var(--shadow-card)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                        <span
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            background: colorStyle.bg,
-                            border: `1.5px solid ${colorStyle.border || 'currentColor'}`,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                              {raw.title || 'Evento personal'}
-                            </span>
-                            {raw.category && (
-                              <span
-                                style={{
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
-                                  background: 'var(--bg-secondary)',
-                                  color: 'var(--text-secondary)',
-                                  padding: '2px 8px',
-                                  borderRadius: 10,
-                                }}
-                              >
-                                {raw.category}
-                              </span>
-                            )}
-                            <span
-                              style={{
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                                background: isWeekly ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 0, 0, 0.05)',
-                                color: isWeekly ? 'var(--accent)' : 'var(--text-secondary)',
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                              }}
-                            >
-                              {isWeekly ? `Semanal: ${daysStr}` : dateStr}
-                            </span>
-                          </div>
+              {/* Type Filter Pills */}
+              <div style={{ display: 'flex', gap: 4, overflowX: 'auto', maxWidth: '100%', paddingBottom: 2 }}>
+                {[
+                  { id: 'all', label: 'Todo' },
+                  { id: 'cancelled', label: `Canceladas (${stats.cancelledCount})` },
+                  { id: 'swapped', label: `Permutadas (${stats.swappedCount})` },
+                  { id: 'edited', label: `Editadas (${stats.editedCount})` },
+                  { id: 'custom', label: `Eventos (${stats.customCount})` },
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setTypeFilter(f.id)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      border: '1px solid',
+                      borderColor: typeFilter === f.id ? 'var(--accent)' : 'var(--border)',
+                      background: typeFilter === f.id ? 'var(--accent-light)' : 'transparent',
+                      color: typeFilter === f.id ? 'var(--accent)' : 'var(--text-secondary)',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                          <div style={{ display: 'flex', gap: 12, fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4, flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Clock size={12} /> {timeRange}
-                            </span>
-                            {raw.location && (
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <MapPin size={12} /> {raw.location}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+          {/* ── Empty State ─────────────────────────────────────────────────── */}
+          {filteredItems.length === 0 && (
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 14,
+                padding: '32px 20px',
+                textAlign: 'center',
+                boxShadow: 'var(--shadow-card)',
+              }}
+            >
+              <div style={{ color: 'var(--text-muted)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
+                <Sparkles size={38} strokeWidth={1.5} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                {searchQuery
+                  ? `Sin resultados para "${searchQuery}"`
+                  : timeScope === 'past'
+                  ? 'No hay eventos ni cambios en el historial pasado'
+                  : 'No tienes eventos ni clases modificadas próximas'}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 360, margin: '0 auto 16px', lineHeight: 1.4 }}>
+                {searchQuery
+                  ? 'Prueba a buscar con otro término o limpia los filtros activos.'
+                  : 'Cualquier clase que canceles, edites o permutes en el horario aparecerá aquí organizada cronológicamente.'}
+              </div>
+              <button
+                type="button"
+                className="settings-btn-primary"
+                onClick={onCreateCustomEvent}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  background: 'var(--accent)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '0.86rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={16} /> Crear evento personal
+              </button>
+            </div>
+          )}
+
+          {/* ── Chronological Items List ────────────────────────────────────── */}
+          {filteredItems.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {displayedList.map(item => {
+                const isCustom = item.itemKind === 'custom_event';
+                const dateStr = item.dateObj
+                  ? `${DAYS_SHORT[item.dateObj.getDay()]} ${item.dateObj.getDate()} ${MONTHS_SHORT[item.dateObj.getMonth()]}`
+                  : '';
+                const timeStr = `${formatTime(item.startTime)}–${formatTime(item.endTime)}`;
+                const colorStyle = isCustom ? getSubjectColorStyle(item.colorIndex, isDark) : null;
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 12,
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      boxShadow: 'var(--shadow-card)',
+                      opacity: item.isPast ? 0.75 : 1,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                        {isCustom && (
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: colorStyle.bg,
+                              border: `1.5px solid ${colorStyle.border || 'currentColor'}`,
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
+
+                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                          {item.title}
+                        </span>
+
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                          • {item.isWeekly ? 'Semanal' : dateStr}
+                        </span>
+
+                        {/* Badges */}
+                        {item.type === 'cancelled' && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              background: 'rgba(239, 68, 68, 0.14)',
+                              color: isDark ? '#fca5a5' : '#b91c1c',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                            }}
+                          >
+                            <Ban size={11} strokeWidth={2.8} /> Cancelada por ti
+                          </span>
+                        )}
+
+                        {item.type === 'swapped' && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              background: 'rgba(99, 102, 241, 0.14)',
+                              color: 'var(--accent)',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                            }}
+                          >
+                            <ArrowUpDown size={11} strokeWidth={2.4} /> Permutada con {item.swappedWith?.subjectName}
+                          </span>
+                        )}
+
+                        {item.type === 'edited' && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              background: 'rgba(245, 158, 11, 0.14)',
+                              color: isDark ? '#fbbf24' : '#b45309',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                            }}
+                          >
+                            <Pencil size={11} strokeWidth={2.4} /> Personalizada
+                          </span>
+                        )}
+
+                        {isCustom && item.category && (
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-secondary)',
+                              padding: '2px 8px',
+                              borderRadius: 10,
+                            }}
+                          >
+                            {item.category}
+                          </span>
+                        )}
+
+                        {item.isPast && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              color: 'var(--text-muted)',
+                              background: 'var(--bg-secondary)',
+                              padding: '1px 6px',
+                              borderRadius: 6,
+                            }}
+                          >
+                            Pasada
+                          </span>
+                        )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {/* Details row */}
+                      <div style={{ display: 'flex', gap: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={12} /> {timeStr}
+                        </span>
+
+                        {item.rooms && item.rooms.length > 0 && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <MapPin size={12} /> {formatRooms(item.rooms)}
+                          </span>
+                        )}
+
+                        {item.notes && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                            <FileText size={12} /> &ldquo;{item.notes}&rdquo;
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {isCustom ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onEditCustomEvent?.(item.rawEvent)}
+                            title="Editar evento"
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: 8,
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <Pencil size={13} />
+                            <span>Editar</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onDeleteCustomEvent?.(item.id, null, 'series')}
+                            title="Eliminar evento"
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: 8,
+                              border: 'none',
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => onEditCustomEvent?.(raw)}
-                          title="Editar evento"
+                          onClick={() => onResetLessonOverride?.(item.key)}
+                          title="Restablecer clase al estado oficial de WebUntis"
                           style={{
-                            padding: '6px 10px',
+                            padding: '6px 12px',
                             borderRadius: 8,
                             border: '1px solid var(--border)',
                             background: 'var(--bg-secondary)',
@@ -989,329 +1463,109 @@ export default function SettingsView({
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 4,
+                            gap: 5,
                             fontSize: '0.8rem',
                             fontWeight: 600,
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = '#ef4444';
+                            e.currentTarget.style.color = '#ef4444';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
                           }}
                         >
-                          <Pencil size={13} />
-                          <span>Editar</span>
+                          <RotateCcw size={13} />
+                          <span>Restablecer</span>
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onDeleteCustomEvent?.(raw.id, null, 'series')}
-                          title="Eliminar evento"
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: 8,
-                            border: 'none',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </div>
+                );
+              })}
 
-          {/* Subsección 2: Modificaciones del Horario Oficial */}
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 10,
-              }}
-            >
-              <div className="settings-section-label" style={{ margin: 0 }}>
-                Modificaciones del horario oficial ({overridesList.length})
-              </div>
-
-              {overridesList.length > 0 && (
+              {/* Show more button if filtered count exceeds limit */}
+              {filteredItems.length > visibleLimit && (
                 <button
                   type="button"
-                  onClick={() => setResetAllOverridesModalOpen(true)}
+                  onClick={() => setVisibleLimit(prev => prev + 25)}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#ef4444',
-                    fontSize: '0.8rem',
+                    padding: '10px 16px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--accent)',
+                    fontSize: '0.84rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 5,
+                    justifyContent: 'center',
+                    gap: 6,
+                    marginTop: 6,
                   }}
                 >
-                  <RotateCcw size={13} /> Restablecer todas
+                  <ChevronDown size={15} />
+                  <span>Cargar más ({filteredItems.length - visibleLimit} restantes)</span>
                 </button>
               )}
             </div>
-
-            {overridesList.length === 0 ? (
-              <div
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '24px 20px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ color: 'var(--text-muted)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-                  <RotateCcw size={36} strokeWidth={1.5} />
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Todas las clases están en su estado oficial
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Puedes cancelar, editar o intercambiar cualquier clase pulsando directamente sobre ella en el horario.
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {overridesList.map(item => {
-                  const { key, override, subjectName, dateObj, isCancelled, isSwapped, isEdited, snap } = item;
-                  const dateStr = `${DAYS_SHORT[dateObj.getDay()]} ${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-
-                  return (
-                    <div
-                      key={key}
-                      style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 12,
-                        padding: '12px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 12,
-                        boxShadow: 'var(--shadow-card)',
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                            {subjectName}
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            • {dateStr}
-                          </span>
-
-                          {/* Badge de tipo de modificación */}
-                          {isCancelled && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                background: 'rgba(239, 68, 68, 0.14)',
-                                color: isDark ? '#fca5a5' : '#b91c1c',
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                              }}
-                            >
-                              <Ban size={11} /> Cancelada por ti
-                            </span>
-                          )}
-
-                          {isSwapped && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                                background: 'rgba(99, 102, 241, 0.14)',
-                                color: 'var(--accent)',
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                              }}
-                            >
-                              <ArrowUpDown size={11} /> Intercambiada con {override.swappedWith.subjectName}
-                            </span>
-                          )}
-
-                          {isEdited && !isCancelled && !isSwapped && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                                background: 'rgba(245, 158, 11, 0.14)',
-                                color: isDark ? '#fbbf24' : '#b45309',
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                              }}
-                            >
-                              <Pencil size={11} /> Personalizada
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Detalles de la modificación */}
-                        <div style={{ display: 'flex', gap: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                          {override.customStartTime ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Clock size={12} /> Horario: {formatTime(override.customStartTime)}–{formatTime(override.customEndTime)}
-                              {snap.startTime && (
-                                <span style={{ opacity: 0.7 }}>(oficial: {formatTime(snap.startTime)})</span>
-                              )}
-                            </span>
-                          ) : snap.startTime ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Clock size={12} /> Horario: {formatTime(snap.startTime)}–{formatTime(snap.endTime)}
-                            </span>
-                          ) : null}
-
-                          {override.customRooms ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <MapPin size={12} /> Aula: {formatRooms(override.customRooms)}
-                            </span>
-                          ) : null}
-
-                          {override.customNotes && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                              <FileText size={12} /> &ldquo;{override.customNotes}&rdquo;
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => onResetLessonOverride?.(key)}
-                        title="Restablecer clase a la versión oficial de WebUntis"
-                        style={{
-                          padding: '7px 12px',
-                          borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg-secondary)',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          flexShrink: 0,
-                          transition: 'all 0.15s ease',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = '#ef4444';
-                          e.currentTarget.style.color = '#ef4444';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'var(--border)';
-                          e.currentTarget.style.color = 'var(--text-secondary)';
-                        }}
-                      >
-                        <RotateCcw size={13} />
-                        <span>Restablecer</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 3: APARIENCIA Y SISTEMA
+          TAB 3: APARIENCIA
       ══════════════════════════════════════════════════════════════════════ */}
       {settingsTab === 'appearance' && (
-        <>
-          <div className="settings-section" style={{ paddingBottom: 0 }}>
-            <div className="settings-section-label">Tema de la interfaz</div>
-            <div className="theme-selector-card">
-              <div
-                className="theme-segmented-group"
-                role="radiogroup"
-                aria-label="Seleccionar tema"
+        <div className="settings-section" style={{ paddingBottom: 0 }}>
+          <div className="settings-section-label">Tema de la interfaz</div>
+          <div className="theme-selector-card">
+            <div
+              className="theme-segmented-group"
+              role="radiogroup"
+              aria-label="Seleccionar tema"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={theme === 'light'}
+                className={`theme-segment-btn${theme === 'light' ? ' active' : ''}`}
+                onClick={() => onThemeChange?.('light')}
               >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === 'light'}
-                  className={`theme-segment-btn${theme === 'light' ? ' active' : ''}`}
-                  onClick={() => onThemeChange?.('light')}
-                >
-                  <Sun size={15} />
-                  <span>Claro</span>
-                </button>
+                <Sun size={15} />
+                <span>Claro</span>
+              </button>
 
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === 'dark'}
-                  className={`theme-segment-btn${theme === 'dark' ? ' active' : ''}`}
-                  onClick={() => onThemeChange?.('dark')}
-                >
-                  <Moon size={15} />
-                  <span>Oscuro</span>
-                </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={theme === 'dark'}
+                className={`theme-segment-btn${theme === 'dark' ? ' active' : ''}`}
+                onClick={() => onThemeChange?.('dark')}
+              >
+                <Moon size={15} />
+                <span>Oscuro</span>
+              </button>
 
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === 'system'}
-                  className={`theme-segment-btn${theme === 'system' ? ' active' : ''}`}
-                  onClick={() => onThemeChange?.('system')}
-                >
-                  <Monitor size={15} />
-                  <span>Sistema</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={theme === 'system'}
+                className={`theme-segment-btn${theme === 'system' ? ' active' : ''}`}
+                onClick={() => onThemeChange?.('system')}
+              >
+                <Monitor size={15} />
+                <span>Sistema</span>
+              </button>
             </div>
           </div>
-
-          <div className="settings-section">
-            <div className="settings-card" style={{ padding: '16px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Actualización de horarios
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    Fuerza la descarga del calendario completo desde los servidores de WebUntis
-                  </div>
-                </div>
-
-                <button
-                  className={`primary-btn refresh-btn${isRefreshing ? ' is-refreshing' : ''}`}
-                  onClick={handleRefresh}
-                  aria-busy={isRefreshing}
-                  style={{ flexShrink: 0 }}
-                >
-                  <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-                  Refrescar
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        </div>
       )}
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
-      {/* Modal Renombrar */}
       {renameModalOpen && (
         <div className="modal-backdrop" onClick={() => setRenameModalOpen(false)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
@@ -1348,7 +1602,6 @@ export default function SettingsView({
         </div>
       )}
 
-      {/* Modal Eliminar Configuración */}
       {deleteModalOpen && (
         <div className="modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
@@ -1387,20 +1640,19 @@ export default function SettingsView({
         </div>
       )}
 
-      {/* Modal Restablecer todas las modificaciones */}
       {resetAllOverridesModalOpen && (
         <div className="modal-backdrop" onClick={() => setResetAllOverridesModalOpen(false)}>
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
             <div className="modal-header" style={{ marginBottom: 12 }}>
               <span className="modal-title" style={{ fontSize: 17, fontWeight: 700, color: '#ef4444' }}>
-                Restablecer todas las modificaciones
+                Restablecer clases a oficial
               </span>
               <button className="modal-close-btn" onClick={() => setResetAllOverridesModalOpen(false)} aria-label="Cerrar">
                 <X size={18} />
               </button>
             </div>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
-              ¿Deseas descartar todas las modificaciones ({overridesList.length}) y devolver todas las clases a sus horarios y aulas oficiales de WebUntis?
+              ¿Deseas descartar todas las modificaciones ({stats.cancelledCount + stats.swappedCount + stats.editedCount}) y devolver todas las clases a sus horarios y aulas oficiales de WebUntis?
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
