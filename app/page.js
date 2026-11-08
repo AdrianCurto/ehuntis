@@ -25,6 +25,7 @@ import {
   removeLessonOverride,
   resolveDrift,
   swapLessons,
+  formatTime,
 } from './utils/lessonOverrides';
 import {
   getResolvedTargetDate,
