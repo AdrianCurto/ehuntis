@@ -353,6 +353,7 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   const subjectNameB = lessonB.subjects?.[0] || 'Clase';
 
   const keepDuration = options.keepDuration !== false;
+  const swapRooms = options.swapRooms === true;
 
   let customStartA = lessonB.startTime;
   let customEndA = lessonB.endTime;
@@ -373,7 +374,12 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     customEndB = fromMinutes(toMinutes(lessonA.startTime) + durB);
   }
 
-  // Override para clase A: adopta aula de B y horario correspondiente
+  // Si swapRooms es true: intercambian aulas (A adopta el aula de B y B adopta la de A)
+  // Si swapRooms es false (por defecto): cada clase se mantiene en su propia aula
+  const customRoomsA = swapRooms ? (lessonB.rooms ?? snapB.rooms ?? []) : (lessonA.rooms ?? snapA.rooms ?? []);
+  const customRoomsB = swapRooms ? (lessonA.rooms ?? snapA.rooms ?? []) : (lessonB.rooms ?? snapB.rooms ?? []);
+
+  // Override para clase A: horario correspondiente y aula según opción
   const overrideA = {
     ...(currentOverrides[keyA] || {}),
     lessonKey: keyA,
@@ -382,7 +388,7 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     customDate: lessonB.date,
     customStartTime: customStartA,
     customEndTime: customEndA,
-    customRooms: lessonB.rooms,
+    customRooms: customRoomsA,
     swappedWith: {
       lessonKey: keyB,
       subjectName: subjectNameB,
@@ -392,7 +398,7 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     updatedAt: Date.now(),
   };
 
-  // Override para clase B: adopta aula de A y horario correspondiente
+  // Override para clase B: horario correspondiente y aula según opción
   const overrideB = {
     ...(currentOverrides[keyB] || {}),
     lessonKey: keyB,
@@ -401,7 +407,7 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     customDate: lessonA.date,
     customStartTime: customStartB,
     customEndTime: customEndB,
-    customRooms: lessonA.rooms,
+    customRooms: customRoomsB,
     swappedWith: {
       lessonKey: keyA,
       subjectName: subjectNameA,

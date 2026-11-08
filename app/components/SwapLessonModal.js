@@ -40,12 +40,14 @@ export default function SwapLessonModal({
 }) {
   const [selectedTarget, setSelectedTarget] = useState(targetLesson);
   const [keepDuration, setKeepDuration] = useState(true);
+  const [swapRooms, setSwapRooms] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all'); // 'same_day' | 'all'
   const touchStartY = useRef(null);
 
   useEffect(() => {
     setSelectedTarget(targetLesson);
+    setSwapRooms(false);
   }, [targetLesson]);
 
   const handleTouchStart = (e) => {
@@ -112,13 +114,16 @@ export default function SwapLessonModal({
 
     const isDifferentDay = lesson.date !== selectedTarget.date;
     const diffDuration = originDuration !== targetDuration;
+    const roomA = (formatRooms(lesson.rooms) || '').trim().toLowerCase();
+    const roomB = (formatRooms(selectedTarget.rooms) || '').trim().toLowerCase();
+    const diffRooms = roomA !== roomB;
 
     // Projected new hours if keepDuration is active
     const newEndForOrigin = fromMinutes(toMinutes(selectedTarget.startTime) + originDuration);
     const newEndForTarget = fromMinutes(toMinutes(lesson.startTime) + targetDuration);
 
     const handleConfirm = () => {
-      onSwap(lesson, selectedTarget, { keepDuration });
+      onSwap(lesson, selectedTarget, { keepDuration, swapRooms });
       onClose();
     };
 
@@ -223,7 +228,8 @@ export default function SwapLessonModal({
                   <Clock size={13} /> Horario actual: <strong>{formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}</strong>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <MapPin size={13} /> Aula actual: <strong>{originRoom}</strong>
+                  <MapPin size={13} /> Aula: <strong>{swapRooms ? targetRoom : originRoom}</strong>
+                  {diffRooms && !swapRooms && <span style={{ fontSize: '0.74rem', opacity: 0.8, marginLeft: 4 }}>(se mantiene)</span>}
                 </span>
               </div>
             </div>
@@ -279,11 +285,55 @@ export default function SwapLessonModal({
                   <Clock size={13} /> Horario actual: <strong>{formatTime(selectedTarget.startTime)}–{formatTime(selectedTarget.endTime)}</strong>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <MapPin size={13} /> Aula actual: <strong>{targetRoom}</strong>
+                  <MapPin size={13} /> Aula: <strong>{swapRooms ? originRoom : targetRoom}</strong>
+                  {diffRooms && !swapRooms && <span style={{ fontSize: '0.74rem', opacity: 0.8, marginLeft: 4 }}>(se mantiene)</span>}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Opción cambiar también las aulas cuando no coincidan */}
+          {diffRooms && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                fontSize: '0.83rem',
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                marginBottom: 14,
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={swapRooms}
+                onChange={e => setSwapRooms(e.target.checked)}
+                style={{ accentColor: 'var(--accent)', width: 16, height: 16, marginTop: 2, cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Intercambiar también las aulas
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35 }}>
+                  {swapRooms ? (
+                    <>
+                      • <strong>{originSubject}</strong> pasará a <strong>{targetRoom}</strong><br />
+                      • <strong>{targetSubject}</strong> pasará a <strong>{originRoom}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Por defecto se mantiene cada clase en su aula habitual (<strong>{originSubject}</strong> en {originRoom}, <strong>{targetSubject}</strong> en {targetRoom}).
+                    </>
+                  )}
+                </div>
+              </div>
+            </label>
+          )}
 
           {/* Diferencia de duración / Opción mantener duración */}
           {diffDuration && (

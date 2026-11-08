@@ -307,7 +307,7 @@ describe('lessonOverrides utility suite', () => {
   });
 
   describe('swapLessons atomic operation', () => {
-    test('swaps timings and rooms bidirectionally and attaches swappedWith metadata', () => {
+    test('swaps timings preserving each room by default when rooms differ, and swaps rooms if option is enabled', () => {
       const lessonA = {
         id: 1001,
         date: 20261109,
@@ -325,6 +325,7 @@ describe('lessonOverrides utility suite', () => {
         subjects: ['Química'],
       };
 
+      // Por defecto: cada clase mantiene su aula original
       const overrides = swapLessons({}, lessonA, lessonB);
       assert.equal(Object.keys(overrides).length, 2);
 
@@ -334,19 +335,24 @@ describe('lessonOverrides utility suite', () => {
       assert.ok(ovA);
       assert.ok(ovB);
 
-      // Lesson A gets Lesson B's times and room
+      // Lesson A gets Lesson B's times, pero mantiene Aula A
       assert.equal(ovA.customStartTime, 1100);
       assert.equal(ovA.customEndTime, 1300);
-      assert.deepEqual(ovA.customRooms, ['Aula B']);
+      assert.deepEqual(ovA.customRooms, ['Aula A']);
       assert.equal(ovA.swappedWith.lessonKey, '20261109_1002');
       assert.equal(ovA.swappedWith.subjectName, 'Química');
 
-      // Lesson B gets Lesson A's times and room
+      // Lesson B gets Lesson A's times, pero mantiene Aula B
       assert.equal(ovB.customStartTime, 830);
       assert.equal(ovB.customEndTime, 1030);
-      assert.deepEqual(ovB.customRooms, ['Aula A']);
+      assert.deepEqual(ovB.customRooms, ['Aula B']);
       assert.equal(ovB.swappedWith.lessonKey, '20261109_1001');
       assert.equal(ovB.swappedWith.subjectName, 'Física');
+
+      // Con swapRooms: true -> intercambian también las aulas
+      const overridesSwappedRooms = swapLessons({}, lessonA, lessonB, { swapRooms: true });
+      assert.deepEqual(overridesSwappedRooms['20261109_1001'].customRooms, ['Aula B']);
+      assert.deepEqual(overridesSwappedRooms['20261109_1002'].customRooms, ['Aula A']);
     });
 
     test('swaps timings preserving respective durations by default', () => {
@@ -374,11 +380,11 @@ describe('lessonOverrides utility suite', () => {
 
       assert.equal(ov2h.customStartTime, 1100);
       assert.equal(ov2h.customEndTime, 1300); // 11:00 + 120m = 13:00 (keeps 2h!)
-      assert.deepEqual(ov2h.customRooms, ['Aula 1H']);
+      assert.deepEqual(ov2h.customRooms, ['Aula 2H']); // maintains its room by default
 
       assert.equal(ov1h.customStartTime, 830);
       assert.equal(ov1h.customEndTime, 930); // 08:30 + 60m = 09:30 (keeps 1h!)
-      assert.deepEqual(ov1h.customRooms, ['Aula 2H']);
+      assert.deepEqual(ov1h.customRooms, ['Aula 1H']); // maintains its room by default
 
       // Explicit keepDuration: false -> snaps to existing slot bounds
       const swappedSnap = swapLessons({}, lesson2h, lesson1h, { keepDuration: false });
@@ -404,7 +410,7 @@ describe('lessonOverrides utility suite', () => {
         subjects: ['Redes'],
       };
 
-      const overrides = swapLessons({}, lessonMonday, lessonFriday);
+      const overrides = swapLessons({}, lessonMonday, lessonFriday, { swapRooms: true });
       const ovMon = overrides['20261109_3001'];
       const ovFri = overrides['20261113_3002'];
 
