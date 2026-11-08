@@ -268,7 +268,7 @@ export default function LessonModal({
                 fontWeight: 600,
               }}
             >
-              <ArrowUpDown size={13} /> Permutada con {lesson.swappedWith.subjectName}
+              <ArrowUpDown size={13} /> Intercambiada con {lesson.swappedWith.subjectName}
             </div>
           )}
 

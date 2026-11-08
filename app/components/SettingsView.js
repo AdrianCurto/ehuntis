@@ -1156,7 +1156,7 @@ export default function SettingsView({
               {[
                 { id: 'all', label: 'Todo' },
                 { id: 'cancelled', label: 'Canceladas' },
-                { id: 'swapped', label: 'Permutadas' },
+                { id: 'swapped', label: 'Intercambiadas' },
                 { id: 'edited', label: 'Editadas' },
                 { id: 'custom', label: 'Eventos' },
               ].map(f => (
@@ -1197,7 +1197,7 @@ export default function SettingsView({
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.45 }}>
                 {searchQuery
                   ? 'Prueba a buscar con otro término o limpia los filtros activos.'
-                  : 'Cualquier clase que canceles, edites o permutes en el horario aparecerá aquí organizada cronológicamente.'}
+                  : 'Cualquier clase que canceles, edites o intercambies en el horario aparecerá aquí organizada cronológicamente.'}
               </div>
               <button
                 type="button"
@@ -1338,7 +1338,7 @@ export default function SettingsView({
                               borderRadius: 10,
                             }}
                           >
-                            <ArrowUpDown size={11} strokeWidth={2.4} /> Permutada con {item.swappedWith?.subjectName}
+                            <ArrowUpDown size={11} strokeWidth={2.4} /> Intercambiada con {item.swappedWith?.subjectName}
                           </span>
                         )}
 
@@ -1680,7 +1680,7 @@ export default function SettingsView({
                 <span className="settings-dialog-stat-value">{stats.cancelledCount}</span>
               </div>
               <div className="settings-dialog-stat-row">
-                <span>Clases permutadas con otras:</span>
+                <span>Clases intercambiadas con otras:</span>
                 <span className="settings-dialog-stat-value">{stats.swappedCount}</span>
               </div>
               <div className="settings-dialog-stat-row">

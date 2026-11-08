@@ -160,7 +160,7 @@ export default function SwapLessonModal({
                 Confirmar intercambio
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                Las dos clases permutarán sus horarios y aulas
+                Las dos clases intercambiarán sus horarios y aulas
               </div>
             </div>
             <button className="custom-modal-close-btn" onClick={onClose} aria-label="Cerrar">

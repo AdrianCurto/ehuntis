@@ -1947,50 +1947,55 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     </div>
                   )}
 
-                  {/* Custom override indicator (Swapped / Edited) - blends with lesson color */}
-                  {lesson.isOverridden && !lesson.isUserCancelled && !lesson.hasRemoteDrift && (
+                  {/* Status Indicator Icons (Top-Right): Cancelled, Swapped, Edited */}
+                  {((lesson.code === 'cancelled' || lesson.isUserCancelled) || (lesson.isOverridden && !lesson.hasRemoteDrift)) && (
                     <div
                       style={{
                         position: 'absolute',
                         top: 2,
                         right: 3,
-                        width: 14,
-                        height: 14,
-                        borderRadius: 3,
-                        background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
-                        color: color.text,
-                        opacity: 0.85,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        gap: 2,
                         zIndex: 4,
                       }}
-                      title={lesson.swappedWith ? `Horario permutado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
                     >
-                      {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
-                    </div>
-                  )}
+                      {(lesson.code === 'cancelled' || lesson.isUserCancelled) && (
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 3,
+                            background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
+                            color: isDark ? '#fca5a5' : '#b91c1c',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Clase cancelada"
+                        >
+                          <Ban size={9} strokeWidth={2.8} />
+                        </div>
+                      )}
 
-                  {/* Icon for cancelled classes if badge is hidden */}
-                  {fit.badge?.hide && (lesson.code === 'cancelled' || lesson.isUserCancelled) && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 2,
-                        right: 3,
-                        width: 14,
-                        height: 14,
-                        borderRadius: 3,
-                        background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
-                        color: isDark ? '#fca5a5' : '#b91c1c',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 4,
-                      }}
-                      title="Clase cancelada"
-                    >
-                      <Ban size={9} strokeWidth={2.8} />
+                      {lesson.isOverridden && !lesson.hasRemoteDrift && (
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 3,
+                            background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
+                            color: color.text,
+                            opacity: 0.85,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
+                        >
+                          {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -2014,7 +2019,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         marginBottom: 1,
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 3,
                         lineHeight: fit.badge?.lineHeight || 1.1,
                         flexShrink: 0,
                         maxWidth: '100%',
@@ -2026,9 +2030,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         textDecoration: 'none',
                       }}
                     >
-                      {(lesson.code === 'cancelled' || lesson.isUserCancelled) && (
-                        <Ban size={fit.badge?.font ? Math.max(7, fit.badge.font) : 8} strokeWidth={2.8} />
-                      )}
                       <span>{fit.badge?.text}</span>
                     </div>
                   )}

@@ -321,7 +321,7 @@ function resolveDrift(currentOverrides = {}, lesson, action) {
  * @param {Object} currentOverrides
  * @param {Object} lessonA
  * @param {Object} lessonB
- * @returns {Object} Nuevo mapa de overrides con las dos clases permutadas
+ * @returns {Object} Nuevo mapa de overrides con las dos clases intercambiadas
  */
 function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   if (!lessonA || !lessonB) return currentOverrides;
