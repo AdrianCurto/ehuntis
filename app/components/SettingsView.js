@@ -25,7 +25,11 @@ import {
   X,
   Search,
   FileText,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle,
+  CalendarCheck,
+  SlidersHorizontal,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import {
   PALETTE,
@@ -48,6 +52,19 @@ function parseDateNumber(dateNum) {
 
 const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const DAYS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function getRelativeDateLabel(dateNum, todayNum, isWeekly) {
+  if (isWeekly) return 'Semanal';
+  if (!dateNum || !todayNum) return null;
+  const diffDays = Math.round((parseDateNumber(dateNum).getTime() - parseDateNumber(todayNum).getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Hoy';
+  if (diffDays === 1) return 'Mañana';
+  if (diffDays === -1) return 'Ayer';
+  if (diffDays > 1 && diffDays <= 6) return `En ${diffDays} días`;
+  if (diffDays < -1 && diffDays >= -6) return `Hace ${Math.abs(diffDays)} días`;
+  return null;
+}
+
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function Toggle({ checked, onChange, id }) {
@@ -119,6 +136,8 @@ export default function SettingsView({
   const [timeScope, setTimeScope] = useState('upcoming'); // 'upcoming' | 'past' | 'all'
   const [typeFilter, setTypeFilter] = useState('all');     // 'all' | 'cancelled' | 'swapped' | 'edited' | 'custom'
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('date-asc');       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
+  const [hidePast, setHidePast] = useState(false);        // 'Ocultar pasadas' toggle
   const [visibleLimit, setVisibleLimit] = useState(25);
 
   // Modals state
@@ -325,6 +344,9 @@ export default function SettingsView({
   // Filter and sort items based on user selection
   const filteredItems = useMemo(() => {
     let list = allCustomItems.filter(item => {
+      // 0. User option to leave out past items ("dejar fuera las que ya han pasado")
+      if (hidePast && item.isPast) return false;
+
       // 1. Time scope filter
       if (timeScope === 'upcoming' && item.isPast) return false;
       if (timeScope === 'past' && !item.isPast) return false;
@@ -351,10 +373,22 @@ export default function SettingsView({
       return true;
     });
 
-    // Sort order:
-    // Past: descending (most recent first)
-    // Upcoming/All: ascending (nearest first, weekly events floating cleanly)
+    // Sort order based on user selection
     list.sort((a, b) => {
+      if (sortBy === 'date-desc') {
+        return (b.dateNum || 0) - (a.dateNum || 0) || b.startTime - a.startTime;
+      }
+      if (sortBy === 'title-asc') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      if (sortBy === 'type') {
+        const typeOrder = { cancelled: 1, swapped: 2, edited: 3, custom: 4 };
+        const orderA = typeOrder[a.type] || 5;
+        const orderB = typeOrder[b.type] || 5;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.dateNum || 0) - (b.dateNum || 0);
+      }
+      // Default 'date-asc': nearest upcoming first
       if (timeScope === 'past') {
         return (b.dateNum || 0) - (a.dateNum || 0) || b.startTime - a.startTime;
       }
@@ -362,7 +396,7 @@ export default function SettingsView({
     });
 
     return list;
-  }, [allCustomItems, timeScope, typeFilter, searchQuery]);
+  }, [allCustomItems, timeScope, typeFilter, searchQuery, sortBy, hidePast]);
 
   // Group by timeline section
   const groupedItems = useMemo(() => {
@@ -395,8 +429,20 @@ export default function SettingsView({
   return (
     <div className="settings-view">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-        <div className="settings-title">Ajustes</div>
+      <div className="settings-header-banner">
+        <div className="settings-header-left">
+          <div className="settings-header-icon">
+            <SettingsIcon size={20} strokeWidth={2.4} />
+          </div>
+          <div>
+            <h1 className="settings-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>
+              Ajustes y Personalización
+            </h1>
+            <p className="settings-subtitle">
+              Gestiona tus titulaciones, clases modificadas, eventos propios y preferencias
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Modern Segmented Nav ────────────────────────────────────────────── */}
@@ -971,13 +1017,13 @@ export default function SettingsView({
       ══════════════════════════════════════════════════════════════════════ */}
       {settingsTab === 'custom' && (
         <div className="settings-section">
-          {/* Header Card with Stats & Primary Action */}
+          {/* Header Card with Stats & Actions */}
           <div
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
-              borderRadius: 14,
-              padding: '16px 18px',
+              borderRadius: 16,
+              padding: '16px 20px',
               marginBottom: 16,
               boxShadow: 'var(--shadow-card)',
               display: 'flex',
@@ -1000,20 +1046,8 @@ export default function SettingsView({
               {stats.cancelledCount + stats.swappedCount + stats.editedCount > 0 && (
                 <button
                   type="button"
+                  className="settings-btn-outline-danger"
                   onClick={() => setResetAllOverridesModalOpen(true)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                  }}
                   title="Restablecer todas las clases a su horario oficial"
                 >
                   <RotateCcw size={13} />
@@ -1025,20 +1059,7 @@ export default function SettingsView({
                 type="button"
                 className="settings-btn-primary"
                 onClick={onCreateCustomEvent}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 8,
-                  background: 'var(--accent)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  boxShadow: 'var(--shadow-card)',
-                }}
+                title="Añadir evento personal puntual o recurrente"
               >
                 <Plus size={15} />
                 <span>Nuevo evento</span>
@@ -1047,65 +1068,38 @@ export default function SettingsView({
           </div>
 
           {/* ── Filters & Search Controls Toolbar ─────────────────────────────── */}
-          <div
-            style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              marginBottom: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
+          <div className="settings-toolbar-wrap">
             {/* Search Input */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: '6px 10px',
-              }}
-            >
-              <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <div className="settings-search-bar">
+              <Search size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
               <input
                 type="text"
-                placeholder="Buscar por asignatura, evento, aula..."
+                placeholder="Buscar por asignatura, evento, aula o notas..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '0.84rem',
-                  color: 'var(--text-primary)',
-                }}
+                className="settings-search-input"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
+                  aria-label="Limpiar búsqueda"
                 >
-                  <X size={14} />
+                  <X size={15} />
                 </button>
               )}
             </div>
 
-            {/* Time Horizon Scope Filter (Próximos / Pasados / Todos) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            {/* Time Horizon Scope + Sorting + Quick Hide Past Filter */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              {/* Scope Segmented Pill */}
               <div
                 style={{
                   display: 'inline-flex',
                   background: 'var(--bg-secondary)',
                   border: '1px solid var(--border)',
-                  borderRadius: 8,
+                  borderRadius: 10,
                   padding: 2,
                 }}
               >
@@ -1113,15 +1107,16 @@ export default function SettingsView({
                   type="button"
                   onClick={() => setTimeScope('upcoming')}
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
+                    padding: '5px 12px',
+                    borderRadius: 8,
                     border: 'none',
                     background: timeScope === 'upcoming' ? 'var(--surface)' : 'transparent',
                     color: timeScope === 'upcoming' ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontWeight: timeScope === 'upcoming' ? 700 : 500,
-                    fontSize: '0.78rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
                     boxShadow: timeScope === 'upcoming' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   Próximos ({stats.upcomingCount})
@@ -1129,17 +1124,21 @@ export default function SettingsView({
 
                 <button
                   type="button"
-                  onClick={() => setTimeScope('past')}
+                  onClick={() => {
+                    setTimeScope('past');
+                    setHidePast(false);
+                  }}
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
+                    padding: '5px 12px',
+                    borderRadius: 8,
                     border: 'none',
                     background: timeScope === 'past' ? 'var(--surface)' : 'transparent',
                     color: timeScope === 'past' ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontWeight: timeScope === 'past' ? 700 : 500,
-                    fontSize: '0.78rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
                     boxShadow: timeScope === 'past' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   Pasados ({stats.pastCount})
@@ -1149,51 +1148,81 @@ export default function SettingsView({
                   type="button"
                   onClick={() => setTimeScope('all')}
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
+                    padding: '5px 12px',
+                    borderRadius: 8,
                     border: 'none',
                     background: timeScope === 'all' ? 'var(--surface)' : 'transparent',
                     color: timeScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontWeight: timeScope === 'all' ? 700 : 500,
-                    fontSize: '0.78rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
                     boxShadow: timeScope === 'all' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   Todos ({stats.total})
                 </button>
               </div>
 
-              {/* Type Filter Pills */}
-              <div style={{ display: 'flex', gap: 4, overflowX: 'auto', maxWidth: '100%', paddingBottom: 2 }}>
-                {[
-                  { id: 'all', label: 'Todo' },
-                  { id: 'cancelled', label: `Canceladas (${stats.cancelledCount})` },
-                  { id: 'swapped', label: `Permutadas (${stats.swappedCount})` },
-                  { id: 'edited', label: `Editadas (${stats.editedCount})` },
-                  { id: 'custom', label: `Eventos (${stats.customCount})` },
-                ].map(f => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setTypeFilter(f.id)}
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: 6,
-                      border: '1px solid',
-                      borderColor: typeFilter === f.id ? 'var(--accent)' : 'var(--border)',
-                      background: typeFilter === f.id ? 'var(--accent-light)' : 'transparent',
-                      color: typeFilter === f.id ? 'var(--accent)' : 'var(--text-secondary)',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
+              {/* Sort Order Selector & Quick Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <ArrowUpDown size={13} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    className="settings-sort-select"
+                    aria-label="Ordenar eventos"
                   >
-                    {f.label}
-                  </button>
-                ))}
+                    <option value="date-asc">📅 Próximas primero (Asc)</option>
+                    <option value="date-desc">📅 Más lejanas primero (Desc)</option>
+                    <option value="title-asc">🔤 Por asignatura (A-Z)</option>
+                    <option value="type">🏷️ Por tipo de cambio</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  className={`settings-toggle-chip${hidePast ? ' active' : ''}`}
+                  onClick={() => setHidePast(!hidePast)}
+                  title={hidePast ? 'Mostrando solo clases futuras. Pulsa para incluir pasadas' : 'Incluyendo pasadas. Pulsa para ocultarlas'}
+                >
+                  <CalendarCheck size={13} />
+                  <span>Ocultar pasadas</span>
+                </button>
               </div>
+            </div>
+
+            {/* Type Filter Pills */}
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', maxWidth: '100%', paddingBottom: 2 }}>
+              {[
+                { id: 'all', label: 'Todo' },
+                { id: 'cancelled', label: `Canceladas (${stats.cancelledCount})` },
+                { id: 'swapped', label: `Permutadas (${stats.swappedCount})` },
+                { id: 'edited', label: `Editadas (${stats.editedCount})` },
+                { id: 'custom', label: `Eventos (${stats.customCount})` },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setTypeFilter(f.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    border: '1px solid',
+                    borderColor: typeFilter === f.id ? 'var(--accent)' : 'var(--border)',
+                    background: typeFilter === f.id ? 'var(--accent-light, rgba(99, 102, 241, 0.12))' : 'transparent',
+                    color: typeFilter === f.id ? 'var(--accent)' : 'var(--text-secondary)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1203,23 +1232,25 @@ export default function SettingsView({
               style={{
                 background: 'var(--surface)',
                 border: '1px solid var(--border)',
-                borderRadius: 14,
-                padding: '32px 20px',
+                borderRadius: 16,
+                padding: '36px 20px',
                 textAlign: 'center',
                 boxShadow: 'var(--shadow-card)',
               }}
             >
-              <div style={{ color: 'var(--text-muted)', marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
-                <Sparkles size={38} strokeWidth={1.5} />
+              <div style={{ color: 'var(--text-muted)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                <Sparkles size={40} strokeWidth={1.5} />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 {searchQuery
                   ? `Sin resultados para "${searchQuery}"`
                   : timeScope === 'past'
                   ? 'No hay eventos ni cambios en el historial pasado'
+                  : hidePast
+                  ? 'No hay modificaciones ni eventos futuros'
                   : 'No tienes eventos ni clases modificadas próximas'}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 360, margin: '0 auto 16px', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.45 }}>
                 {searchQuery
                   ? 'Prueba a buscar con otro término o limpia los filtros activos.'
                   : 'Cualquier clase que canceles, edites o permutes en el horario aparecerá aquí organizada cronológicamente.'}
@@ -1228,19 +1259,6 @@ export default function SettingsView({
                 type="button"
                 className="settings-btn-primary"
                 onClick={onCreateCustomEvent}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  background: 'var(--accent)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.86rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
               >
                 <Plus size={16} /> Crear evento personal
               </button>
@@ -1257,6 +1275,7 @@ export default function SettingsView({
                   : '';
                 const timeStr = `${formatTime(item.startTime)}–${formatTime(item.endTime)}`;
                 const colorStyle = isCustom ? getSubjectColorStyle(item.colorIndex, isDark) : null;
+                const relativeLabel = getRelativeDateLabel(item.dateNum, todayNum, item.isWeekly);
 
                 return (
                   <div
@@ -1264,17 +1283,43 @@ export default function SettingsView({
                     style={{
                       background: 'var(--surface)',
                       border: '1px solid var(--border)',
-                      borderRadius: 12,
+                      borderRadius: 14,
                       padding: '12px 14px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 12,
                       boxShadow: 'var(--shadow-card)',
-                      opacity: item.isPast ? 0.75 : 1,
+                      opacity: item.isPast ? 0.72 : 1,
                       transition: 'all 0.15s ease',
                     }}
                   >
+                    {/* Mini Calendar Date Badge */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: 44,
+                        padding: '4px 6px',
+                        borderRadius: 8,
+                        background: item.isPast ? 'var(--bg-secondary)' : 'var(--accent-light, rgba(99, 102, 241, 0.1))',
+                        border: '1px solid',
+                        borderColor: item.isPast ? 'var(--border)' : 'rgba(99, 102, 241, 0.25)',
+                        color: item.isPast ? 'var(--text-muted)' : 'var(--accent)',
+                        lineHeight: 1.1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: '0.64rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {item.isWeekly ? 'REC' : (item.dateObj ? DAYS_SHORT[item.dateObj.getDay()] : '')}
+                      </span>
+                      <span style={{ fontSize: '0.94rem', fontWeight: 800 }}>
+                        {item.isWeekly ? '∞' : (item.dateObj ? item.dateObj.getDate() : '')}
+                      </span>
+                    </div>
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                         {isCustom && (
@@ -1298,7 +1343,23 @@ export default function SettingsView({
                           • {item.isWeekly ? 'Semanal' : dateStr}
                         </span>
 
-                        {/* Badges */}
+                        {relativeLabel && (
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              background: item.isPast ? 'var(--bg-secondary)' : 'var(--accent-light, rgba(99, 102, 241, 0.12))',
+                              color: item.isPast ? 'var(--text-muted)' : 'var(--accent)',
+                              border: `1px solid ${item.isPast ? 'var(--border)' : 'rgba(99, 102, 241, 0.25)'}`,
+                              padding: '1px 6px',
+                              borderRadius: 6,
+                            }}
+                          >
+                            {relativeLabel}
+                          </span>
+                        )}
+
+                        {/* Status Badges */}
                         {item.type === 'cancelled' && (
                           <span
                             style={{
@@ -1309,6 +1370,7 @@ export default function SettingsView({
                               fontWeight: 700,
                               background: 'rgba(239, 68, 68, 0.14)',
                               color: isDark ? '#fca5a5' : '#b91c1c',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
                               padding: '2px 8px',
                               borderRadius: 10,
                             }}
@@ -1327,6 +1389,7 @@ export default function SettingsView({
                               fontWeight: 600,
                               background: 'rgba(99, 102, 241, 0.14)',
                               color: 'var(--accent)',
+                              border: '1px solid rgba(99, 102, 241, 0.25)',
                               padding: '2px 8px',
                               borderRadius: 10,
                             }}
@@ -1345,6 +1408,7 @@ export default function SettingsView({
                               fontWeight: 600,
                               background: 'rgba(245, 158, 11, 0.14)',
                               color: isDark ? '#fbbf24' : '#b45309',
+                              border: '1px solid rgba(245, 158, 11, 0.25)',
                               padding: '2px 8px',
                               borderRadius: 10,
                             }}
@@ -1365,21 +1429,6 @@ export default function SettingsView({
                             }}
                           >
                             {item.category}
-                          </span>
-                        )}
-
-                        {item.isPast && (
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 500,
-                              color: 'var(--text-muted)',
-                              background: 'var(--bg-secondary)',
-                              padding: '1px 6px',
-                              borderRadius: 6,
-                            }}
-                          >
-                            Pasada
                           </span>
                         )}
                       </div>
@@ -1410,21 +1459,10 @@ export default function SettingsView({
                         <>
                           <button
                             type="button"
+                            className="settings-btn-secondary"
                             onClick={() => onEditCustomEvent?.(item.rawEvent)}
                             title="Editar evento"
-                            style={{
-                              padding: '6px 10px',
-                              borderRadius: 8,
-                              border: '1px solid var(--border)',
-                              background: 'var(--bg-secondary)',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                            }}
+                            style={{ padding: '6px 10px', fontSize: '0.8rem' }}
                           >
                             <Pencil size={13} />
                             <span>Editar</span>
@@ -1444,6 +1482,7 @@ export default function SettingsView({
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              transition: 'background 0.15s ease',
                             }}
                           >
                             <Trash2 size={15} />
@@ -1452,29 +1491,17 @@ export default function SettingsView({
                       ) : (
                         <button
                           type="button"
+                          className="settings-btn-secondary"
                           onClick={() => onResetLessonOverride?.(item.key)}
                           title="Restablecer clase al estado oficial de WebUntis"
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: 'var(--bg-secondary)',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 5,
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            transition: 'all 0.15s ease',
-                          }}
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                           onMouseEnter={e => {
                             e.currentTarget.style.borderColor = '#ef4444';
                             e.currentTarget.style.color = '#ef4444';
                           }}
                           onMouseLeave={e => {
                             e.currentTarget.style.borderColor = 'var(--border)';
-                            e.currentTarget.style.color = 'var(--text-secondary)';
+                            e.currentTarget.style.color = 'var(--text-primary)';
                           }}
                         >
                           <RotateCcw size={13} />
@@ -1490,13 +1517,12 @@ export default function SettingsView({
               {filteredItems.length > visibleLimit && (
                 <button
                   type="button"
+                  className="settings-btn-secondary"
                   onClick={() => setVisibleLimit(prev => prev + 25)}
                   style={{
+                    width: '100%',
                     padding: '10px 16px',
-                    borderRadius: 10,
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    color: 'var(--accent)',
+                    borderRadius: 12,
                     fontSize: '0.84rem',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -1521,45 +1547,52 @@ export default function SettingsView({
       ══════════════════════════════════════════════════════════════════════ */}
       {settingsTab === 'appearance' && (
         <div className="settings-section" style={{ paddingBottom: 0 }}>
-          <div className="settings-section-label">Tema de la interfaz</div>
-          <div className="theme-selector-card">
+          <div className="settings-section-label" style={{ marginBottom: 12 }}>Tema de la interfaz</div>
+          
+          <div className="theme-cards-grid" role="radiogroup" aria-label="Seleccionar tema">
             <div
-              className="theme-segmented-group"
-              role="radiogroup"
-              aria-label="Seleccionar tema"
+              className={`theme-card-option${theme === 'light' ? ' active' : ''}`}
+              role="radio"
+              aria-checked={theme === 'light'}
+              onClick={() => onThemeChange?.('light')}
             >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === 'light'}
-                className={`theme-segment-btn${theme === 'light' ? ' active' : ''}`}
-                onClick={() => onThemeChange?.('light')}
-              >
-                <Sun size={15} />
-                <span>Claro</span>
-              </button>
+              <div className="theme-card-icon-wrap">
+                <Sun size={22} strokeWidth={2.2} />
+              </div>
+              <div className="theme-card-title">Claro</div>
+              <div className="theme-card-desc">
+                Fondo blanco de alto contraste, ideal para ambientes bien iluminados.
+              </div>
+            </div>
 
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === 'dark'}
-                className={`theme-segment-btn${theme === 'dark' ? ' active' : ''}`}
-                onClick={() => onThemeChange?.('dark')}
-              >
-                <Moon size={15} />
-                <span>Oscuro</span>
-              </button>
+            <div
+              className={`theme-card-option${theme === 'dark' ? ' active' : ''}`}
+              role="radio"
+              aria-checked={theme === 'dark'}
+              onClick={() => onThemeChange?.('dark')}
+            >
+              <div className="theme-card-icon-wrap">
+                <Moon size={22} strokeWidth={2.2} />
+              </div>
+              <div className="theme-card-title">Oscuro</div>
+              <div className="theme-card-desc">
+                Tonos azabache y contraste suave para descansar la vista en interiores.
+              </div>
+            </div>
 
-              <button
-                type="button"
-                role="radio"
-                aria-checked={theme === 'system'}
-                className={`theme-segment-btn${theme === 'system' ? ' active' : ''}`}
-                onClick={() => onThemeChange?.('system')}
-              >
-                <Monitor size={15} />
-                <span>Sistema</span>
-              </button>
+            <div
+              className={`theme-card-option${theme === 'system' ? ' active' : ''}`}
+              role="radio"
+              aria-checked={theme === 'system'}
+              onClick={() => onThemeChange?.('system')}
+            >
+              <div className="theme-card-icon-wrap">
+                <Monitor size={22} strokeWidth={2.2} />
+              </div>
+              <div className="theme-card-title">Sistema</div>
+              <div className="theme-card-desc">
+                Se sincroniza automáticamente con la preferencia global de tu dispositivo.
+              </div>
             </div>
           </div>
         </div>
@@ -1567,25 +1600,48 @@ export default function SettingsView({
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       {renameModalOpen && (
-        <div className="modal-backdrop" onClick={() => setRenameModalOpen(false)}>
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <div className="modal-header" style={{ marginBottom: 12 }}>
-              <span className="modal-title" style={{ fontSize: 17, fontWeight: 700 }}>Renombrar configuración</span>
-              <button className="modal-close-btn" onClick={() => setRenameModalOpen(false)} aria-label="Cerrar">
-                <X size={18} />
-              </button>
+        <div className="settings-modal-backdrop" onClick={() => setRenameModalOpen(false)}>
+          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button
+              className="modal-close-btn"
+              onClick={() => setRenameModalOpen(false)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="settings-confirm-header">
+              <div className="settings-confirm-icon-wrap primary">
+                <Edit2 size={20} strokeWidth={2.4} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="settings-confirm-title">
+                  Renombrar configuración
+                </h3>
+                <p className="settings-confirm-desc">
+                  Elige un nombre descriptivo para identificar este horario (ej. Primer Cuatrimestre, Exámenes).
+                </p>
+              </div>
             </div>
-            <form onSubmit={handleRenameSubmit}>
+
+            <form onSubmit={handleRenameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <input
                 type="text"
-                className="config-rename-input"
+                className="settings-search-input"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 autoFocus
                 placeholder="Nombre de la configuración"
-                style={{ width: '100%', marginBottom: 16 }}
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  fontSize: 14,
+                  color: 'var(--text-primary)',
+                }}
               />
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <div className="settings-confirm-actions">
                 <button
                   type="button"
                   className="settings-btn-secondary"
@@ -1594,7 +1650,8 @@ export default function SettingsView({
                   Cancelar
                 </button>
                 <button type="submit" className="settings-btn-primary">
-                  Guardar
+                  <Check size={15} />
+                  <span>Guardar</span>
                 </button>
               </div>
             </form>
@@ -1603,21 +1660,32 @@ export default function SettingsView({
       )}
 
       {deleteModalOpen && (
-        <div className="modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <div className="modal-header" style={{ marginBottom: 12 }}>
-              <span className="modal-title" style={{ fontSize: 17, fontWeight: 700, color: 'var(--danger, #ef4444)' }}>
-                Eliminar configuración
-              </span>
-              <button className="modal-close-btn" onClick={() => setDeleteModalOpen(false)} aria-label="Cerrar">
-                <X size={18} />
-              </button>
+        <div className="settings-modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
+          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <button
+              className="modal-close-btn"
+              onClick={() => setDeleteModalOpen(false)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="settings-confirm-header">
+              <div className="settings-confirm-icon-wrap danger">
+                <Trash2 size={22} strokeWidth={2.4} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="settings-confirm-title">
+                  Eliminar configuración
+                </h3>
+                <p className="settings-confirm-desc">
+                  ¿Estás seguro de que deseas eliminar <strong>&quot;{activeConfig.name}&quot;</strong>?
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
             </div>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
-              ¿Estás seguro de que deseas eliminar <strong>&quot;{activeConfig.name}&quot;</strong>?
-              Esta acción no se puede deshacer.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+
+            <div className="settings-confirm-actions">
               <button
                 type="button"
                 className="settings-btn-secondary"
@@ -1633,7 +1701,8 @@ export default function SettingsView({
                   setDeleteModalOpen(false);
                 }}
               >
-                Eliminar
+                <Trash2 size={15} />
+                <span>Eliminar</span>
               </button>
             </div>
           </div>
@@ -1641,20 +1710,52 @@ export default function SettingsView({
       )}
 
       {resetAllOverridesModalOpen && (
-        <div className="modal-backdrop" onClick={() => setResetAllOverridesModalOpen(false)}>
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
-            <div className="modal-header" style={{ marginBottom: 12 }}>
-              <span className="modal-title" style={{ fontSize: 17, fontWeight: 700, color: '#ef4444' }}>
-                Restablecer clases a oficial
-              </span>
-              <button className="modal-close-btn" onClick={() => setResetAllOverridesModalOpen(false)} aria-label="Cerrar">
-                <X size={18} />
-              </button>
+        <div className="settings-modal-backdrop" onClick={() => setResetAllOverridesModalOpen(false)}>
+          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <button
+              className="modal-close-btn"
+              onClick={() => setResetAllOverridesModalOpen(false)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="settings-confirm-header">
+              <div className="settings-confirm-icon-wrap danger">
+                <RotateCcw size={22} strokeWidth={2.4} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="settings-confirm-title">
+                  Restablecer clases a oficial
+                </h3>
+                <p className="settings-confirm-desc">
+                  ¿Deseas descartar todas las modificaciones y devolver tus clases a los horarios y aulas oficiales de WebUntis?
+                </p>
+              </div>
             </div>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5 }}>
-              ¿Deseas descartar todas las modificaciones ({stats.cancelledCount + stats.swappedCount + stats.editedCount}) y devolver todas las clases a sus horarios y aulas oficiales de WebUntis?
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+
+            <div className="settings-dialog-summary-box">
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Resumen de cambios a descartar:
+              </div>
+              <div className="settings-dialog-stat-row">
+                <span>Clases canceladas por ti:</span>
+                <span className="settings-dialog-stat-value">{stats.cancelledCount}</span>
+              </div>
+              <div className="settings-dialog-stat-row">
+                <span>Clases permutadas con otras:</span>
+                <span className="settings-dialog-stat-value">{stats.swappedCount}</span>
+              </div>
+              <div className="settings-dialog-stat-row">
+                <span>Clases con horario/aula personalizado:</span>
+                <span className="settings-dialog-stat-value">{stats.editedCount}</span>
+              </div>
+              <div className="settings-dialog-note">
+                ℹ Tus eventos personales añadidos ({stats.customCount}) no se verán afectados ni eliminados.
+              </div>
+            </div>
+
+            <div className="settings-confirm-actions">
               <button
                 type="button"
                 className="settings-btn-secondary"
@@ -1670,7 +1771,8 @@ export default function SettingsView({
                   setResetAllOverridesModalOpen(false);
                 }}
               >
-                Restablecer todas
+                <RotateCcw size={15} />
+                <span>Restablecer todas</span>
               </button>
             </div>
           </div>
