@@ -1199,14 +1199,22 @@ html, body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background: var(--bg-secondary);
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-primary);
+  padding: 24px 16px calc(120px + env(safe-area-inset-bottom, 0px));
+}
+
+.settings-container {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .settings-header {
-  padding: 20px 20px 12px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .settings-title {
@@ -1246,25 +1254,27 @@ html, body {
 }
 
 .settings-section {
-  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .settings-section-label {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 10px 20px 8px;
+  padding: 0 4px;
+  margin: 0;
 }
 
 .settings-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  height: 36px;
-  margin-bottom: 8px;
+  padding: 0 4px;
+  margin-bottom: 2px;
 }
 
 .settings-section-header .settings-section-label {
@@ -1308,16 +1318,19 @@ html, body {
 
 .settings-card {
   background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .settings-row {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border-light);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.06));
   gap: 12px;
+  transition: background 0.15s ease;
 }
 .settings-row:last-child { border-bottom: none; }
 
@@ -1349,9 +1362,8 @@ html, body {
 .settings-subrow {
   display: flex;
   align-items: center;
-  padding: 10px 20px 10px 48px;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-secondary);
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.06));
   gap: 12px;
 }
 .settings-subrow:last-child { border-bottom: none; }
@@ -3161,6 +3173,12 @@ html, body {
   flex-direction: column;
   gap: 16px;
   position: relative;
+}
+
+.settings-confirm-dialog .modal-close-btn {
+  top: 18px;
+  right: 18px;
+  left: auto;
 }
 
 .settings-confirm-header {

@@ -428,8 +428,9 @@ export default function SettingsView({
 
   return (
     <div className="settings-view">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="settings-header-banner">
+      <div className="settings-container">
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
+        <div className="settings-header-banner">
         <div className="settings-header-left">
           <div className="settings-header-icon">
             <SettingsIcon size={20} strokeWidth={2.4} />
@@ -608,41 +609,27 @@ export default function SettingsView({
             </div>
 
             {selectedGroups.length === 0 ? (
-              <div className="settings-card">
-                <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text-muted)' }}>
-                    <Library size={44} strokeWidth={1.5} />
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                    No tienes ningún grupo añadido
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                    Añade tu titulación o curso para ver tu horario de WebUntis
-                  </div>
-                  <button
-                    type="button"
-                    className="settings-btn-primary"
-                    onClick={onAddGroup}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 10,
-                      background: 'var(--accent)',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '0.86rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <Plus size={16} /> Añadir grupo o titulación
-                  </button>
+              <div className="settings-card" style={{ padding: '36px 20px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text-muted)' }}>
+                  <Library size={44} strokeWidth={1.5} />
                 </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  No tienes ningún grupo añadido
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18, maxWidth: 360, margin: '0 auto 18px' }}>
+                  Añade tu titulación o curso para ver tu horario de WebUntis y gestionar tus subgrupos
+                </div>
+                <button
+                  type="button"
+                  className="settings-btn-primary"
+                  onClick={onAddGroup}
+                  style={{ display: 'inline-flex' }}
+                >
+                  <Plus size={16} /> Añadir grupo o titulación
+                </button>
               </div>
             ) : (
-              <div className="settings-card">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {selectedGroups.map((g) => {
                   const key = groupKey(g);
                   const isExpanded = expandedGroups[key];
@@ -652,7 +639,7 @@ export default function SettingsView({
                   const allEnabled = subjectsForGroup.length > 0 && subjectsForGroup.every(s => !disabledForGroup.includes(s.id));
 
                   return (
-                    <div key={key} style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'opacity 0.2s ease' }}>
+                    <div key={key} className="settings-card" style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'all 0.2s ease' }}>
                       {/* Group row */}
                       <div
                         className="settings-row"
@@ -692,14 +679,15 @@ export default function SettingsView({
                         {subjectsForGroup.length > 0 && (
                           <span style={{
                             fontSize: 11,
-                            fontWeight: 600,
-                            color: 'var(--text-muted)',
-                            background: 'var(--bg-secondary)',
+                            fontWeight: 700,
+                            color: 'var(--accent)',
+                            background: 'var(--accent-light, rgba(99, 102, 241, 0.12))',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
                             padding: '2px 8px',
                             borderRadius: 20,
                             flexShrink: 0,
                           }}>
-                            {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length}
+                            {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length} activas
                           </span>
                         )}
 
@@ -711,22 +699,25 @@ export default function SettingsView({
                             color: 'var(--text-muted)',
                             cursor: 'pointer',
                             padding: '6px',
-                            borderRadius: 6,
+                            borderRadius: 8,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             flexShrink: 0,
+                            transition: 'color 0.15s ease',
                           }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                           onClick={(e) => { e.stopPropagation(); onRemoveGroup(g); }}
                           aria-label="Eliminar grupo"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={17} />
                         </button>
                       </div>
 
                       {/* Subjects expandable section */}
                       {isExpanded && (
-                        <div style={{ background: 'var(--bg-secondary)', pointerEvents: isGroupDisabled ? 'none' : 'auto' }}>
+                        <div style={{ borderTop: '1px solid var(--border)', pointerEvents: isGroupDisabled ? 'none' : 'auto' }}>
                           {subjectsForGroup.length === 0 ? (
                             <div style={{ padding: '12px 20px 12px 44px', fontSize: 13, color: 'var(--text-muted)' }}>
                               Carga el horario para ver las asignaturas
@@ -744,8 +735,8 @@ export default function SettingsView({
 
                                 return (
                                   <div
-                                    className="settings-subrow"
                                     style={{
+                                      padding: '12px 18px',
                                       borderBottom: '1px solid var(--border)',
                                       display: 'flex',
                                       flexWrap: 'wrap',
@@ -997,12 +988,12 @@ export default function SettingsView({
             )}
 
             {selectedGroups.length > 0 && (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginTop: 4 }}>
                 <button
                   type="button"
-                  className="add-group-btn"
+                  className="settings-btn-primary"
                   onClick={onAddGroup}
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', padding: '12px 18px', borderRadius: 14 }}
                 >
                   <Plus size={16} /> Añadir titulación o grupo
                 </button>
@@ -1597,6 +1588,8 @@ export default function SettingsView({
           </div>
         </div>
       )}
+
+      </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       {renameModalOpen && (
