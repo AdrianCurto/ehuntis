@@ -3356,8 +3356,8 @@ html, body {
 
 @media (max-width: 640px) {
   .theme-cards-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
 }
 
@@ -3367,9 +3367,9 @@ html, body {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 10px;
-  padding: 18px 14px;
-  border-radius: 14px;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 12px;
   background: var(--surface);
   border: 2px solid var(--border);
   cursor: pointer;
@@ -3389,9 +3389,9 @@ html, body {
 }
 
 .theme-card-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   display: flex;
@@ -3407,14 +3407,8 @@ html, body {
 }
 
 .theme-card-title {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
-}
-
-.theme-card-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.35;
 }
 

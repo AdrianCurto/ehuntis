@@ -1551,9 +1551,6 @@ export default function SettingsView({
                 <Sun size={22} strokeWidth={2.2} />
               </div>
               <div className="theme-card-title">Claro</div>
-              <div className="theme-card-desc">
-                Fondo blanco de alto contraste, ideal para ambientes bien iluminados.
-              </div>
             </div>
 
             <div
@@ -1566,9 +1563,6 @@ export default function SettingsView({
                 <Moon size={22} strokeWidth={2.2} />
               </div>
               <div className="theme-card-title">Oscuro</div>
-              <div className="theme-card-desc">
-                Tonos azabache y contraste suave para descansar la vista en interiores.
-              </div>
             </div>
 
             <div
@@ -1581,9 +1575,6 @@ export default function SettingsView({
                 <Monitor size={22} strokeWidth={2.2} />
               </div>
               <div className="theme-card-title">Sistema</div>
-              <div className="theme-card-desc">
-                Se sincroniza automáticamente con la preferencia global de tu dispositivo.
-              </div>
             </div>
           </div>
         </div>
