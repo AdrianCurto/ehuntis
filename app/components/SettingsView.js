@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ChevronRight, 
   Trash2, 
@@ -18,8 +18,10 @@ import {
   Clock,
   MapPin,
   Calendar as CalendarIcon,
+  CalendarDays,
   Ban,
   ArrowUpDown,
+  ArrowDownAZ,
   Pencil,
   Check,
   X,
@@ -66,6 +68,13 @@ function getRelativeDateLabel(dateNum, todayNum, isWeekly) {
 }
 
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+const SORT_OPTIONS = [
+  { id: 'date-asc', label: 'Próximas primero', icon: CalendarIcon },
+  { id: 'date-desc', label: 'Más lejanas primero', icon: CalendarDays },
+  { id: 'title-asc', label: 'Asignatura (A - Z)', icon: ArrowDownAZ },
+  { id: 'type', label: 'Tipo de cambio', icon: Layers },
+];
 
 function Toggle({ checked, onChange, id }) {
   return (
@@ -133,12 +142,37 @@ export default function SettingsView({
   const [pickerSubjectId, setPickerSubjectId] = useState(null);
 
   // Filters & State for Custom Events and Overrides Manager
-  const [timeScope, setTimeScope] = useState('upcoming'); // 'upcoming' | 'past' | 'all'
   const [typeFilter, setTypeFilter] = useState('all');     // 'all' | 'cancelled' | 'swapped' | 'edited' | 'custom'
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('date-asc');       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [hidePast, setHidePast] = useState(false);        // 'Ocultar pasadas' toggle
   const [visibleLimit, setVisibleLimit] = useState(25);
+  const sortDropdownRef = useRef(null);
+
+  // Close sort menu on click outside or escape key
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setIsSortOpen(false);
+      }
+    }
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsSortOpen(false);
+      }
+    }
+    if (isSortOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSortOpen]);
 
   // Modals state
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -347,17 +381,13 @@ export default function SettingsView({
       // 0. User option to leave out past items ("dejar fuera las que ya han pasado")
       if (hidePast && item.isPast) return false;
 
-      // 1. Time scope filter
-      if (timeScope === 'upcoming' && item.isPast) return false;
-      if (timeScope === 'past' && !item.isPast) return false;
-
-      // 2. Type filter
+      // 1. Type filter
       if (typeFilter !== 'all') {
         if (typeFilter === 'custom' && item.itemKind !== 'custom_event') return false;
         if (typeFilter !== 'custom' && item.type !== typeFilter) return false;
       }
 
-      // 3. Search query filter
+      // 2. Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const t = (item.title || '').toLowerCase();
@@ -389,14 +419,11 @@ export default function SettingsView({
         return (a.dateNum || 0) - (b.dateNum || 0);
       }
       // Default 'date-asc': nearest upcoming first
-      if (timeScope === 'past') {
-        return (b.dateNum || 0) - (a.dateNum || 0) || b.startTime - a.startTime;
-      }
       return (a.dateNum || 0) - (b.dateNum || 0) || a.startTime - b.startTime;
     });
 
     return list;
-  }, [allCustomItems, timeScope, typeFilter, searchQuery, sortBy, hidePast]);
+  }, [allCustomItems, typeFilter, searchQuery, sortBy, hidePast]);
 
   // Group by timeline section
   const groupedItems = useMemo(() => {
@@ -468,9 +495,6 @@ export default function SettingsView({
         >
           <Sparkles size={14} />
           <span>Eventos y Cambios</span>
-          {stats.total > 0 && (
-            <span className="settings-nav-badge">{stats.upcomingCount > 0 ? stats.upcomingCount : stats.total}</span>
-          )}
         </button>
 
         <button
@@ -1009,31 +1033,17 @@ export default function SettingsView({
       {settingsTab === 'custom' && (
         <div className="settings-section">
           {/* Header Card with Stats & Actions */}
-          <div
-            style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              padding: '16px 20px',
-              marginBottom: 16,
-              boxShadow: 'var(--shadow-card)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              flexWrap: 'wrap',
-            }}
-          >
+          <div className="custom-events-header-card">
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="custom-events-header-title">
                 Modificaciones y Eventos
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+              <div className="custom-events-header-subtitle">
                 {stats.upcomingCount} {stats.upcomingCount === 1 ? 'próximo' : 'próximos'} • {stats.total} en total
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="custom-events-header-actions">
               {stats.cancelledCount + stats.swappedCount + stats.editedCount > 0 && (
                 <button
                   type="button"
@@ -1082,134 +1092,79 @@ export default function SettingsView({
               )}
             </div>
 
-            {/* Time Horizon Scope + Sorting + Quick Hide Past Filter */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-              {/* Scope Segmented Pill */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 10,
-                  padding: 2,
-                }}
+            {/* Controls Row: Custom Sort Dropdown + Hide Past Toggle */}
+            <div className="settings-toolbar-controls">
+              {/* Custom Sort Dropdown (Zero Emojis, SVG Icons, Clean Accessible Popover) */}
+              <div className="settings-sort-container" ref={sortDropdownRef}>
+                <button
+                  type="button"
+                  className={`settings-sort-trigger${isSortOpen ? ' open' : ''}`}
+                  onClick={() => setIsSortOpen(prev => !prev)}
+                  aria-haspopup="listbox"
+                  aria-expanded={isSortOpen}
+                  aria-label="Ordenar eventos y cambios"
+                >
+                  <SlidersHorizontal size={13} className="settings-sort-icon" />
+                  <span>
+                    {SORT_OPTIONS.find(o => o.id === sortBy)?.label || 'Ordenar'}
+                  </span>
+                  <ChevronDown size={13} className={`settings-sort-chevron${isSortOpen ? ' open' : ''}`} />
+                </button>
+
+                {isSortOpen && (
+                  <div className="settings-sort-menu" role="listbox">
+                    <div className="settings-sort-menu-header">Ordenar por</div>
+                    {SORT_OPTIONS.map(opt => {
+                      const Icon = opt.icon;
+                      const isSelected = sortBy === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          className={`settings-sort-menu-item${isSelected ? ' selected' : ''}`}
+                          onClick={() => {
+                            setSortBy(opt.id);
+                            setIsSortOpen(false);
+                          }}
+                        >
+                          <Icon size={14} className="settings-sort-item-icon" />
+                          <span className="settings-sort-item-text">{opt.label}</span>
+                          {isSelected && <Check size={14} className="settings-sort-item-check" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Hide Past Toggle Chip */}
+              <button
+                type="button"
+                className={`settings-toggle-chip${hidePast ? ' active' : ''}`}
+                onClick={() => setHidePast(!hidePast)}
+                title={hidePast ? 'Mostrando solo clases futuras. Pulsa para incluir pasadas' : 'Incluyendo pasadas. Pulsa para ocultarlas'}
               >
-                <button
-                  type="button"
-                  onClick={() => setTimeScope('upcoming')}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: timeScope === 'upcoming' ? 'var(--surface)' : 'transparent',
-                    color: timeScope === 'upcoming' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: timeScope === 'upcoming' ? 700 : 500,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    boxShadow: timeScope === 'upcoming' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Próximos ({stats.upcomingCount})
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTimeScope('past');
-                    setHidePast(false);
-                  }}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: timeScope === 'past' ? 'var(--surface)' : 'transparent',
-                    color: timeScope === 'past' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: timeScope === 'past' ? 700 : 500,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    boxShadow: timeScope === 'past' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Pasados ({stats.pastCount})
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTimeScope('all')}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: timeScope === 'all' ? 'var(--surface)' : 'transparent',
-                    color: timeScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: timeScope === 'all' ? 700 : 500,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    boxShadow: timeScope === 'all' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Todos ({stats.total})
-                </button>
-              </div>
-
-              {/* Sort Order Selector & Quick Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <ArrowUpDown size={13} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-                  <select
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    className="settings-sort-select"
-                    aria-label="Ordenar eventos"
-                  >
-                    <option value="date-asc">📅 Próximas primero (Asc)</option>
-                    <option value="date-desc">📅 Más lejanas primero (Desc)</option>
-                    <option value="title-asc">🔤 Por asignatura (A-Z)</option>
-                    <option value="type">🏷️ Por tipo de cambio</option>
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  className={`settings-toggle-chip${hidePast ? ' active' : ''}`}
-                  onClick={() => setHidePast(!hidePast)}
-                  title={hidePast ? 'Mostrando solo clases futuras. Pulsa para incluir pasadas' : 'Incluyendo pasadas. Pulsa para ocultarlas'}
-                >
-                  <CalendarCheck size={13} />
-                  <span>Ocultar pasadas</span>
-                </button>
-              </div>
+                <CalendarCheck size={13} />
+                <span>Ocultar pasadas</span>
+              </button>
             </div>
 
-            {/* Type Filter Pills */}
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', maxWidth: '100%', paddingBottom: 2 }}>
+            {/* Type Filter Pills (Clean, uncluttered, zero emojis) */}
+            <div className="settings-filter-pills-row">
               {[
                 { id: 'all', label: 'Todo' },
-                { id: 'cancelled', label: `Canceladas (${stats.cancelledCount})` },
-                { id: 'swapped', label: `Permutadas (${stats.swappedCount})` },
-                { id: 'edited', label: `Editadas (${stats.editedCount})` },
-                { id: 'custom', label: `Eventos (${stats.customCount})` },
+                { id: 'cancelled', label: 'Canceladas' },
+                { id: 'swapped', label: 'Permutadas' },
+                { id: 'edited', label: 'Editadas' },
+                { id: 'custom', label: 'Eventos' },
               ].map(f => (
                 <button
                   key={f.id}
                   type="button"
                   onClick={() => setTypeFilter(f.id)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    border: '1px solid',
-                    borderColor: typeFilter === f.id ? 'var(--accent)' : 'var(--border)',
-                    background: typeFilter === f.id ? 'var(--accent-light, rgba(99, 102, 241, 0.12))' : 'transparent',
-                    color: typeFilter === f.id ? 'var(--accent)' : 'var(--text-secondary)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={`settings-filter-pill${typeFilter === f.id ? ' active' : ''}`}
                 >
                   {f.label}
                 </button>
@@ -1235,11 +1190,9 @@ export default function SettingsView({
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 {searchQuery
                   ? `Sin resultados para "${searchQuery}"`
-                  : timeScope === 'past'
-                  ? 'No hay eventos ni cambios en el historial pasado'
                   : hidePast
                   ? 'No hay modificaciones ni eventos futuros'
-                  : 'No tienes eventos ni clases modificadas próximas'}
+                  : 'No tienes eventos ni clases modificadas'}
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.45 }}>
                 {searchQuery
