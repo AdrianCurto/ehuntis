@@ -23,6 +23,7 @@ export default function CustomEventDetailModal({
   isDark = false
 }) {
   const [confirmScopeDelete, setConfirmScopeDelete] = useState(false);
+  const [confirmSingleDelete, setConfirmSingleDelete] = useState(false);
   const touchStartY = useRef(null);
 
   const handleTouchStart = (e) => {
@@ -44,6 +45,8 @@ export default function CustomEventDetailModal({
         e.stopPropagation();
         if (confirmScopeDelete) {
           setConfirmScopeDelete(false);
+        } else if (confirmSingleDelete) {
+          setConfirmSingleDelete(false);
         } else {
           onClose();
         }
@@ -51,7 +54,7 @@ export default function CustomEventDetailModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmScopeDelete, onClose]);
+  }, [confirmScopeDelete, confirmSingleDelete, onClose]);
 
   if (!event) return null;
 
@@ -81,8 +84,7 @@ export default function CustomEventDetailModal({
     if (isRecurring) {
       setConfirmScopeDelete(true);
     } else {
-      onDelete(rawEvent.id, event.date, 'series');
-      onClose();
+      setConfirmSingleDelete(true);
     }
   };
 
@@ -256,6 +258,41 @@ export default function CustomEventDetailModal({
                   type="button"
                   className="scope-btn cancel"
                   onClick={() => setConfirmScopeDelete(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo de confirmación para borrar evento puntual */}
+        {confirmSingleDelete && (
+          <div className="scope-dialog-overlay" onClick={() => setConfirmSingleDelete(false)}>
+            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
+              <div className="scope-dialog-title">
+                ¿Eliminar este evento?
+              </div>
+              <div className="scope-dialog-subtitle">
+                Esta acción eliminará el evento &quot;{title}&quot; y no se puede deshacer.
+              </div>
+              <div className="scope-dialog-buttons">
+                <button
+                  type="button"
+                  className="scope-btn single"
+                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                  onClick={() => {
+                    setConfirmSingleDelete(false);
+                    onDelete(rawEvent.id, event.date, 'series');
+                    onClose();
+                  }}
+                >
+                  Eliminar evento
+                </button>
+                <button
+                  type="button"
+                  className="scope-btn cancel"
+                  onClick={() => setConfirmSingleDelete(false)}
                 >
                   Cancelar
                 </button>

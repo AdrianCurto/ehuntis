@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Clock, 
@@ -39,6 +39,7 @@ export default function LessonModal({
   onResetOverride,
   onResolveDrift,
 }) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const touchStartY = useRef(null);
 
   const handleTouchStart = (e) => {
@@ -58,12 +59,16 @@ export default function LessonModal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose?.();
+        if (showResetConfirm) {
+          setShowResetConfirm(false);
+        } else {
+          onClose?.();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showResetConfirm]);
 
   if (!lesson) return null;
 
@@ -443,7 +448,7 @@ export default function LessonModal({
           {isOverridden && (
             <button
               type="button"
-              onClick={() => onResetOverride?.(lesson)}
+              onClick={() => setShowResetConfirm(true)}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -466,6 +471,40 @@ export default function LessonModal({
             </button>
           )}
         </div>
+
+        {/* Diálogo de confirmación para restablecer clase a versión original */}
+        {showResetConfirm && (
+          <div className="scope-dialog-overlay" style={{ zIndex: 1200 }} onClick={() => setShowResetConfirm(false)}>
+            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
+              <div className="scope-dialog-title">
+                ¿Restablecer clase a versión original?
+              </div>
+              <div className="scope-dialog-subtitle">
+                Se descartarán las modificaciones personalizadas (aula, horario o notas) y volverá a los datos oficiales de WebUntis.
+              </div>
+              <div className="scope-dialog-buttons">
+                <button
+                  type="button"
+                  className="scope-btn single"
+                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                  onClick={() => {
+                    setShowResetConfirm(false);
+                    onResetOverride?.(lesson);
+                  }}
+                >
+                  Restablecer a versión original
+                </button>
+                <button
+                  type="button"
+                  className="scope-btn cancel"
+                  onClick={() => setShowResetConfirm(false)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

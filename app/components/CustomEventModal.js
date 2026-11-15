@@ -181,6 +181,7 @@ export default function CustomEventModal({
 
   // Modal para preguntar si editar/borrar solo esta fecha o la serie recurrente
   const [confirmScopeModal, setConfirmScopeModal] = useState(null); // 'save' | 'delete' | null
+  const [confirmSingleDelete, setConfirmSingleDelete] = useState(false);
   const [formError, setFormError] = useState('');
 
   // Atajo de teclado: Escape cierra confirmaciones o el modal
@@ -190,6 +191,8 @@ export default function CustomEventModal({
         e.stopPropagation();
         if (confirmScopeModal) {
           setConfirmScopeModal(null);
+        } else if (confirmSingleDelete) {
+          setConfirmSingleDelete(false);
         } else if (isAddingCategory) {
           setIsAddingCategory(false);
         } else {
@@ -199,7 +202,7 @@ export default function CustomEventModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmScopeModal, isAddingCategory, onClose]);
+  }, [confirmScopeModal, confirmSingleDelete, isAddingCategory, onClose]);
 
   const isRecurringEvent = rawEvent.recurrence?.type === 'weekly' || (isEditing && event?.recurrenceType === 'weekly');
 
@@ -362,8 +365,7 @@ export default function CustomEventModal({
     if (isRecurringEvent) {
       setConfirmScopeModal('delete');
     } else {
-      onDelete(rawEvent.id, targetDateNum, 'series');
-      onClose();
+      setConfirmSingleDelete(true);
     }
   };
 
@@ -779,6 +781,41 @@ export default function CustomEventModal({
                   type="button"
                   className="scope-btn cancel"
                   onClick={() => setConfirmScopeModal(null)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmación para eliminar evento puntual */}
+        {confirmSingleDelete && (
+          <div className="scope-dialog-overlay" onClick={() => setConfirmSingleDelete(false)}>
+            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
+              <div className="scope-dialog-title">
+                ¿Eliminar este evento?
+              </div>
+              <div className="scope-dialog-subtitle">
+                Esta acción eliminará el evento &quot;{title.trim() || 'este evento'}&quot; y no se puede deshacer.
+              </div>
+              <div className="scope-dialog-buttons">
+                <button
+                  type="button"
+                  className="scope-btn single"
+                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                  onClick={() => {
+                    setConfirmSingleDelete(false);
+                    onDelete(rawEvent.id, targetDateNum, 'series');
+                    onClose();
+                  }}
+                >
+                  Eliminar evento
+                </button>
+                <button
+                  type="button"
+                  className="scope-btn cancel"
+                  onClick={() => setConfirmSingleDelete(false)}
                 >
                   Cancelar
                 </button>

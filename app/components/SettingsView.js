@@ -179,6 +179,8 @@ export default function SettingsView({
   const [renameValue, setRenameValue] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [resetAllOverridesModalOpen, setResetAllOverridesModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
+  const [overrideToReset, setOverrideToReset] = useState(null);
 
   useEffect(() => {
     if (!pickerSubjectId) return;
@@ -1197,7 +1199,7 @@ export default function SettingsView({
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.45 }}>
                 {searchQuery
                   ? 'Prueba a buscar con otro término o limpia los filtros activos.'
-                  : 'Cualquier clase que canceles, edites o intercambies en el horario aparecerá aquí organizada cronológicamente.'}
+                  : 'Cualquier evento personalizado que crees, o clase que canceles, edites o intercambies en el horario aparecerá aquí organizada cronológicamente.'}
               </div>
               <button
                 type="button"
@@ -1414,7 +1416,7 @@ export default function SettingsView({
 
                           <button
                             type="button"
-                            onClick={() => onDeleteCustomEvent?.(item.id, null, 'series')}
+                            onClick={() => setEventToDelete(item)}
                             title="Eliminar evento"
                             style={{
                               padding: '6px 8px',
@@ -1436,7 +1438,7 @@ export default function SettingsView({
                         <button
                           type="button"
                           className="settings-btn-secondary"
-                          onClick={() => onResetLessonOverride?.(item.key)}
+                          onClick={() => setOverrideToReset(item)}
                           title="Restablecer clase al estado oficial de WebUntis"
                           style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                           onMouseEnter={e => {
@@ -1710,6 +1712,109 @@ export default function SettingsView({
               >
                 <RotateCcw size={15} />
                 <span>Restablecer todas</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal: Eliminar evento personalizado individual */}
+      {eventToDelete && (
+        <div className="settings-modal-backdrop" onClick={() => setEventToDelete(null)}>
+          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <button
+              className="modal-close-btn"
+              onClick={() => setEventToDelete(null)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="settings-confirm-header">
+              <div className="settings-confirm-icon-wrap danger">
+                <Trash2 size={22} strokeWidth={2.4} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="settings-confirm-title">
+                  Eliminar evento
+                </h3>
+                <p className="settings-confirm-desc">
+                  ¿Estás seguro de que deseas eliminar <strong>&quot;{eventToDelete.title}&quot;</strong>?
+                  {eventToDelete.isWeekly
+                    ? ' Se eliminarán todas las repeticiones semanales de este evento.'
+                    : ' Esta acción no se puede deshacer.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-confirm-actions">
+              <button
+                type="button"
+                className="settings-btn-secondary"
+                onClick={() => setEventToDelete(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="settings-btn-primary destructive"
+                onClick={() => {
+                  onDeleteCustomEvent?.(eventToDelete.id, null, 'series');
+                  setEventToDelete(null);
+                }}
+              >
+                <Trash2 size={15} />
+                <span>Eliminar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal: Restablecer clase individual a oficial */}
+      {overrideToReset && (
+        <div className="settings-modal-backdrop" onClick={() => setOverrideToReset(null)}>
+          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <button
+              className="modal-close-btn"
+              onClick={() => setOverrideToReset(null)}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="settings-confirm-header">
+              <div className="settings-confirm-icon-wrap danger">
+                <RotateCcw size={22} strokeWidth={2.4} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 className="settings-confirm-title">
+                  Restablecer clase
+                </h3>
+                <p className="settings-confirm-desc">
+                  ¿Deseas restablecer la clase <strong>&quot;{overrideToReset.title}&quot;</strong> a su estado original de WebUntis? Se descartarán las modificaciones personalizadas (horario, aula o notas).
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-confirm-actions">
+              <button
+                type="button"
+                className="settings-btn-secondary"
+                onClick={() => setOverrideToReset(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="settings-btn-primary destructive"
+                onClick={() => {
+                  onResetLessonOverride?.(overrideToReset.key);
+                  setOverrideToReset(null);
+                }}
+              >
+                <RotateCcw size={15} />
+                <span>Restablecer</span>
               </button>
             </div>
           </div>
