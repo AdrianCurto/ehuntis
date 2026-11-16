@@ -16,14 +16,29 @@ import {
   Coffee,
   User,
   Tag,
-  Plus
+  ArrowLeft,
 } from 'lucide-react';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { DatePicker } from './ui/date-picker';
+import { TimePicker } from './ui/time-picker';
+import { InlineCategoryChip } from './ui/inline-category-chip';
+import { ConfirmDialog } from './ui/confirm-dialog';
+import { toast } from 'sonner';
 import {
   PALETTE,
   PALETTE_DARK,
   CHROMATIC_ORDER_MAIN,
   CHROMATIC_ORDER_SOFT,
-  getSubjectColorStyle
+  getSubjectColorStyle,
 } from '../utils/colorLogic';
 import {
   DEFAULT_CATEGORIES,
@@ -31,9 +46,10 @@ import {
   saveStoredCustomCategories,
   getDefaultEventTimes,
   timeNumberToString,
-  timeStringToNumber
+  timeStringToNumber,
 } from '../utils/customEvents';
 import { toDateNumber, parseDateNumber, getAcademicYearBounds } from '../utils/dayLogic';
+import { cn } from '../utils/cn';
 
 const DAYS_NAMES = [
   { day: 1, label: 'L', full: 'Lunes' },
@@ -55,23 +71,21 @@ function formatDateForInput(date) {
 }
 
 export default function CustomEventModal({
-  event,          // Instancia del evento a editar, o null si es nuevo
-  targetDate,     // Fecha de la celda pulsada o día activo
+  event,
+  targetDate,
   initialStartTimeStr,
   initialEndTimeStr,
   suggestedColor = 4,
   onSave,
   onDelete,
   onClose,
-  isDark = false
+  isDark = false,
 }) {
   const isEditing = Boolean(event);
   const rawEvent = event?.rawEvent || event || {};
 
-  // Horas por defecto: siguiente hora en punto para inicio, +1h para fin
   const defaultTimes = useMemo(() => getDefaultEventTimes(), []);
 
-  // Fecha base para inicializar: si es nuevo evento y viene targetDate, usar targetDate; si no, hoy
   const initialDate = useMemo(() => {
     if (isEditing) {
       if (event?.date) return parseDateNumber(event.date);
@@ -90,8 +104,6 @@ export default function CustomEventModal({
   const [title, setTitle] = useState(rawEvent.title || event?.subjects?.[0] || '');
   const [category, setCategory] = useState(rawEvent.category || event?.category || '');
   const [customCategories, setCustomCategories] = useState(() => getStoredCustomCategories());
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
 
   const [startTimeStr, setStartTimeStr] = useState(() => {
     if (isEditing) {
@@ -113,7 +125,7 @@ export default function CustomEventModal({
 
   const [recurrenceType, setRecurrenceType] = useState(() => {
     if (rawEvent.recurrence?.type) return rawEvent.recurrence.type;
-    return 'none'; // 'none' (puntual) o 'weekly'
+    return 'none';
   });
 
   const [singleDateStr, setSingleDateStr] = useState(() => {
@@ -148,30 +160,6 @@ export default function CustomEventModal({
     return defaultEndOfYearStr;
   });
 
-  const errorBannerRef = useRef(null);
-  const touchStartY = useRef(null);
-
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 60) {
-      onClose();
-    }
-    touchStartY.current = null;
-  };
-
-  const handleOpenPicker = (e) => {
-    try {
-      if (typeof e.currentTarget.showPicker === 'function') {
-        e.currentTarget.showPicker();
-      }
-    } catch (_) {}
-  };
-
   const [location, setLocation] = useState(rawEvent.location || event?.rooms?.[0] || '');
   const [notes, setNotes] = useState(rawEvent.notes || '');
   const [selectedColor, setSelectedColor] = useState(() => {
@@ -180,38 +168,19 @@ export default function CustomEventModal({
     return suggestedColor;
   });
 
-  // Modal para preguntar si editar/borrar solo esta fecha o la serie recurrente
-  const [confirmScopeModal, setConfirmScopeModal] = useState(null); // 'save' | 'delete' | null
-  const [confirmSingleDelete, setConfirmSingleDelete] = useState(false);
+  // Sub-paso interno para alcance de repetición: 'form' | 'scope-save' | 'scope-delete'
+  const [viewStep, setViewStep] = useState('form');
+  const [confirmSingleDeleteOpen, setConfirmSingleDeleteOpen] = useState(false);
   const [formError, setFormError] = useState('');
-
-  // Atajo de teclado: Escape cierra confirmaciones o el modal
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        if (confirmScopeModal) {
-          setConfirmScopeModal(null);
-        } else if (confirmSingleDelete) {
-          setConfirmSingleDelete(false);
-        } else if (isAddingCategory) {
-          setIsAddingCategory(false);
-        } else {
-          onClose();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmScopeModal, confirmSingleDelete, isAddingCategory, onClose]);
+  const errorBannerRef = useRef(null);
 
   const isRecurringEvent = rawEvent.recurrence?.type === 'weekly' || (isEditing && event?.recurrenceType === 'weekly');
 
   const handleToggleDay = (dayNum) => {
-    setDaysOfWeek(prev => {
+    setDaysOfWeek((prev) => {
       if (prev.includes(dayNum)) {
-        if (prev.length === 1) return prev; // Al menos un día seleccionado
-        return prev.filter(d => d !== dayNum);
+        if (prev.length === 1) return prev;
+        return prev.filter((d) => d !== dayNum);
       } else {
         return [...prev, dayNum].sort();
       }
@@ -228,15 +197,10 @@ export default function CustomEventModal({
     }
   };
 
-  const handleAddCustomCategory = (e) => {
-    e?.preventDefault();
-    const trimmed = newCatName.trim();
-    if (!trimmed) {
-      setIsAddingCategory(false);
-      return;
-    }
+  const handleAddCustomCategory = (trimmed) => {
+    if (!trimmed) return;
     const allExisting = [...DEFAULT_CATEGORIES, ...customCategories];
-    const exists = allExisting.find(c => c.toLowerCase() === trimmed.toLowerCase());
+    const exists = allExisting.find((c) => c.toLowerCase() === trimmed.toLowerCase());
     if (exists) {
       setCategory(exists);
     } else {
@@ -245,12 +209,10 @@ export default function CustomEventModal({
       saveStoredCustomCategories(updated);
       setCategory(trimmed);
     }
-    setNewCatName('');
-    setIsAddingCategory(false);
   };
 
   const handleDeleteCustomCategory = (catToDelete) => {
-    const updated = customCategories.filter(c => c.toLowerCase() !== catToDelete.toLowerCase());
+    const updated = customCategories.filter((c) => c.toLowerCase() !== catToDelete.toLowerCase());
     setCustomCategories(updated);
     saveStoredCustomCategories(updated);
     if ((category || '').toLowerCase() === catToDelete.toLowerCase()) {
@@ -346,8 +308,7 @@ export default function CustomEventModal({
     if (!validate()) return;
 
     if (isEditing && isRecurringEvent) {
-      // Preguntar si afecta solo a esta fecha o a toda la serie
-      setConfirmScopeModal('save');
+      setViewStep('scope-save');
     } else {
       const payload = buildEventPayload();
       onSave(payload, 'series');
@@ -358,448 +319,84 @@ export default function CustomEventModal({
   const handleConfirmSave = (mode) => {
     const payload = buildEventPayload();
     onSave(payload, mode);
-    setConfirmScopeModal(null);
     onClose();
   };
 
   const handleDeleteClick = () => {
     if (isRecurringEvent) {
-      setConfirmScopeModal('delete');
+      setViewStep('scope-delete');
     } else {
-      setConfirmSingleDelete(true);
+      setConfirmSingleDeleteOpen(true);
     }
   };
 
   const handleConfirmDelete = (mode) => {
     onDelete(rawEvent.id, targetDateNum, mode);
-    setConfirmScopeModal(null);
     onClose();
   };
 
   const activeColorStyle = getSubjectColorStyle(selectedColor, isDark);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-sheet custom-event-modal"
-        onClick={e => e.stopPropagation()}
-        style={{
-          borderTop: `4px solid ${activeColorStyle.bg}`,
-        }}
-      >
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          style={{ cursor: 'grab', touchAction: 'none' }}
-        />
+    <>
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <ResponsiveModalContent
+          className="max-w-lg p-5 sm:p-6 overflow-y-auto max-h-[90vh]"
+          style={{ borderTop: `4px solid ${activeColorStyle.bg}` }}
+        >
+          {/* Sub-paso: Seleccionar alcance para Guardar o Eliminar (sin modal sobre modal) */}
+          {viewStep === 'scope-save' || viewStep === 'scope-delete' ? (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewStep('form')}
+                  className="px-2"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  <span>Atrás</span>
+                </Button>
+                <ResponsiveModalTitle className="text-base font-semibold">
+                  {viewStep === 'scope-delete' ? 'Eliminar repeticiones' : 'Modificar repeticiones'}
+                </ResponsiveModalTitle>
+              </div>
 
-        <div className="custom-event-modal-header">
-          <div className="custom-event-modal-title">
-            {isEditing ? 'Editar evento' : 'Nuevo evento'}
-          </div>
-          <button className="custom-modal-close-btn" onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {viewStep === 'scope-delete'
+                  ? 'Este evento se repite semanalmente. Elige qué instancias deseas eliminar:'
+                  : 'Este evento se repite semanalmente. Elige el alcance de tus cambios:'}
+              </p>
 
-        <form onSubmit={handleSaveClick} className="custom-event-form" noValidate>
-          {/* Título */}
-          <div className="form-group">
-            <input
-              type="text"
-              className="event-input-title"
-              placeholder="Título"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              autoFocus={!isEditing}
-            />
-          </div>
-
-          {/* Categoría (opcional) */}
-          <div className="form-group">
-            <label className="form-label">
-              <Tag size={15} style={{ marginRight: 6 }} /> Etiqueta (opcional)
-            </label>
-            <div className="category-chips">
-              <button
-                type="button"
-                className={`category-chip${!category ? ' active' : ''}`}
-                onClick={() => setCategory('')}
-              >
-                Sin etiqueta
-              </button>
-              {DEFAULT_CATEGORIES.map(cat => {
-                const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`category-chip${isSelected ? ' active' : ''}`}
-                    onClick={() => setCategory(cat)}
-                  >
-                    {cat.toLowerCase() === 'estudio' && <BookOpen size={13} style={{ marginRight: 4 }} />}
-                    {cat.toLowerCase() === 'deporte' && <Dumbbell size={13} style={{ marginRight: 4 }} />}
-                    {cat.toLowerCase() === 'trabajo' && <Briefcase size={13} style={{ marginRight: 4 }} />}
-                    {cat.toLowerCase() === 'ocio' && <Coffee size={13} style={{ marginRight: 4 }} />}
-                    {cat.toLowerCase() === 'personal' && <User size={13} style={{ marginRight: 4 }} />}
-                    {cat}
-                  </button>
-                );
-              })}
-
-              {customCategories.map(cat => {
-                const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
-                return (
-                  <span
-                    key={cat}
-                    className={`category-chip category-chip-custom${isSelected ? ' active' : ''}`}
-                    onClick={() => setCategory(cat)}
-                  >
-                    <Tag size={12} style={{ marginRight: 4 }} />
-                    {cat}
-                    <button
-                      type="button"
-                      className="category-chip-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteCustomCategory(cat);
-                      }}
-                      title="Eliminar etiqueta"
-                      aria-label={`Eliminar etiqueta ${cat}`}
-                    >
-                      <X size={11} />
-                    </button>
-                  </span>
-                );
-              })}
-
-              {isAddingCategory ? (
-                <div className="category-new-inline">
-                  <input
-                    type="text"
-                    className="category-new-input"
-                    placeholder="Nueva..."
-                    value={newCatName}
-                    onChange={e => setNewCatName(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCustomCategory();
-                      } else if (e.key === 'Escape') {
-                        setIsAddingCategory(false);
-                        setNewCatName('');
-                      }
-                    }}
-                    autoFocus
-                    maxLength={25}
-                  />
-                  <button
-                    type="button"
-                    className="category-new-confirm-btn"
-                    onClick={handleAddCustomCategory}
-                    aria-label="Añadir etiqueta"
-                  >
-                    <Check size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    className="category-new-cancel-btn"
-                    onClick={() => {
-                      setIsAddingCategory(false);
-                      setNewCatName('');
-                    }}
-                    aria-label="Cancelar"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              ) : (
+              <div className="flex flex-col gap-2.5 pt-1">
                 <button
                   type="button"
-                  className="category-chip category-chip-add"
-                  onClick={() => setIsAddingCategory(true)}
-                >
-                  <Plus size={13} style={{ marginRight: 3 }} /> Nueva
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Horas de Inicio y Fin (precisión 5 min) */}
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label className="form-label">
-                <Clock size={15} style={{ marginRight: 6 }} /> Inicio
-              </label>
-              <input
-                type="time"
-                name="startTime"
-                aria-label="Hora de inicio"
-                step="300"
-                className="event-input-time"
-                value={startTimeStr}
-                onChange={e => handleStartTimeChange(e.target.value)}
-                onClick={handleOpenPicker}
-                onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
-                required
-              />
-            </div>
-            <div className="form-group flex-1">
-              <label className="form-label">
-                <Clock size={15} style={{ marginRight: 6 }} /> Fin
-              </label>
-              <input
-                type="time"
-                name="endTime"
-                aria-label="Hora de fin"
-                step="300"
-                min={startTimeStr}
-                className="event-input-time"
-                value={endTimeStr}
-                onChange={e => setEndTimeStr(e.target.value)}
-                onClick={handleOpenPicker}
-                onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Tipo de Recurrencia */}
-          <div className="form-group">
-            <label className="form-label">
-              <CalendarIcon size={15} style={{ marginRight: 6 }} /> Repetición
-            </label>
-            <div className="recurrence-toggle-bar">
-              <button
-                type="button"
-                className={`recurrence-tab${recurrenceType === 'none' ? ' active' : ''}`}
-                onClick={() => setRecurrenceType('none')}
-              >
-                Solo una vez
-              </button>
-              <button
-                type="button"
-                className={`recurrence-tab${recurrenceType === 'weekly' ? ' active' : ''}`}
-                onClick={() => setRecurrenceType('weekly')}
-              >
-                Semanal
-              </button>
-            </div>
-
-            {recurrenceType === 'none' ? (
-              <div className="recurrence-panel" style={{ marginTop: 10 }}>
-                <input
-                  type="date"
-                  className="event-input-date"
-                  value={singleDateStr}
-                  onChange={e => setSingleDateStr(e.target.value)}
-                  onClick={handleOpenPicker}
-                  onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
-                  required
-                />
-              </div>
-            ) : (
-              <div className="recurrence-panel" style={{ marginTop: 10 }}>
-                <div className="days-picker">
-                  {DAYS_NAMES.map(d => {
-                    const isSelected = daysOfWeek.includes(d.day);
-                    const isWeekend = d.day === 6 || d.day === 0;
-                    return (
-                      <span key={d.day} style={{ display: 'contents' }}>
-                        {d.day === 6 && <span className="days-picker-divider" aria-hidden="true" />}
-                        <button
-                          type="button"
-                          className={`day-pick-btn${isSelected ? ' active' : ''}${isWeekend ? ' is-weekend' : ''}`}
-                          onClick={() => handleToggleDay(d.day)}
-                          title={d.full}
-                        >
-                          {d.label}
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-
-                <div className="end-date-section" style={{ marginTop: 14 }}>
-                  <label className="form-label" style={{ marginBottom: 6 }}>
-                    <CalendarIcon size={15} style={{ marginRight: 6 }} /> Fecha de finalización
-                  </label>
-                  <input
-                    type="date"
-                    name="endDate"
-                    aria-label="Fecha de finalización"
-                    className="event-input-date"
-                    value={hasNoEndDate ? '' : customEndDateStr}
-                    disabled={hasNoEndDate}
-                    onChange={e => setCustomEndDateStr(e.target.value)}
-                    onClick={handleOpenPicker}
-                    onSelect={e => { e.target.selectionStart = e.target.selectionEnd; }}
-                    style={{ opacity: hasNoEndDate ? 0.45 : 1 }}
-                    required={!hasNoEndDate}
-                  />
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, flexWrap: 'wrap', gap: 6 }}>
-                    <label className="checkbox-row" style={{ cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={hasNoEndDate}
-                        onChange={e => setHasNoEndDate(e.target.checked)}
-                      />
-                      <span>Sin fecha de finalización</span>
-                    </label>
-
-                    {!hasNoEndDate && customEndDateStr !== defaultEndOfYearStr && (
-                      <button
-                        type="button"
-                        className="reset-end-date-link"
-                        onClick={() => setCustomEndDateStr(defaultEndOfYearStr)}
-                      >
-                        Restablecer a fin de curso (30 de junio)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Ubicación y Notas (Opcionales) */}
-          <div className="form-group">
-            <label className="form-label">
-              <MapPin size={15} style={{ marginRight: 6 }} /> Lugar (opcional)
-            </label>
-            <input
-              type="text"
-              className="event-input-text"
-              placeholder="Aula, biblioteca, despacho..."
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <AlignLeft size={15} style={{ marginRight: 6 }} /> Notas (opcional)
-            </label>
-            <textarea
-              className="event-input-textarea"
-              placeholder="Detalles o recordatorios..."
-              rows={2}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </div>
-
-          {/* Selector de Color de la Paleta */}
-          <div className="form-group">
-            <label className="form-label">Color en el horario</label>
-            <div className="color-swatches-grid">
-              {CHROMATIC_ORDER_MAIN.concat(CHROMATIC_ORDER_SOFT).map(idx => {
-                const cStyle = getSubjectColorStyle(idx, isDark);
-                const isSelected = selectedColor === idx;
-                const isSuggested = suggestedColor === idx;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`color-swatch-btn${isSelected ? ' selected' : ''}`}
-                    style={{
-                      background: cStyle.bg,
-                      borderColor: isSelected ? 'var(--accent)' : cStyle.border,
-                    }}
-                    onClick={() => setSelectedColor(idx)}
-                    title={`Color ${idx + 1}${isSuggested ? ' (Recomendado)' : ''}`}
-                  >
-                    {isSelected && <Check size={14} color={cStyle.text} strokeWidth={3} />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mensaje de error visible junto a los botones de acción */}
-          {formError && (
-            <div ref={errorBannerRef} className="custom-event-error-banner" style={{ marginBottom: 14 }}>
-              {formError}
-            </div>
-          )}
-
-          {/* Botones de Acción */}
-          <div className="custom-event-actions">
-            {isEditing && (
-              <button
-                type="button"
-                className="event-btn-delete"
-                onClick={handleDeleteClick}
-              >
-                <Trash2 size={16} style={{ marginRight: 6 }} /> Eliminar
-              </button>
-            )}
-            <div style={{ flex: 1 }} />
-            <button
-              type="button"
-              className="event-btn-cancel"
-              onClick={onClose}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="event-btn-save"
-            >
-              {isEditing ? 'Guardar' : 'Crear evento'}
-            </button>
-          </div>
-        </form>
-
-        {/* Modal de confirmación para eventos recurrentes (Guardar / Eliminar) */}
-        {confirmScopeModal && (
-          <div className="scope-dialog-overlay" onClick={() => setConfirmScopeModal(null)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-              <button
-                className="custom-modal-close-btn"
-                onClick={() => setConfirmScopeModal(null)}
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="settings-confirm-header">
-                <div className={`settings-confirm-icon-wrap ${confirmScopeModal === 'delete' ? 'danger' : 'primary'}`}>
-                  {confirmScopeModal === 'delete' ? (
-                    <Trash2 size={22} strokeWidth={2.4} />
-                  ) : (
-                    <CalendarRange size={22} strokeWidth={2.4} />
+                  onClick={() =>
+                    viewStep === 'scope-delete' ? handleConfirmDelete('single') : handleConfirmSave('single')
+                  }
+                  className={cn(
+                    'flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98]',
+                    viewStep === 'scope-delete'
+                      ? 'border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                      : 'border-[var(--border)] hover:bg-[var(--surface-hover)]'
                   )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="settings-confirm-title">
-                    {confirmScopeModal === 'delete' ? 'Eliminar repeticiones' : 'Modificar repeticiones'}
-                  </h3>
-                  <p className="settings-confirm-desc">
-                    {confirmScopeModal === 'delete'
-                      ? 'Este evento se repite semanalmente. Elige qué instancias deseas eliminar:'
-                      : 'Este evento se repite semanalmente. Elige el alcance de tus cambios:'}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                <button
-                  type="button"
-                  className={`scope-option-tile${confirmScopeModal === 'delete' ? ' destructive' : ''}`}
-                  onClick={() => confirmScopeModal === 'delete' ? handleConfirmDelete('single') : handleConfirmSave('single')}
                 >
-                  <div className="scope-option-icon">
-                    <CalendarIcon size={17} />
+                  <div
+                    className={cn(
+                      'w-9 h-9 rounded-full flex items-center justify-center shrink-0',
+                      viewStep === 'scope-delete'
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                        : 'bg-[var(--accent-light)] text-[var(--accent)]'
+                    )}
+                  >
+                    <CalendarIcon className="w-4 h-4" />
                   </div>
-                  <div className="scope-option-content">
-                    <div className="scope-option-title">
-                      {confirmScopeModal === 'delete' ? 'Solo esta fecha' : 'Solo esta fecha'}
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      Solo esta fecha
                     </div>
-                    <div className="scope-option-desc">
-                      {confirmScopeModal === 'delete'
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      {viewStep === 'scope-delete'
                         ? 'Se conservan las demás semanas del horario'
                         : 'Aplica los cambios únicamente a este día'}
                     </div>
@@ -808,18 +405,32 @@ export default function CustomEventModal({
 
                 <button
                   type="button"
-                  className={`scope-option-tile${confirmScopeModal === 'delete' ? ' destructive' : ''}`}
-                  onClick={() => confirmScopeModal === 'delete' ? handleConfirmDelete('series') : handleConfirmSave('series')}
+                  onClick={() =>
+                    viewStep === 'scope-delete' ? handleConfirmDelete('series') : handleConfirmSave('series')
+                  }
+                  className={cn(
+                    'flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98]',
+                    viewStep === 'scope-delete'
+                      ? 'border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                      : 'border-[var(--border)] hover:bg-[var(--surface-hover)]'
+                  )}
                 >
-                  <div className="scope-option-icon">
-                    <CalendarRange size={17} />
+                  <div
+                    className={cn(
+                      'w-9 h-9 rounded-full flex items-center justify-center shrink-0',
+                      viewStep === 'scope-delete'
+                        ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                        : 'bg-[var(--accent-light)] text-[var(--accent)]'
+                    )}
+                  >
+                    <CalendarRange className="w-4 h-4" />
                   </div>
-                  <div className="scope-option-content">
-                    <div className="scope-option-title">
-                      {confirmScopeModal === 'delete' ? 'Toda la serie semanal' : 'Toda la serie semanal'}
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      Toda la serie semanal
                     </div>
-                    <div className="scope-option-desc">
-                      {confirmScopeModal === 'delete'
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      {viewStep === 'scope-delete'
                         ? 'Elimina todas las fechas pasadas y futuras'
                         : 'Actualiza todas las repeticiones del curso'}
                     </div>
@@ -827,70 +438,347 @@ export default function CustomEventModal({
                 </button>
               </div>
 
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setConfirmScopeModal(null)}
-                >
+              <div className="pt-2 flex justify-end">
+                <Button variant="secondary" size="md" onClick={() => setViewStep('form')}>
                   Cancelar
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            /* Vista del Formulario Principal */
+            <form onSubmit={handleSaveClick} className="space-y-4" noValidate>
+              <ResponsiveModalHeader className="mb-2">
+                <ResponsiveModalTitle>
+                  {isEditing ? 'Editar evento' : 'Nuevo evento'}
+                </ResponsiveModalTitle>
+              </ResponsiveModalHeader>
 
-        {/* Modal de confirmación para eliminar evento puntual */}
-        {confirmSingleDelete && (
-          <div className="scope-dialog-overlay" onClick={() => setConfirmSingleDelete(false)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
-              <button
-                className="custom-modal-close-btn"
-                onClick={() => setConfirmSingleDelete(false)}
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
+              {/* Título */}
+              <div className="space-y-1.5">
+                <Input
+                  placeholder="Título del evento..."
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  autoFocus={!isEditing}
+                  className="text-base font-medium"
+                />
+              </div>
 
-              <div className="settings-confirm-header">
-                <div className="settings-confirm-icon-wrap danger">
-                  <Trash2 size={22} strokeWidth={2.4} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="settings-confirm-title">
-                    Eliminar evento
-                  </h3>
-                  <p className="settings-confirm-desc">
-                    ¿Eliminar <strong>&quot;{title.trim() || 'este evento'}&quot;</strong>? Esta acción no se puede deshacer.
-                  </p>
+              {/* Categoría */}
+              <div className="space-y-1.5">
+                <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  <Tag className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Etiqueta (opcional)
+                </label>
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setCategory('')}
+                    className={cn(
+                      'h-8 px-3 rounded-full text-xs font-medium border transition-colors cursor-pointer',
+                      !category
+                        ? 'bg-[var(--accent)] text-white border-transparent'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--surface-hover)]'
+                    )}
+                  >
+                    Sin etiqueta
+                  </button>
+
+                  {DEFAULT_CATEGORIES.map((cat) => {
+                    const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setCategory(cat)}
+                        className={cn(
+                          'inline-flex items-center h-8 px-3 rounded-full text-xs font-medium border transition-colors cursor-pointer',
+                          isSelected
+                            ? 'bg-[var(--accent)] text-white border-transparent'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--surface-hover)]'
+                        )}
+                      >
+                        {cat.toLowerCase() === 'estudio' && <BookOpen className="w-3 h-3 mr-1" />}
+                        {cat.toLowerCase() === 'deporte' && <Dumbbell className="w-3 h-3 mr-1" />}
+                        {cat.toLowerCase() === 'trabajo' && <Briefcase className="w-3 h-3 mr-1" />}
+                        {cat.toLowerCase() === 'ocio' && <Coffee className="w-3 h-3 mr-1" />}
+                        {cat.toLowerCase() === 'personal' && <User className="w-3 h-3 mr-1" />}
+                        <span>{cat}</span>
+                      </button>
+                    );
+                  })}
+
+                  {customCategories.map((cat) => {
+                    const isSelected = (category || '').toLowerCase() === cat.toLowerCase();
+                    return (
+                      <span
+                        key={cat}
+                        onClick={() => setCategory(cat)}
+                        className={cn(
+                          'inline-flex items-center h-8 pl-3 pr-1.5 rounded-full text-xs font-medium border transition-colors cursor-pointer group',
+                          isSelected
+                            ? 'bg-[var(--accent)] text-white border-transparent'
+                            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)] hover:bg-[var(--surface-hover)]'
+                        )}
+                      >
+                        <Tag className="w-3 h-3 mr-1" />
+                        <span>{cat}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCustomCategory(cat);
+                          }}
+                          className="ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+                          aria-label={`Eliminar etiqueta ${cat}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+
+                  <InlineCategoryChip onAdd={handleAddCustomCategory} />
                 </div>
               </div>
 
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setConfirmSingleDelete(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="settings-btn-primary destructive"
-                  onClick={() => {
-                    setConfirmSingleDelete(false);
-                    onDelete(rawEvent.id, targetDateNum, 'series');
-                    onClose();
-                  }}
-                >
-                  <Trash2 size={15} />
-                  <span>Eliminar</span>
-                </button>
+              {/* Horas de Inicio y Fin (precisión asistida 15 min + tecleado directo) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    <Clock className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Inicio
+                  </label>
+                  <TimePicker
+                    value={startTimeStr}
+                    step={15}
+                    onChange={(str) => handleStartTimeChange(str)}
+                    ariaLabel="Hora de inicio"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    <Clock className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Fin
+                  </label>
+                  <TimePicker
+                    value={endTimeStr}
+                    step={15}
+                    onChange={(str) => setEndTimeStr(str)}
+                    ariaLabel="Hora de fin"
+                  />
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+
+              {/* Repetición */}
+              <div className="space-y-2 pt-1">
+                <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  <CalendarIcon className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Repetición
+                </label>
+                <div className="grid grid-cols-2 p-1 bg-[var(--bg-secondary)] rounded-[var(--radius-lg)] border border-[var(--border)]">
+                  <button
+                    type="button"
+                    onClick={() => setRecurrenceType('none')}
+                    className={cn(
+                      'py-1.5 text-xs font-medium rounded-[var(--radius-md)] transition-all cursor-pointer select-none',
+                      recurrenceType === 'none'
+                        ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-xs font-semibold'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    )}
+                  >
+                    Solo una vez
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecurrenceType('weekly')}
+                    className={cn(
+                      'py-1.5 text-xs font-medium rounded-[var(--radius-md)] transition-all cursor-pointer select-none',
+                      recurrenceType === 'weekly'
+                        ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-xs font-semibold'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    )}
+                  >
+                    Semanal
+                  </button>
+                </div>
+
+                {recurrenceType === 'none' ? (
+                  <div className="pt-1">
+                    <DatePicker
+                      value={singleDateStr}
+                      onChange={(str) => setSingleDateStr(str)}
+                      ariaLabel="Fecha del evento"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between gap-1">
+                      {DAYS_NAMES.map((d) => {
+                        const isSelected = daysOfWeek.includes(d.day);
+                        const isWeekend = d.day === 6 || d.day === 0;
+                        return (
+                          <button
+                            key={d.day}
+                            type="button"
+                            onClick={() => handleToggleDay(d.day)}
+                            title={d.full}
+                            className={cn(
+                              'w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none active:scale-[0.96]',
+                              isSelected
+                                ? 'bg-[var(--accent)] text-white shadow-xs'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] border border-[var(--border)]',
+                              isWeekend && !isSelected && 'opacity-65'
+                            )}
+                          >
+                            {d.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                        Fecha de finalización
+                      </label>
+                      <DatePicker
+                        value={hasNoEndDate ? '' : customEndDateStr}
+                        disabled={hasNoEndDate}
+                        onChange={(str) => setCustomEndDateStr(str)}
+                        ariaLabel="Fecha de finalización"
+                      />
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer select-none text-[var(--text-secondary)]">
+                          <input
+                            type="checkbox"
+                            checked={hasNoEndDate}
+                            onChange={(e) => setHasNoEndDate(e.target.checked)}
+                            className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+                          />
+                          <span>Sin fecha límite</span>
+                        </label>
+                        {!hasNoEndDate && customEndDateStr !== defaultEndOfYearStr && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomEndDateStr(defaultEndOfYearStr)}
+                            className="text-[var(--accent)] hover:underline font-medium cursor-pointer"
+                          >
+                            Fin de curso (30 junio)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Ubicación y Notas */}
+              <div className="space-y-1.5">
+                <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  <MapPin className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Lugar (opcional)
+                </label>
+                <Input
+                  placeholder="Aula, biblioteca, despacho..."
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  <AlignLeft className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Notas (opcional)
+                </label>
+                <Textarea
+                  placeholder="Detalles o recordatorios..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Selector de Color de la Paleta */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                  Color en el horario
+                </label>
+                <div className="grid grid-cols-7 sm:grid-cols-8 gap-2 p-1">
+                  {CHROMATIC_ORDER_MAIN.concat(CHROMATIC_ORDER_SOFT).map((idx) => {
+                    const cStyle = getSubjectColorStyle(idx, isDark);
+                    const isSelected = selectedColor === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedColor(idx)}
+                        style={{ background: cStyle.bg, borderColor: isSelected ? 'var(--accent)' : cStyle.border }}
+                        className={cn(
+                          'w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform cursor-pointer active:scale-95 shadow-xs',
+                          isSelected && 'scale-110 ring-2 ring-[var(--accent)] ring-offset-2'
+                        )}
+                        title={`Color ${idx + 1}`}
+                      >
+                        {isSelected && <Check className="w-4 h-4" style={{ color: cStyle.text }} strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Banner de error */}
+              {formError && (
+                <div
+                  ref={errorBannerRef}
+                  className="p-3 rounded-[var(--radius-md)] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 text-xs font-medium"
+                >
+                  {formError}
+                </div>
+              )}
+
+              {/* Botones de Acción */}
+              <ResponsiveModalFooter className="flex-row justify-between items-center gap-2 pt-4">
+                {isEditing ? (
+                  <Button
+                    type="button"
+                    variant="destructiveOutline"
+                    size="md"
+                    onClick={handleDeleteClick}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    <span>Eliminar</span>
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="secondary" size="md" onClick={onClose}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="default" size="md">
+                    {isEditing ? 'Guardar' : 'Crear evento'}
+                  </Button>
+                </div>
+              </ResponsiveModalFooter>
+            </form>
+          )}
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
+      {/* Confirmación para borrado de evento puntual */}
+      <ConfirmDialog
+        open={confirmSingleDeleteOpen}
+        onOpenChange={setConfirmSingleDeleteOpen}
+        title="Eliminar evento"
+        description={`¿Eliminar "${title.trim() || 'este evento'}"? Esta acción se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={() => {
+          onDelete(rawEvent.id, targetDateNum, 'series');
+          toast.success('Evento eliminado', {
+            action: {
+              label: 'Deshacer',
+              onClick: () => {
+                onSave(rawEvent, 'series');
+              },
+            },
+          });
+          onClose();
+        }}
+      />
+    </>
   );
 }

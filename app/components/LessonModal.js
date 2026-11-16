@@ -1,23 +1,34 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { 
-  X, 
-  Clock, 
-  MapPin, 
-  User, 
-  Pencil, 
-  ArrowUpDown, 
-  Ban, 
-  CheckCircle2, 
-  RotateCcw, 
+import { useState } from 'react';
+import {
+  X,
+  Clock,
+  MapPin,
+  User,
+  Pencil,
+  ArrowUpDown,
+  Ban,
+  CheckCircle2,
+  RotateCcw,
   AlertTriangle,
-  FileText
+  FileText,
 } from 'lucide-react';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { ConfirmDialog } from './ui/confirm-dialog';
+import { toast } from 'sonner';
 import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/lessonOverrides';
 import { formatRooms } from '../utils/subgroups';
+import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -40,35 +51,6 @@ export default function LessonModal({
   onResolveDrift,
 }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const touchStartY = useRef(null);
-
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 60) {
-      onClose?.();
-    }
-    touchStartY.current = null;
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        if (showResetConfirm) {
-          setShowResetConfirm(false);
-        } else {
-          onClose?.();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, showResetConfirm]);
 
   if (!lesson) return null;
 
@@ -89,427 +71,239 @@ export default function LessonModal({
   const isOverridden = Boolean(lesson.isOverridden);
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
+  const handleResetConfirm = () => {
+    setShowResetConfirm(false);
+    onResetOverride?.(lesson);
+    toast.success('Clase restablecida al horario oficial');
+    onClose?.();
+  };
+
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1000 }}>
-      <div
-        className="modal-sheet"
-        style={{
-          background: color.bg,
-          borderTop: color.border ? `1px solid ${color.border}` : undefined,
-          maxHeight: '92vh',
-          overflowY: 'auto',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
-        />
-
-        {/* Cabecera */}
-        <div className="custom-event-modal-header" style={{ marginBottom: 14, alignItems: 'flex-start' }}>
-          <div>
-            <div className="modal-day" style={{ color: color.text, opacity: 0.85, fontWeight: 600, fontSize: '0.92rem', textAlign: 'left' }}>
-              {dayName} {dateStr}
-            </div>
-            <div className="modal-time" style={{ color: color.text, opacity: 0.95, fontWeight: 800, fontSize: '1.05rem', textAlign: 'left', marginTop: 2 }}>
-              {timeStr}
-            </div>
-          </div>
-          <button
-            className="custom-modal-close-btn"
-            onClick={onClose}
-            aria-label="Cerrar"
-            style={{
-              color: color.text,
-              background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Drift warning banner si WebUntis actualizó datos */}
-        {hasDrift && (
-          <div className="lesson-drift-banner">
-            <div className="lesson-drift-header">
-              <AlertTriangle size={16} />
-              <span>WebUntis ha actualizado esta clase:</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-              {lesson.driftChanges.map((ch, idx) => (
-                <div key={idx} className="lesson-drift-item">
-                  <span style={{ fontWeight: 600 }}>{ch.label}:</span>
-                  <span className="lesson-drift-badge-before">{ch.before}</span>
-                  <span>→</span>
-                  <span className="lesson-drift-badge-after">{ch.after}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => onResolveDrift?.(lesson, 'adopt_remote')}
-                style={{
-                  background: '#f59e0b',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '7px 12px',
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                Adoptar cambio oficial
-              </button>
-              <button
-                type="button"
-                onClick={() => onResolveDrift?.(lesson, 'keep_local')}
-                style={{
-                  background: 'transparent',
-                  color: 'inherit',
-                  border: '1px solid currentColor',
-                  borderRadius: 8,
-                  padding: '7px 12px',
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                Mantener mi versión
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Subgrupo */}
-        {subgroupStr && (
-          <div className="modal-subgroup" style={{ color: color.text }}>
-            {subgroupStr}
-          </div>
-        )}
-
-        {/* Nombre Asignatura */}
-        <div className="modal-subject" style={{ color: color.text }}>
-          {subjectName}
-        </div>
-
-        {/* Tipo de clase */}
-        {lesson.type && (
-          <div style={{ color: color.text, opacity: 0.85, fontSize: '0.9rem', marginBottom: '8px', textAlign: 'center' }}>
-            {lesson.type}
-          </div>
-        )}
-
-        {/* Badges de estado / Swap */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          {isUserCancelled && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: isDark ? '#fca5a5' : '#b91c1c',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: '0.82rem',
-                fontWeight: 700,
-              }}
-            >
-              <Ban size={14} /> Cancelada por ti
-            </div>
-          )}
-
-          {isWebUntisCancelled && !isUserCancelled && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                background: 'rgba(245, 158, 11, 0.2)',
-                color: isDark ? '#fcd34d' : '#b45309',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: '0.82rem',
-                fontWeight: 700,
-              }}
-            >
-              <AlertTriangle size={14} /> Cancelada por la universidad
-            </div>
-          )}
-
-          {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                background: 'rgba(59, 130, 246, 0.2)',
-                color: isDark ? '#93c5fd' : '#1d4ed8',
-                border: '1px solid rgba(59, 130, 246, 0.35)',
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: '0.82rem',
-                fontWeight: 600,
-              }}
-            >
-              <ArrowUpDown size={13} /> Intercambiada con {lesson.swappedWith.subjectName}
-            </div>
-          )}
-
-          {isOverridden && !isUserCancelled && !lesson.swappedWith && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                background: 'rgba(0, 0, 0, 0.12)',
-                color: color.text,
-                padding: '4px 10px',
-                borderRadius: 20,
-                fontSize: '0.8rem',
-                fontWeight: 600,
-              }}
-            >
-              <Pencil size={12} /> Personalizada
-            </div>
-          )}
-        </div>
-
-        {/* Detalles: Profesor y Aula */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-          {teacher && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              background: 'rgba(0,0,0,0.08)',
-              color: color.text,
-              padding: '5px 12px',
-              borderRadius: 8,
-              fontSize: '0.84rem',
-              fontWeight: 500,
-            }}>
-              <User size={13} />
-              <span>{teacher}</span>
-            </div>
-          )}
-          {room && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              background: 'rgba(0,0,0,0.08)',
-              color: color.text,
-              padding: '5px 12px',
-              borderRadius: 8,
-              fontSize: '0.84rem',
-              fontWeight: 600,
-            }}>
-              <MapPin size={13} />
-              <span>{room}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Notas personales */}
-        {lesson.notes && (
-          <div
-            style={{
-              background: 'rgba(0,0,0,0.08)',
-              color: color.text,
-              borderRadius: 10,
-              padding: '10px 14px',
-              margin: '12px 0 16px',
-              fontSize: '0.88rem',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.8rem', opacity: 0.75, marginBottom: 4 }}>
-              <FileText size={14} /> Notas personales:
-            </div>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{lesson.notes}</div>
-          </div>
-        )}
-
-        {/* ── Botones de Personalización / Acciones ── */}
-        <div
+    <>
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose?.(); }}>
+        <ResponsiveModalContent
+          className="max-w-md p-6 overflow-y-auto max-h-[90vh]"
           style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: '1px solid rgba(0,0,0,0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
+            background: color.bg,
+            borderTop: color.border ? `2px solid ${color.border}` : undefined,
           }}
         >
-          {/* Fila de acciones principales: Cancelar toggle + Editar */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => onToggleCancelled?.(lesson)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: 'none',
-                background: isUserCancelled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.15)',
-                color: isUserCancelled ? (isDark ? '#86efac' : '#15803d') : (isDark ? '#fca5a5' : '#b91c1c'),
-                fontWeight: 700,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {isUserCancelled ? (
-                <>
-                  <CheckCircle2 size={16} /> Reactivar clase
-                </>
-              ) : (
-                <>
-                  <Ban size={16} /> Marcar cancelada
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onOpenEdit?.(lesson)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: 'none',
-                background: 'rgba(0, 0, 0, 0.12)',
-                color: color.text,
-                fontWeight: 700,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Pencil size={15} /> Editar clase
-            </button>
-          </div>
-
-          {/* Intercambiar horario */}
-          <button
-            type="button"
-            onClick={() => onOpenSwap?.(lesson)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: 'none',
-              background: 'rgba(0, 0, 0, 0.08)',
-              color: color.text,
-              fontWeight: 600,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <ArrowUpDown size={15} /> Intercambiar horario
-          </button>
-
-          {/* Restablecer clase original (debajo de intercambiar) */}
-          {isOverridden && (
-            <button
-              type="button"
-              onClick={() => setShowResetConfirm(true)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '9px 12px',
-                borderRadius: 10,
-                border: 'none',
-                background: isDark ? 'rgba(239, 68, 68, 0.16)' : 'rgba(239, 68, 68, 0.12)',
-                color: isDark ? '#fca5a5' : '#b91c1c',
-                fontWeight: 600,
-                fontSize: '0.84rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title="Descartar todas las modificaciones y volver al estado oficial de WebUntis"
-            >
-              <RotateCcw size={14} /> Restablecer a versión original
-            </button>
-          )}
-        </div>
-
-        {/* Diálogo de confirmación para restablecer clase a versión original */}
-        {showResetConfirm && (
-          <div className="scope-dialog-overlay" onClick={() => setShowResetConfirm(false)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
-              <button
-                className="custom-modal-close-btn"
-                onClick={() => setShowResetConfirm(false)}
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="settings-confirm-header">
-                <div className="settings-confirm-icon-wrap danger">
-                  <RotateCcw size={22} strokeWidth={2.4} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="settings-confirm-title">
-                    Restablecer clase
-                  </h3>
-                  <p className="settings-confirm-desc">
-                    ¿Restablecer esta clase a los datos oficiales de WebUntis? Se descartarán tus modificaciones.
-                  </p>
-                </div>
+          {/* Cabecera */}
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
+                {dayName} {dateStr}
               </div>
-
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setShowResetConfirm(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="settings-btn-primary destructive"
-                  onClick={() => {
-                    setShowResetConfirm(false);
-                    onResetOverride?.(lesson);
-                  }}
-                >
-                  <RotateCcw size={15} />
-                  <span>Restablecer</span>
-                </button>
+              <div className="text-lg font-bold" style={{ color: color.text }}>
+                {timeStr}
               </div>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* Banner de drift remoto si WebUntis actualizó datos */}
+          {hasDrift && (
+            <div className="p-3 my-2 rounded-[var(--radius-md)] bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs">
+              <div className="flex items-center gap-1.5 font-bold mb-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>WebUntis ha actualizado esta clase:</span>
+              </div>
+              <div className="flex flex-col gap-1 mb-2.5">
+                {lesson.driftChanges.map((ch, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="font-semibold">{ch.label}:</span>
+                    <span className="line-through opacity-70">{ch.before}</span>
+                    <span>→</span>
+                    <span className="font-bold underline">{ch.after}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  className="bg-amber-600 text-white hover:bg-amber-700 h-7 text-xs"
+                  onClick={() => onResolveDrift?.(lesson, 'adopt_remote')}
+                >
+                  Adoptar cambio oficial
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs border-amber-500/50"
+                  onClick={() => onResolveDrift?.(lesson, 'keep_local')}
+                >
+                  Mantener mi versión
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Subgrupo */}
+          {subgroupStr && (
+            <div className="text-xs font-semibold opacity-75 uppercase tracking-wider mb-1" style={{ color: color.text }}>
+              {subgroupStr}
+            </div>
+          )}
+
+          {/* Nombre Asignatura */}
+          <div className="text-xl font-bold leading-snug mb-1" style={{ color: color.text }}>
+            {subjectName}
+          </div>
+
+          {/* Tipo de clase */}
+          {lesson.type && (
+            <div className="text-xs opacity-85 mb-3" style={{ color: color.text }}>
+              {lesson.type}
+            </div>
+          )}
+
+          {/* Badges de estado / Swap */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {isUserCancelled && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                <Ban className="w-3.5 h-3.5" /> Cancelada por ti
+              </span>
+            )}
+
+            {isWebUntisCancelled && !isUserCancelled && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                <AlertTriangle className="w-3.5 h-3.5" /> Cancelada por la universidad
+              </span>
+            )}
+
+            {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+                <ArrowUpDown className="w-3.5 h-3.5" /> Intercambiada con {lesson.swappedWith.subjectName}
+              </span>
+            )}
+
+            {isOverridden && !isUserCancelled && !lesson.swappedWith && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                  color: color.text,
+                }}
+              >
+                <Pencil className="w-3 h-3" /> Personalizada
+              </span>
+            )}
+          </div>
+
+          {/* Detalles: Profesor y Aula */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {teacher && (
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                  color: color.text,
+                }}
+              >
+                <User className="w-3.5 h-3.5 opacity-75" />
+                <span>{teacher}</span>
+              </div>
+            )}
+            {room && (
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-bold"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                  color: color.text,
+                }}
+              >
+                <MapPin className="w-3.5 h-3.5 opacity-75" />
+                <span>{room}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Notas personales */}
+          {lesson.notes && (
+            <div
+              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                color: color.text,
+              }}
+            >
+              <div className="flex items-center gap-1 font-bold opacity-75 mb-1">
+                <FileText className="w-3.5 h-3.5" />
+                <span>Notas personales:</span>
+              </div>
+              <div>{lesson.notes}</div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="space-y-2 pt-3 border-t border-black/10 dark:border-white/10">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={isUserCancelled ? 'default' : 'secondary'}
+                size="md"
+                onClick={() => onToggleCancelled?.(lesson)}
+                className={cn(
+                  isUserCancelled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                )}
+              >
+                {isUserCancelled ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    <span>Reactivar clase</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4 mr-1.5 text-rose-500" />
+                    <span>Marcar cancelada</span>
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => onOpenEdit?.(lesson)}
+              >
+                <Pencil className="w-4 h-4 mr-1.5" />
+                <span>Editar clase</span>
+              </Button>
+            </div>
+
+            <Button
+              variant="outline"
+              size="md"
+              className="w-full"
+              onClick={() => onOpenSwap?.(lesson)}
+            >
+              <ArrowUpDown className="w-4 h-4 mr-1.5" />
+              <span>Intercambiar horario</span>
+            </Button>
+
+            {isOverridden && (
+              <Button
+                variant="destructiveOutline"
+                size="md"
+                className="w-full"
+                onClick={() => setShowResetConfirm(true)}
+              >
+                <RotateCcw className="w-4 h-4 mr-1.5" />
+                <span>Restablecer a versión original</span>
+              </Button>
+            )}
+          </div>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
+      {/* Diálogo de confirmación para restablecer clase a versión original */}
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title="Restablecer clase"
+        description="¿Restablecer esta clase a los datos oficiales de WebUntis? Se descartarán tus modificaciones."
+        confirmText="Restablecer"
+        variant="destructive"
+        icon={RotateCcw}
+        onConfirm={handleResetConfirm}
+      />
+    </>
   );
 }

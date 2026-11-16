@@ -1,21 +1,30 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  X, 
-  ArrowUpDown, 
-  Clock, 
-  MapPin, 
-  Calendar as CalendarIcon, 
-  Check, 
+import { useState, useMemo, useEffect } from 'react';
+import {
+  X,
+  ArrowUpDown,
+  Clock,
+  MapPin,
+  Calendar as CalendarIcon,
+  Check,
   Search,
-  Sparkles,
-  MousePointerClick
+  MousePointerClick,
 } from 'lucide-react';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { subjectColor } from './WeekCalendar';
 import { formatTime } from '../utils/lessonOverrides';
 import { toMinutes } from '../utils/dayLogic';
 import { formatRooms } from '../utils/subgroups';
+import { cn } from '../utils/cn';
 
 function parseDate(dateNum) {
   if (!dateNum) return new Date();
@@ -30,10 +39,10 @@ const fromMinutes = (m) => Math.floor(m / 60) * 100 + (m % 60);
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export default function SwapLessonModal({
-  lesson,                 // Clase de origen
-  targetLesson = null,    // Clase de destino seleccionada (si ya se pulsó en el calendario)
-  candidateLessons = [],  // Lista de todas las lecciones candidatas
-  onSelectFromCalendar,   // Callback para activar selección interactiva en el horario
+  lesson,
+  targetLesson = null,
+  candidateLessons = [],
+  onSelectFromCalendar,
   onSwap,
   onClose,
   isDark = false,
@@ -43,36 +52,11 @@ export default function SwapLessonModal({
   const [swapRooms, setSwapRooms] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all'); // 'same_day' | 'all'
-  const touchStartY = useRef(null);
 
   useEffect(() => {
     setSelectedTarget(targetLesson);
     setSwapRooms(false);
   }, [targetLesson]);
-
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 60) {
-      onClose?.();
-    }
-    touchStartY.current = null;
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose?.();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   if (!lesson) return null;
 
@@ -84,9 +68,8 @@ export default function SwapLessonModal({
   const originSubject = lesson.subjects?.[0] || 'Clase';
   const originRoom = formatRooms(lesson.rooms) || 'Sin aula';
 
-  // Filter valid candidate lessons (exclude self and custom events)
   const validCandidates = useMemo(() => {
-    return candidateLessons.filter(c => {
+    return candidateLessons.filter((c) => {
       if (!c || c.isCustomEvent) return false;
       if (c.lessonKey && c.lessonKey === lesson.lessonKey) return false;
       if (c.id && lesson.id && c.id === lesson.id) return false;
@@ -102,7 +85,7 @@ export default function SwapLessonModal({
     });
   }, [candidateLessons, lesson, filterMode, searchQuery]);
 
-  // If a target lesson is chosen (from calendar or list), show the Confirmation View
+  // Si se ha seleccionado la clase de destino (desde el calendario o lista): Vista de confirmación
   if (selectedTarget) {
     const targetDuration = toMinutes(selectedTarget.endTime) - toMinutes(selectedTarget.startTime);
     const targetDate = parseDate(selectedTarget.date);
@@ -118,7 +101,6 @@ export default function SwapLessonModal({
     const roomB = (formatRooms(selectedTarget.rooms) || '').trim().toLowerCase();
     const diffRooms = roomA !== roomB;
 
-    // Projected new hours if keepDuration is active
     const newEndForOrigin = fromMinutes(toMinutes(selectedTarget.startTime) + originDuration);
     const newEndForTarget = fromMinutes(toMinutes(lesson.startTime) + targetDuration);
 
@@ -128,241 +110,125 @@ export default function SwapLessonModal({
     };
 
     return (
-      <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
-        <div
-          className="modal-sheet custom-event-modal"
-          onClick={e => e.stopPropagation()}
-          style={{
-            borderTop: `4px solid var(--accent)`,
-            width: '100%',
-            maxWidth: '520px',
-          }}
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <ResponsiveModalContent
+          className="max-w-lg p-6 overflow-y-auto max-h-[90vh]"
+          style={{ borderTop: `4px solid var(--accent)` }}
         >
-          <div
-            className="modal-drag-handle"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            style={{ cursor: 'grab', touchAction: 'none' }}
-          />
-
-          <div className="custom-event-modal-header" style={{ marginBottom: 16 }}>
-            <div>
-              <div className="custom-event-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.15rem' }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    background: 'var(--accent-light)',
-                    color: 'var(--accent)',
-                  }}
-                >
-                  <ArrowUpDown size={16} />
-                </span>
-                Confirmar intercambio
-              </div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                Las dos clases intercambiarán sus horarios y aulas
+          <ResponsiveModalHeader className="mb-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] shrink-0">
+                <ArrowUpDown className="w-4 h-4" />
+              </span>
+              <div>
+                <ResponsiveModalTitle className="text-base font-bold">
+                  Confirmar intercambio
+                </ResponsiveModalTitle>
+                <div className="text-xs text-[var(--text-secondary)]">
+                  Las dos clases intercambiarán sus horarios y aulas
+                </div>
               </div>
             </div>
-            <button className="custom-modal-close-btn" onClick={onClose} aria-label="Cerrar">
-              <X size={18} />
-            </button>
-          </div>
+          </ResponsiveModalHeader>
 
-          {/* Banner de aviso si es entre días distintos */}
           {isDifferentDay && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '9px 12px',
-                borderRadius: 10,
-                background: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(79, 110, 247, 0.1)',
-                border: '1px solid rgba(79, 110, 247, 0.25)',
-                color: isDark ? '#a5b4fc' : '#3730a3',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                marginBottom: 14,
-              }}
-            >
-              <CalendarIcon size={15} style={{ flexShrink: 0 }} />
+            <div className="flex items-center gap-2 p-2.5 rounded-[var(--radius-md)] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/50 text-xs font-semibold mb-3">
+              <CalendarIcon className="w-4 h-4 shrink-0" />
               <span>Intercambio entre días distintos ({originDayName} ⇄ {targetDayName})</span>
             </div>
           )}
 
           {/* Comparativa visual de las dos clases */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            {/* Clase Origen */}
-            <div
-              style={{
-                borderRadius: 12,
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                overflow: 'hidden',
-              }}
-            >
+          <div className="space-y-2 mb-4">
+            {/* Clase A */}
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
               <div
-                style={{
-                  background: originColor.bg,
-                  color: originColor.text,
-                  padding: '8px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                }}
+                className="p-2.5 px-3.5 flex items-center justify-between font-bold text-xs"
+                style={{ background: originColor.bg, color: originColor.text }}
               >
                 <span>Clase A: {originSubject}</span>
-                <span style={{ fontSize: '0.76rem', opacity: 0.9, fontWeight: 500 }}>
-                  {originDayName} {originDateFormatted}
-                </span>
+                <span className="opacity-85 font-medium">{originDayName} {originDateFormatted}</span>
               </div>
-              <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Clock size={13} /> Horario actual: <strong>{formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}</strong>
+              <div className="p-3 text-xs text-[var(--text-secondary)] flex justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Horario actual: <strong className="text-[var(--text-primary)]">{formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}</strong>
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <MapPin size={13} /> Aula: <strong>{swapRooms ? targetRoom : originRoom}</strong>
-                  {diffRooms && !swapRooms && <span style={{ fontSize: '0.74rem', opacity: 0.8, marginLeft: 4 }}>(se mantiene)</span>}
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Aula: <strong className="text-[var(--text-primary)]">{swapRooms ? targetRoom : originRoom}</strong>
+                  {diffRooms && !swapRooms && <span className="opacity-75">(se mantiene)</span>}
                 </span>
               </div>
             </div>
 
             {/* Icono central de intercambio */}
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '-4px 0' }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: 'var(--shadow-card)',
-                }}
-              >
-                <ArrowUpDown size={15} />
+            <div className="flex justify-center -my-2 relative z-10">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--accent)] flex items-center justify-center shadow-xs">
+                <ArrowUpDown className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            {/* Clase Destino */}
-            <div
-              style={{
-                borderRadius: 12,
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                overflow: 'hidden',
-              }}
-            >
+            {/* Clase B */}
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
               <div
-                style={{
-                  background: targetColor.bg,
-                  color: targetColor.text,
-                  padding: '8px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                }}
+                className="p-2.5 px-3.5 flex items-center justify-between font-bold text-xs"
+                style={{ background: targetColor.bg, color: targetColor.text }}
               >
                 <span>Clase B: {targetSubject}</span>
-                <span style={{ fontSize: '0.76rem', opacity: 0.9, fontWeight: 500 }}>
-                  {targetDayName} {targetDateFormatted}
-                </span>
+                <span className="opacity-85 font-medium">{targetDayName} {targetDateFormatted}</span>
               </div>
-              <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Clock size={13} /> Horario actual: <strong>{formatTime(selectedTarget.startTime)}–{formatTime(selectedTarget.endTime)}</strong>
+              <div className="p-3 text-xs text-[var(--text-secondary)] flex justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Horario actual: <strong className="text-[var(--text-primary)]">{formatTime(selectedTarget.startTime)}–{formatTime(selectedTarget.endTime)}</strong>
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <MapPin size={13} /> Aula: <strong>{swapRooms ? originRoom : targetRoom}</strong>
-                  {diffRooms && !swapRooms && <span style={{ fontSize: '0.74rem', opacity: 0.8, marginLeft: 4 }}>(se mantiene)</span>}
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5" /> Aula: <strong className="text-[var(--text-primary)]">{swapRooms ? originRoom : targetRoom}</strong>
+                  {diffRooms && !swapRooms && <span className="opacity-75">(se mantiene)</span>}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Opción cambiar también las aulas cuando no coincidan */}
+          {/* Opción cambiar también las aulas */}
           {diffRooms && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                fontSize: '0.83rem',
-                padding: '10px 14px',
-                borderRadius: 10,
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                marginBottom: 14,
-                cursor: 'pointer',
-                userSelect: 'none',
-              }}
-            >
+            <label className="flex items-start gap-2.5 p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-3 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={swapRooms}
-                onChange={e => setSwapRooms(e.target.checked)}
-                style={{ accentColor: 'var(--accent)', width: 16, height: 16, marginTop: 2, cursor: 'pointer' }}
+                onChange={(e) => setSwapRooms(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]"
               />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              <div className="flex-1 text-xs">
+                <div className="font-semibold text-[var(--text-primary)]">
                   Intercambiar también las aulas
                 </div>
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35 }}>
+                <div className="text-[var(--text-secondary)] mt-0.5 leading-relaxed">
                   {swapRooms ? (
                     <>
                       • <strong>{originSubject}</strong> pasará a <strong>{targetRoom}</strong><br />
                       • <strong>{targetSubject}</strong> pasará a <strong>{originRoom}</strong>
                     </>
                   ) : (
-                    <>
-                      Por defecto se mantiene cada clase en su aula habitual (<strong>{originSubject}</strong> en {originRoom}, <strong>{targetSubject}</strong> en {targetRoom}).
-                    </>
+                    `Por defecto se mantiene cada clase en su aula habitual (${originSubject} en ${originRoom}, ${targetSubject} en ${targetRoom}).`
                   )}
                 </div>
               </div>
             </label>
           )}
 
-          {/* Diferencia de duración / Opción mantener duración */}
+          {/* Mantener duración original */}
           {diffDuration && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                fontSize: '0.83rem',
-                padding: '10px 14px',
-                borderRadius: 10,
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                marginBottom: 16,
-                cursor: 'pointer',
-                userSelect: 'none',
-              }}
-            >
+            <label className="flex items-start gap-2.5 p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-4 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={keepDuration}
-                onChange={e => setKeepDuration(e.target.checked)}
-                style={{ accentColor: 'var(--accent)', width: 16, height: 16, marginTop: 2, cursor: 'pointer' }}
+                onChange={(e) => setKeepDuration(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]"
               />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              <div className="flex-1 text-xs">
+                <div className="font-semibold text-[var(--text-primary)]">
                   Mantener la duración original de cada clase
                 </div>
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.35 }}>
+                <div className="text-[var(--text-secondary)] mt-0.5 leading-relaxed">
                   {keepDuration ? (
                     <>
                       • <strong>{originSubject}</strong> mantendrá {originDuration} min ({formatTime(selectedTarget.startTime)}–{formatTime(newEndForOrigin)})<br />
@@ -376,11 +242,10 @@ export default function SwapLessonModal({
             </label>
           )}
 
-          {/* Botones de acción */}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 12 }}>
-            <button
-              type="button"
-              className="settings-btn-secondary"
+          <ResponsiveModalFooter className="flex-row justify-end gap-2 pt-2">
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => {
                 if (targetLesson) {
                   onSelectFromCalendar?.(lesson);
@@ -389,107 +254,46 @@ export default function SwapLessonModal({
                   setSelectedTarget(null);
                 }
               }}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 10,
-                fontSize: '0.86rem',
-                fontWeight: 600,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
             >
               Elegir otra clase
-            </button>
-
-            <button
-              type="button"
-              className="settings-btn-primary"
-              onClick={handleConfirm}
-              style={{
-                padding: '10px 18px',
-                borderRadius: 10,
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                background: 'var(--accent)',
-                color: '#ffffff',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-card)',
-              }}
-            >
-              <Check size={16} /> Confirmar intercambio
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+            <Button variant="default" size="md" onClick={handleConfirm}>
+              <Check className="w-4 h-4 mr-1.5" />
+              Confirmar intercambio
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
     );
   }
 
-  // Otherwise, show the Interactive Selection modal with option to choose directly from calendar or search list
+  // Vista interactiva para seleccionar clase de destino
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
-      <div
-        className="modal-sheet custom-event-modal"
-        onClick={e => e.stopPropagation()}
-        style={{
-          borderTop: `4px solid ${originColor.bg}`,
-          width: '100%',
-          maxWidth: '520px',
-        }}
+    <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ResponsiveModalContent
+        className="max-w-lg p-6 overflow-y-auto max-h-[90vh]"
+        style={{ borderTop: `4px solid ${originColor.bg}` }}
       >
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          style={{ cursor: 'grab', touchAction: 'none' }}
-        />
-
-        <div className="custom-event-modal-header" style={{ marginBottom: 14 }}>
-          <div>
-            <div className="custom-event-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.15rem' }}>
-              <ArrowUpDown size={18} /> Intercambiar clase
-            </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-              {originDayName} {originDateFormatted} • {formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}
-            </div>
+        <ResponsiveModalHeader className="mb-2">
+          <ResponsiveModalTitle className="text-base font-bold flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-[var(--accent)]" />
+            <span>Intercambiar clase</span>
+          </ResponsiveModalTitle>
+          <div className="text-xs text-[var(--text-secondary)]">
+            {originDayName} {originDateFormatted} • {formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}
           </div>
-          <button className="custom-modal-close-btn" onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
+        </ResponsiveModalHeader>
 
-        {/* Clase actual seleccionada como origen */}
+        {/* Clase actual origen */}
         <div
-          style={{
-            background: originColor.bg,
-            color: originColor.text,
-            padding: '10px 14px',
-            borderRadius: 12,
-            fontSize: '0.92rem',
-            fontWeight: 700,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 14,
-            boxShadow: 'var(--shadow-card)',
-          }}
+          className="p-3 rounded-[var(--radius-md)] flex items-center justify-between text-xs font-bold mb-3 shadow-xs"
+          style={{ background: originColor.bg, color: originColor.text }}
         >
           <div>
             <span>{originSubject}</span>
-            {lesson.type && (
-              <span style={{ fontSize: '0.78rem', opacity: 0.85, fontWeight: 500, marginLeft: 6 }}>
-                ({lesson.type})
-              </span>
-            )}
+            {lesson.type && <span className="opacity-80 font-normal ml-1.5">({lesson.type})</span>}
           </div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>
-            {originRoom}
-          </div>
+          <div>{originRoom}</div>
         </div>
 
         {/* Botón destacado: Seleccionar directamente en el calendario */}
@@ -499,124 +303,52 @@ export default function SwapLessonModal({
             onSelectFromCalendar?.(lesson);
             onClose();
           }}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 12,
-            background: 'var(--accent-light)',
-            border: '1.5px solid var(--accent)',
-            color: 'var(--accent)',
-            fontSize: '0.92rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            cursor: 'pointer',
-            marginBottom: 16,
-            transition: 'transform 0.15s, background 0.15s',
-          }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          className="w-full p-3 rounded-[var(--radius-lg)] bg-[var(--accent-light)] border border-[var(--accent)] text-[var(--accent)] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all hover:opacity-90 active:scale-[0.98] mb-3"
         >
-          <MousePointerClick size={18} />
+          <MousePointerClick className="w-4 h-4" />
           <span>Seleccionar clase directamente en el horario</span>
         </button>
 
-        {/* Separador con "o busca en la lista" */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            margin: '0 0 12px',
-            color: 'var(--text-muted)',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-          }}
-        >
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        <div className="flex items-center gap-2 my-2 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+          <div className="flex-1 h-px bg-[var(--border)]" />
           <span>O selecciona de la lista</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <div className="flex-1 h-px bg-[var(--border)]" />
         </div>
 
         {/* Filtros y buscador */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px',
-              borderRadius: 10,
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <Search size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-            <input
-              type="text"
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1">
+            <Input
+              startIcon={Search}
               placeholder="Buscar por asignatura, aula..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                fontSize: '0.84rem',
-                color: 'var(--text-primary)',
-              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 text-xs"
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={14} />
-              </button>
-            )}
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              borderRadius: 10,
-              overflow: 'hidden',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-            }}
-          >
+          <div className="flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] p-0.5 shrink-0">
             <button
               type="button"
               onClick={() => setFilterMode('same_day')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                border: 'none',
-                background: filterMode === 'same_day' ? 'var(--accent)' : 'transparent',
-                color: filterMode === 'same_day' ? '#fff' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className={cn(
+                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer',
+                filterMode === 'same_day'
+                  ? 'bg-[var(--accent)] text-white shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              )}
             >
               Mismo día
             </button>
             <button
               type="button"
               onClick={() => setFilterMode('all')}
-              style={{
-                padding: '6px 10px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                border: 'none',
-                background: filterMode === 'all' ? 'var(--accent)' : 'transparent',
-                color: filterMode === 'all' ? '#fff' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className={cn(
+                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer',
+                filterMode === 'all'
+                  ? 'bg-[var(--accent)] text-white shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              )}
             >
               Cualquier día
             </button>
@@ -624,18 +356,9 @@ export default function SwapLessonModal({
         </div>
 
         {/* Lista de candidatos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '280px', overflowY: 'auto', marginBottom: 14, paddingRight: 4 }}>
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1 mb-4">
           {validCandidates.length === 0 ? (
-            <div
-              style={{
-                padding: '24px 16px',
-                textAlign: 'center',
-                background: 'var(--bg-secondary)',
-                borderRadius: 10,
-                fontSize: '0.88rem',
-                color: 'var(--text-muted)',
-              }}
-            >
+            <div className="p-6 text-center bg-[var(--bg-secondary)] rounded-[var(--radius-md)] text-xs text-[var(--text-muted)]">
               No se encontraron clases coincidentes para intercambiar.
             </div>
           ) : (
@@ -652,109 +375,47 @@ export default function SwapLessonModal({
                 <div
                   key={cand.lessonKey || cand.id || idx}
                   onClick={() => setSelectedTarget(cand)}
-                  style={{
-                    border: '1px solid var(--border)',
-                    borderRadius: 10,
-                    padding: '10px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    background: 'var(--surface)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--accent)';
-                    e.currentTarget.style.background = 'var(--surface-hover)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                    e.currentTarget.style.background = 'var(--surface)';
-                  }}
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent)] transition-all cursor-pointer"
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold mb-1">
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: candColor.bg,
-                          flexShrink: 0,
-                          display: 'inline-block',
-                        }}
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: candColor.bg }}
                       />
-                      <span style={{ fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {candSubject}
-                      </span>
-                      {cand.type && (
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                          ({cand.type})
-                        </span>
-                      )}
+                      <span className="truncate">{candSubject}</span>
+                      {cand.type && <span className="text-[11px] font-normal text-[var(--text-muted)]">({cand.type})</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: isDifferentDay ? 600 : 400, color: isDifferentDay ? 'var(--accent)' : 'inherit' }}>
-                        <CalendarIcon size={12} /> {candDayName} {candDateFormatted}
+                    <div className="flex flex-wrap gap-2 text-[11px] text-[var(--text-secondary)]">
+                      <span className={cn('flex items-center gap-1', isDifferentDay && 'text-[var(--accent)] font-semibold')}>
+                        <CalendarIcon className="w-3 h-3" /> {candDayName} {candDateFormatted}
                       </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={12} /> {formatTime(cand.startTime)}–{formatTime(cand.endTime)}
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {formatTime(cand.startTime)}–{formatTime(cand.endTime)}
                       </span>
                       {candRoom && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <MapPin size={12} /> {candRoom}
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {candRoom}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="settings-btn-primary"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      borderRadius: 8,
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      background: 'var(--accent)',
-                      color: '#ffffff',
-                      border: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
+                  <Button variant="default" size="sm" className="h-7 px-2.5 text-xs shrink-0">
                     Elegir
-                  </button>
+                  </Button>
                 </div>
               );
             })
           )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            className="settings-btn-secondary"
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              fontSize: '0.86rem',
-              fontWeight: 600,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
+        <ResponsiveModalFooter className="flex-row justify-end pt-2">
+          <Button variant="secondary" size="md" onClick={onClose}>
             Cancelar
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

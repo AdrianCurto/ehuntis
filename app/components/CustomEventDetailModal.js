@@ -1,10 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Pencil, MapPin, AlignLeft, Calendar, CalendarRange, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, MapPin, AlignLeft, Calendar, CalendarRange, Trash2, X, ArrowLeft } from 'lucide-react';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { ConfirmDialog } from './ui/confirm-dialog';
+import { toast } from 'sonner';
 import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
 import { formatRooms } from '../utils/subgroups';
+import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAYS_SHORT = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
@@ -19,42 +30,12 @@ export default function CustomEventDetailModal({
   event,
   onEdit,
   onDelete,
+  onRestore, // callback opcional para deshacer
   onClose,
-  isDark = false
+  isDark = false,
 }) {
-  const [confirmScopeDelete, setConfirmScopeDelete] = useState(false);
-  const [confirmSingleDelete, setConfirmSingleDelete] = useState(false);
-  const touchStartY = useRef(null);
-
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 60) {
-      onClose?.();
-    }
-    touchStartY.current = null;
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        if (confirmScopeDelete) {
-          setConfirmScopeDelete(false);
-        } else if (confirmSingleDelete) {
-          setConfirmSingleDelete(false);
-        } else {
-          onClose();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [confirmScopeDelete, confirmSingleDelete, onClose]);
+  const [viewMode, setViewMode] = useState('detail'); // 'detail' | 'scope-delete'
+  const [confirmSingleDeleteOpen, setConfirmSingleDeleteOpen] = useState(false);
 
   if (!event) return null;
 
@@ -73,8 +54,8 @@ export default function CustomEventDetailModal({
 
   let recurrenceDescription = 'Evento puntual';
   if (isRecurring) {
-    const days = (rawEvent.recurrence.daysOfWeek || []).map(d => DAYS_SHORT[d] || '').filter(Boolean).join(', ');
-    const endStr = rawEvent.recurrence.endDate 
+    const days = (rawEvent.recurrence.daysOfWeek || []).map((d) => DAYS_SHORT[d] || '').filter(Boolean).join(', ');
+    const endStr = rawEvent.recurrence.endDate
       ? `hasta ${formatDateShort(parseDateNumber(rawEvent.recurrence.endDate))}`
       : 'hasta fin de curso';
     recurrenceDescription = `Repetición semanal: ${days} (${endStr})`;
@@ -82,258 +63,221 @@ export default function CustomEventDetailModal({
 
   const handleDeleteClick = () => {
     if (isRecurring) {
-      setConfirmScopeDelete(true);
+      setViewMode('scope-delete');
     } else {
-      setConfirmSingleDelete(true);
+      setConfirmSingleDeleteOpen(true);
     }
   };
 
   const handleConfirmDelete = (mode) => {
     onDelete(rawEvent.id, event.date, mode);
-    setConfirmScopeDelete(false);
+    toast.success(mode === 'single' ? 'Instancia eliminada' : 'Serie semanal eliminada', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          onRestore?.(rawEvent, mode);
+        },
+      },
+    });
     onClose();
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-sheet"
-        style={{ background: color.bg, borderTop: color.border ? `1px solid ${color.border}` : undefined }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
-        />
-
-        {/* Cabecera */}
-        <div className="custom-event-modal-header" style={{ marginBottom: 14, alignItems: 'flex-start' }}>
-          <div>
-            <div className="modal-day" style={{ color: color.text, opacity: 0.85, fontWeight: 600, fontSize: '0.92rem', textAlign: 'left' }}>
-              {dayName} {dateStr}
-            </div>
-            <div className="modal-time" style={{ color: color.text, opacity: 0.95, fontWeight: 800, fontSize: '1.05rem', textAlign: 'left', marginTop: 2 }}>
-              {timeStr}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              className="custom-modal-close-btn"
-              onClick={onEdit}
-              aria-label="Editar evento"
-              title="Editar evento"
-              style={{
-                color: color.text,
-                background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-              }}
-            >
-              <Pencil size={15} />
-            </button>
-            <button
-              className="custom-modal-close-btn"
-              onClick={onClose}
-              aria-label="Cerrar"
-              style={{
-                color: color.text,
-                background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-              }}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Categoría si existe */}
-        {category && (
-          <div className="modal-subgroup" style={{ color: color.text }}>
-            {category}
-          </div>
-        )}
-
-        {/* Título del evento */}
-        <div className="modal-subject" style={{ color: color.text, marginTop: 4 }}>
-          {title}
-        </div>
-
-        {/* Detalles adicionales */}
-        <div className="modal-detail" style={{ color: color.text, gap: 8, marginTop: 12 }}>
-          {location && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <MapPin size={16} style={{ opacity: 0.7 }} />
-              <span>{location}</span>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.85rem', opacity: 0.8 }}>
-            <Calendar size={14} style={{ opacity: 0.7 }} />
-            <span>{recurrenceDescription}</span>
-          </div>
-
-          {notes && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: '8px 16px',
-                borderRadius: 10,
-                background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                fontSize: '0.88rem',
-                lineHeight: 1.4,
-                textAlign: 'center',
-                maxWidth: '92%',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {notes}
-            </div>
-          )}
-        </div>
-
-        {/* Acciones al pie */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18, width: '100%' }}>
-          <button
-            type="button"
-            onClick={handleDeleteClick}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 20,
-              border: isDark ? '1px solid rgba(239,68,68,0.35)' : '1px solid rgba(239,68,68,0.25)',
-              background: 'rgba(239,68,68,0.08)',
-              color: '#ef4444',
-              fontWeight: 600,
-              fontSize: '0.82rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              cursor: 'pointer',
-            }}
-          >
-            <Trash2 size={13} /> Eliminar
-          </button>
-        </div>
-
-        {/* Diálogo de confirmación para borrar serie recurrente */}
-        {confirmScopeDelete && (
-          <div className="scope-dialog-overlay" onClick={() => setConfirmScopeDelete(false)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-              <button
-                className="custom-modal-close-btn"
-                onClick={() => setConfirmScopeDelete(false)}
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="settings-confirm-header">
-                <div className="settings-confirm-icon-wrap danger">
-                  <Trash2 size={22} strokeWidth={2.4} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="settings-confirm-title">
-                    Eliminar repeticiones
-                  </h3>
-                  <p className="settings-confirm-desc">
-                    Este evento se repite semanalmente. Elige qué instancias deseas eliminar:
-                  </p>
-                </div>
+    <>
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <ResponsiveModalContent
+          className="max-w-md p-6 overflow-y-auto"
+          style={{ background: color.bg, borderTop: color.border ? `2px solid ${color.border}` : undefined }}
+        >
+          {viewMode === 'scope-delete' ? (
+            <div className="space-y-4 animate-in fade-in-50 duration-200">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode('detail')}
+                  style={{ color: color.text }}
+                  className="px-2"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  <span>Atrás</span>
+                </Button>
+                <ResponsiveModalTitle className="text-base font-semibold" style={{ color: color.text }}>
+                  Eliminar repeticiones
+                </ResponsiveModalTitle>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+              <p className="text-xs leading-relaxed" style={{ color: color.text, opacity: 0.85 }}>
+                Este evento se repite semanalmente. Elige qué instancias deseas eliminar:
+              </p>
+
+              <div className="flex flex-col gap-2.5 pt-1">
                 <button
                   type="button"
-                  className="scope-option-tile destructive"
                   onClick={() => handleConfirmDelete('single')}
+                  className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
+                  style={{ borderColor: 'rgba(0,0,0,0.1)' }}
                 >
-                  <div className="scope-option-icon">
-                    <Calendar size={17} />
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-500">
+                    <Calendar className="w-4 h-4" />
                   </div>
-                  <div className="scope-option-content">
-                    <div className="scope-option-title">Solo esta fecha</div>
-                    <div className="scope-option-desc">Se conservan las demás semanas del horario</div>
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: color.text }}>
+                      Solo esta fecha
+                    </div>
+                    <div className="text-xs" style={{ color: color.text, opacity: 0.75 }}>
+                      Se conservan las demás semanas del horario
+                    </div>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  className="scope-option-tile destructive"
                   onClick={() => handleConfirmDelete('series')}
+                  className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
+                  style={{ borderColor: 'rgba(0,0,0,0.1)' }}
                 >
-                  <div className="scope-option-icon">
-                    <CalendarRange size={17} />
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-500">
+                    <CalendarRange className="w-4 h-4" />
                   </div>
-                  <div className="scope-option-content">
-                    <div className="scope-option-title">Toda la serie semanal</div>
-                    <div className="scope-option-desc">Elimina todas las fechas pasadas y futuras</div>
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: color.text }}>
+                      Toda la serie semanal
+                    </div>
+                    <div className="text-xs" style={{ color: color.text, opacity: 0.75 }}>
+                      Elimina todas las fechas pasadas y futuras
+                    </div>
                   </div>
                 </button>
               </div>
 
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setConfirmScopeDelete(false)}
+              <div className="pt-2 flex justify-end">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setViewMode('detail')}
                 >
                   Cancelar
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Diálogo de confirmación para borrar evento puntual */}
-        {confirmSingleDelete && (
-          <div className="scope-dialog-overlay" onClick={() => setConfirmSingleDelete(false)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
-              <button
-                className="custom-modal-close-btn"
-                onClick={() => setConfirmSingleDelete(false)}
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="settings-confirm-header">
-                <div className="settings-confirm-icon-wrap danger">
-                  <Trash2 size={22} strokeWidth={2.4} />
+          ) : (
+            <div className="space-y-4">
+              {/* Cabecera con fecha y hora */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
+                    {dayName} {dateStr}
+                  </div>
+                  <div className="text-lg font-bold" style={{ color: color.text }}>
+                    {timeStr}
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="settings-confirm-title">
-                    Eliminar evento
-                  </h3>
-                  <p className="settings-confirm-desc">
-                    ¿Eliminar <strong>&quot;{title}&quot;</strong>? Esta acción no se puede deshacer.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    aria-label="Editar evento"
+                    title="Editar evento"
+                    className="p-2 rounded-full transition-transform active:scale-95 cursor-pointer"
+                    style={{
+                      color: color.text,
+                      background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+                    }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setConfirmSingleDelete(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="settings-btn-primary destructive"
-                  onClick={() => {
-                    setConfirmSingleDelete(false);
-                    onDelete(rawEvent.id, event.date, 'series');
-                    onClose();
+              {/* Categoría si existe */}
+              {category && (
+                <div
+                  className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  style={{
+                    color: color.text,
+                    background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)',
                   }}
                 >
-                  <Trash2 size={15} />
+                  {category}
+                </div>
+              )}
+
+              {/* Título del evento */}
+              <div className="text-xl font-bold leading-snug" style={{ color: color.text }}>
+                {title}
+              </div>
+
+              {/* Detalles adicionales */}
+              <div className="space-y-2 text-sm pt-1" style={{ color: color.text }}>
+                {location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 opacity-75 shrink-0" />
+                    <span>{location}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-xs opacity-85">
+                  <Calendar className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                  <span>{recurrenceDescription}</span>
+                </div>
+
+                {notes && (
+                  <div
+                    className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-3"
+                    style={{
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    }}
+                  >
+                    {notes}
+                  </div>
+                )}
+              </div>
+
+              {/* Pie con botón de eliminar */}
+              <div className="pt-4 flex items-center justify-between border-t border-black/10 dark:border-white/10">
+                <Button
+                  variant="destructiveOutline"
+                  size="sm"
+                  onClick={handleDeleteClick}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   <span>Eliminar</span>
-                </button>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onClose}
+                >
+                  Cerrar
+                </Button>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
+      {/* Confirmación para borrado de evento puntual */}
+      <ConfirmDialog
+        open={confirmSingleDeleteOpen}
+        onOpenChange={setConfirmSingleDeleteOpen}
+        title="Eliminar evento"
+        description={`¿Eliminar "${title}"? Esta acción se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={() => {
+          onDelete(rawEvent.id, event.date, 'series');
+          toast.success('Evento eliminado', {
+            action: {
+              label: 'Deshacer',
+              onClick: () => {
+                onRestore?.(rawEvent, 'series');
+              },
+            },
+          });
+          onClose();
+        }}
+      />
+    </>
   );
 }

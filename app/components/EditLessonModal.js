@@ -1,9 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { X, Clock, MapPin, AlignLeft, AlertCircle } from 'lucide-react';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { TimePicker } from './ui/time-picker';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
+import { cn } from '../utils/cn';
 
 function timeNumberToString(t) {
   if (typeof t !== 'number') return '08:00';
@@ -34,31 +46,14 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   const [notes, setNotes] = useState(() => lesson?.notes || '');
   const [error, setError] = useState('');
 
-  const touchStartY = useRef(null);
+  if (!lesson) return null;
 
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
+  const date = parseDate(lesson.date);
+  const dayName = DAYS_LONG[date.getDay()];
+  const dateFormatted = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
-  const handleTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    if (deltaY > 60) {
-      onClose?.();
-    }
-    touchStartY.current = null;
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose?.();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  const color = subjectColor(lesson.subjectIds?.[0] || 0, isDark);
+  const subjectName = lesson.subjects?.[0] || 'Clase';
 
   const handleStartTimeChange = (newStart) => {
     setStartTimeStr(newStart);
@@ -70,15 +65,6 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
       setEndTimeStr(timeNumberToString(nextHour));
     }
   };
-
-  if (!lesson) return null;
-
-  const date = parseDate(lesson.date);
-  const dayName = DAYS_LONG[date.getDay()];
-  const dateFormatted = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-
-  const color = subjectColor(lesson.subjectIds?.[0] || 0, isDark);
-  const subjectName = lesson.subjects?.[0] || 'Clase';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -92,7 +78,7 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
 
     const roomsArr = roomsStr
       .split(',')
-      .map(r => formatRoom(r.trim()))
+      .map((r) => formatRoom(r.trim()))
       .filter(Boolean);
 
     onSave(lesson, {
@@ -105,149 +91,106 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1100 }}>
-      <div
-        className="modal-sheet custom-event-modal"
-        onClick={e => e.stopPropagation()}
-        style={{
-          borderTop: `4px solid ${color.bg}`,
-        }}
+    <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ResponsiveModalContent
+        className="max-w-md p-6 overflow-y-auto max-h-[90vh]"
+        style={{ borderTop: `4px solid ${color.bg}` }}
       >
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          style={{ cursor: 'grab', touchAction: 'none' }}
-        />
-
-        <div className="custom-event-modal-header" style={{ marginBottom: 12 }}>
-          <div>
-            <div className="custom-event-modal-title">
-              Personalizar clase
-            </div>
-            <div style={{ fontSize: '0.82rem', opacity: 0.65, marginTop: 2 }}>
-              {dayName} {dateFormatted}
-            </div>
+        <ResponsiveModalHeader className="mb-2">
+          <ResponsiveModalTitle className="text-base font-bold">
+            Personalizar clase
+          </ResponsiveModalTitle>
+          <div className="text-xs text-[var(--text-secondary)]">
+            {dayName} {dateFormatted}
           </div>
-          <button className="custom-modal-close-btn" onClick={onClose} aria-label="Cerrar">
-            <X size={18} />
-          </button>
-        </div>
+        </ResponsiveModalHeader>
 
-        {/* Info cabecera de la asignatura */}
+        {/* Tarjeta de asignatura */}
         <div
-          style={{
-            background: color.bg,
-            color: color.text,
-            padding: '10px 14px',
-            borderRadius: 10,
-            marginBottom: 16,
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
+          className="flex items-center justify-between p-3 rounded-[var(--radius-md)] text-sm font-bold mb-3"
+          style={{ background: color.bg, color: color.text }}
         >
           <span>{subjectName}</span>
           {lesson.type && (
-            <span style={{ fontSize: '0.78rem', opacity: 0.85, fontWeight: 500 }}>
+            <span className="text-xs font-normal opacity-85">
               {lesson.type}
             </span>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="custom-event-form" noValidate>
-          {/* Horas de Inicio y Fin (precisión 5 min) */}
-          <div className="form-row">
-            <div className="form-group flex-1">
-              <label className="form-label">
-                <Clock size={15} style={{ marginRight: 6 }} /> Inicio
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {/* Horas de Inicio y Fin con saltos de 30 minutos lectivos */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Inicio
               </label>
-              <input
-                type="time"
-                step="300"
-                className="event-input-time"
+              <TimePicker
                 value={startTimeStr}
-                onChange={e => handleStartTimeChange(e.target.value)}
-                required
+                step={30}
+                onChange={(str) => handleStartTimeChange(str)}
+                ariaLabel="Hora de inicio"
               />
             </div>
-            <div className="form-group flex-1">
-              <label className="form-label">
-                <Clock size={15} style={{ marginRight: 6 }} /> Fin
+            <div className="space-y-1.5">
+              <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Fin
               </label>
-              <input
-                type="time"
-                step="300"
-                className="event-input-time"
+              <TimePicker
                 value={endTimeStr}
-                onChange={e => {
-                  setEndTimeStr(e.target.value);
+                step={30}
+                onChange={(str) => {
+                  setEndTimeStr(str);
                   setError('');
                 }}
-                required
+                ariaLabel="Hora de fin"
               />
             </div>
           </div>
 
           {/* Aula */}
-          <div className="form-group">
-            <label className="form-label">
-              <MapPin size={15} style={{ marginRight: 6 }} /> Aula / Ubicación (opcional)
+          <div className="space-y-1.5">
+            <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              <MapPin className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Aula / Ubicación (opcional)
             </label>
-            <input
-              type="text"
-              className="event-input-text"
+            <Input
               placeholder="Aula o ubicación..."
               value={roomsStr}
-              onChange={e => setRoomsStr(e.target.value)}
+              onChange={(e) => setRoomsStr(e.target.value)}
             />
           </div>
 
           {/* Notas personales */}
-          <div className="form-group">
-            <label className="form-label">
-              <AlignLeft size={15} style={{ marginRight: 6 }} /> Notas personales (opcional)
+          <div className="space-y-1.5">
+            <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              <AlignLeft className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Notas personales (opcional)
             </label>
-            <textarea
-              className="event-input-textarea"
-              placeholder="Detalles o recordatorios..."
-              rows={2}
+            <Textarea
+              placeholder="Detalles, enlaces o recordatorios..."
               value={notes}
-              onChange={e => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
 
+          {/* Error banner */}
           {error && (
-            <div
-              className="custom-event-error-banner"
-              style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.88rem' }}
-            >
-              <AlertCircle size={16} />
+            <div className="p-3 rounded-[var(--radius-md)] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 flex items-center gap-2 text-xs font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Botones de Acción */}
-          <div className="custom-event-actions">
-            <div style={{ flex: 1 }} />
-            <button
-              type="button"
-              className="event-btn-cancel"
-              onClick={onClose}
-            >
+          {/* Botones de acción */}
+          <ResponsiveModalFooter className="flex-row justify-end gap-2 pt-4">
+            <Button type="button" variant="secondary" size="md" onClick={onClose}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              className="event-btn-save"
-            >
+            </Button>
+            <Button type="submit" variant="default" size="md">
               Guardar cambios
-            </button>
-          </div>
+            </Button>
+          </ResponsiveModalFooter>
         </form>
-      </div>
-    </div>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

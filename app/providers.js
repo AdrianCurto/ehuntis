@@ -2,7 +2,8 @@
 
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
-import { useEffect } from 'react';
+import { I18nProvider } from 'react-aria-components';
+import { Toaster } from 'sonner';
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -38,5 +39,22 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 }
 
 export function PostHogProvider({ children }) {
-  return <PHProvider client={posthog}>{children}</PHProvider>;
+  return (
+    <PHProvider client={posthog}>
+      <I18nProvider locale="es-ES">
+        {children}
+        <Toaster
+          position="bottom-center"
+          duration={4000}
+          richColors
+          toastOptions={{
+            style: {
+              fontFamily: 'var(--font-body)',
+              borderRadius: 'var(--radius-lg)',
+            },
+          }}
+        />
+      </I18nProvider>
+    </PHProvider>
+  );
 }

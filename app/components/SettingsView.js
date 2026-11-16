@@ -41,6 +41,17 @@ import {
   CHROMATIC_ORDER_SOFT,
   getSubjectColorStyle,
 } from '../utils/colorLogic';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { ConfirmDialog } from './ui/confirm-dialog';
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from './ui/responsive-modal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { formatRooms } from '../utils/subgroups';
 import { formatTime, hasLessonOverrideChanges } from '../utils/lessonOverrides';
 import { toDateNumber } from '../utils/dayLogic';
@@ -484,46 +495,26 @@ export default function SettingsView({
       </div>
 
       {/* ── Modern Segmented Nav ────────────────────────────────────────────── */}
-      <div className="settings-segmented-nav" role="tablist" aria-label="Secciones de ajustes">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={settingsTab === 'groups'}
-          className={`settings-nav-tab${settingsTab === 'groups' ? ' active' : ''}`}
-          onClick={() => setSettingsTab('groups')}
-        >
-          <Layers size={14} />
-          <span>Horario y Grupos</span>
-        </button>
+      <Tabs value={settingsTab} onValueChange={setSettingsTab} className="w-full">
+        <TabsList className="w-full grid grid-cols-3 mb-6 h-11">
+          <TabsTrigger value="groups" className="gap-2">
+            <Layers size={14} />
+            <span>Horario y Grupos</span>
+          </TabsTrigger>
+          <TabsTrigger value="custom" className="gap-2">
+            <Sparkles size={14} />
+            <span>Eventos y Cambios</span>
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-2">
+            <Palette size={14} />
+            <span>Apariencia</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={settingsTab === 'custom'}
-          className={`settings-nav-tab${settingsTab === 'custom' ? ' active' : ''}`}
-          onClick={() => setSettingsTab('custom')}
-        >
-          <Sparkles size={14} />
-          <span>Eventos y Cambios</span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={settingsTab === 'appearance'}
-          className={`settings-nav-tab${settingsTab === 'appearance' ? ' active' : ''}`}
-          onClick={() => setSettingsTab('appearance')}
-        >
-          <Palette size={14} />
-          <span>Apariencia</span>
-        </button>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB 1: HORARIO Y GRUPOS
-      ══════════════════════════════════════════════════════════════════════ */}
-      {settingsTab === 'groups' && (
-        <>
+        {/* ══════════════════════════════════════════════════════════════════════
+            TAB 1: HORARIO Y GRUPOS
+        ══════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="groups">
           {/* Active Configuration Card */}
           <div className="settings-section" style={{ paddingBottom: 0 }}>
             <div className="settings-section-label">Configuración activa</div>
@@ -1073,13 +1064,12 @@ export default function SettingsView({
               </div>
             )}
           </div>
-        </>
-      )}
+        </TabsContent>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB 2: EVENTOS Y CAMBIOS (FILTERED, SORTED, TIMELINE DASHBOARD)
-      ══════════════════════════════════════════════════════════════════════ */}
-      {settingsTab === 'custom' && (
+        {/* ══════════════════════════════════════════════════════════════════════
+            TAB 2: EVENTOS Y CAMBIOS (FILTERED, SORTED, TIMELINE DASHBOARD)
+        ══════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="custom">
         <div className="settings-section">
           {/* Header Card with Stats & Actions */}
           <div className="custom-events-header-card">
@@ -1532,13 +1522,41 @@ export default function SettingsView({
               )}
             </div>
           )}
+
+          {/* ── Zona de peligro delimitada visualmente ── */}
+          {stats.cancelledCount + stats.swappedCount + stats.editedCount > 0 && (
+            <div className="mt-8 p-4 rounded-[var(--radius-lg)] border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 space-y-3">
+              <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
+                <AlertTriangle size={15} />
+                <span>Zona de peligro</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                    Restablecer todas las clases
+                  </div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    Descarta todas las modificaciones ({stats.cancelledCount + stats.swappedCount + stats.editedCount} cambios) y regresa al horario oficial de WebUntis.
+                  </div>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setResetAllOverridesModalOpen(true)}
+                >
+                  <RotateCcw size={13} className="mr-1" />
+                  <span>Restablecer todo</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </TabsContent>
 
       {/* ══════════════════════════════════════════════════════════════════════
           TAB 3: APARIENCIA
       ══════════════════════════════════════════════════════════════════════ */}
-      {settingsTab === 'appearance' && (
+      <TabsContent value="appearance">
         <div className="settings-section" style={{ paddingBottom: 0 }}>
           <div className="settings-section-label" style={{ marginBottom: 12 }}>Tema de la interfaz</div>
           
@@ -1580,302 +1598,112 @@ export default function SettingsView({
             </div>
           </div>
         </div>
-      )}
+      </TabsContent>
+    </Tabs>
 
       </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
-      {renameModalOpen && (
-        <div className="settings-modal-backdrop" onClick={() => setRenameModalOpen(false)}>
-          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <button
-              className="custom-modal-close-btn"
-              onClick={() => setRenameModalOpen(false)}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="settings-confirm-header">
-              <div className="settings-confirm-icon-wrap primary">
-                <Edit2 size={20} strokeWidth={2.4} />
+      {/* Modal: Renombrar configuración */}
+      <ResponsiveModal open={renameModalOpen} onOpenChange={setRenameModalOpen}>
+        <ResponsiveModalContent className="max-w-md p-6">
+          <ResponsiveModalHeader className="mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-light)] text-[var(--accent)] shrink-0">
+                <Edit2 size={18} strokeWidth={2.4} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="settings-confirm-title">
+              <div>
+                <ResponsiveModalTitle className="text-base font-bold">
                   Renombrar configuración
-                </h3>
-                <p className="settings-confirm-desc">
-                  Introduce un nombre para identificar este horario (ej. Primer Cuatrimestre).
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleRenameSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <input
-                type="text"
-                className="settings-search-input"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                autoFocus
-                placeholder="Nombre de la configuración"
-                style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 10,
-                  padding: '10px 14px',
-                  fontSize: 14,
-                  color: 'var(--text-primary)',
-                }}
-              />
-              <div className="settings-confirm-actions">
-                <button
-                  type="button"
-                  className="settings-btn-secondary"
-                  onClick={() => setRenameModalOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="settings-btn-primary">
-                  <Check size={15} />
-                  <span>Guardar</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {deleteModalOpen && (
-        <div className="settings-modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
-          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
-            <button
-              className="custom-modal-close-btn"
-              onClick={() => setDeleteModalOpen(false)}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="settings-confirm-header">
-              <div className="settings-confirm-icon-wrap danger">
-                <Trash2 size={22} strokeWidth={2.4} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="settings-confirm-title">
-                  Eliminar configuración
-                </h3>
-                <p className="settings-confirm-desc">
-                  ¿Eliminar <strong>&quot;{activeConfig.name}&quot;</strong>? Esta acción no se puede deshacer.
-                </p>
-              </div>
-            </div>
-
-            <div className="settings-confirm-actions">
-              <button
-                type="button"
-                className="settings-btn-secondary"
-                onClick={() => setDeleteModalOpen(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="settings-btn-primary destructive"
-                onClick={() => {
-                  onDeleteConfig(activeConfig.id);
-                  setDeleteModalOpen(false);
-                }}
-              >
-                <Trash2 size={15} />
-                <span>Eliminar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {resetAllOverridesModalOpen && (
-        <div className="settings-modal-backdrop" onClick={() => setResetAllOverridesModalOpen(false)}>
-          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
-            <button
-              className="custom-modal-close-btn"
-              onClick={() => setResetAllOverridesModalOpen(false)}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="settings-confirm-header">
-              <div className="settings-confirm-icon-wrap danger">
-                <RotateCcw size={22} strokeWidth={2.4} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="settings-confirm-title">
-                  Restablecer horario oficial
-                </h3>
-                <p className="settings-confirm-desc">
-                  Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis.
-                </p>
-              </div>
-            </div>
-
-            {/* Chips de cambios que se desharán */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="dialog-stat-chips">
-                {stats.cancelledCount > 0 && (
-                  <div className="dialog-stat-chip cancelled" title="Clases marcadas como canceladas">
-                    <Ban size={13} />
-                    <span>{stats.cancelledCount} {stats.cancelledCount === 1 ? 'cancelada' : 'canceladas'}</span>
-                  </div>
-                )}
-                {stats.swappedCount > 0 && (
-                  <div className="dialog-stat-chip swapped" title="Clases intercambiadas de hora">
-                    <ArrowUpDown size={13} />
-                    <span>{stats.swappedCount} {stats.swappedCount === 1 ? 'intercambio' : 'intercambios'}</span>
-                  </div>
-                )}
-                {stats.editedCount > 0 && (
-                  <div className="dialog-stat-chip edited" title="Clases con horario, aula o notas editadas">
-                    <Pencil size={13} />
-                    <span>{stats.editedCount} {stats.editedCount === 1 ? 'editada' : 'editadas'}</span>
-                  </div>
-                )}
-              </div>
-
-              {stats.customCount > 0 && (
-                <div className="dialog-safe-pill">
-                  <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
-                  <span>Tus <strong>{stats.customCount}</strong> {stats.customCount === 1 ? 'evento personal queda' : 'eventos personales quedan'} intactos.</span>
+                </ResponsiveModalTitle>
+                <div className="text-xs text-[var(--text-secondary)]">
+                  Introduce un nombre para identificar este horario.
                 </div>
-              )}
+              </div>
             </div>
+          </ResponsiveModalHeader>
 
-            <div className="settings-confirm-actions">
-              <button
-                type="button"
-                className="settings-btn-secondary"
-                onClick={() => setResetAllOverridesModalOpen(false)}
-              >
+          <form onSubmit={handleRenameSubmit} className="space-y-4 pt-1">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              autoFocus
+              placeholder="Nombre de la configuración (ej. 1º Cuatrimestre)"
+            />
+            <ResponsiveModalFooter className="flex-row justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" size="md" onClick={() => setRenameModalOpen(false)}>
                 Cancelar
-              </button>
-              <button
-                type="button"
-                className="settings-btn-primary destructive"
-                onClick={() => {
-                  onResetAllLessonOverrides?.();
-                  setResetAllOverridesModalOpen(false);
-                }}
-              >
-                <RotateCcw size={15} />
-                <span>Restablecer todas</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Button>
+              <Button type="submit" variant="default" size="md">
+                <Check size={15} className="mr-1.5" />
+                <span>Guardar</span>
+              </Button>
+            </ResponsiveModalFooter>
+          </form>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
+      {/* Confirmation modal: Eliminar configuración */}
+      <ConfirmDialog
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        title="Eliminar configuración"
+        description={`¿Eliminar "${activeConfig?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={() => {
+          onDeleteConfig(activeConfig.id);
+          setDeleteModalOpen(false);
+        }}
+      />
+
+      {/* Confirmation modal: Restablecer todas las clases */}
+      <ConfirmDialog
+        open={resetAllOverridesModalOpen}
+        onOpenChange={setResetAllOverridesModalOpen}
+        title="Restablecer horario oficial"
+        description="Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis. Tus eventos personales quedarán intactos."
+        confirmText="Restablecer todas"
+        variant="destructive"
+        icon={RotateCcw}
+        onConfirm={() => {
+          onResetAllLessonOverrides?.();
+          setResetAllOverridesModalOpen(false);
+        }}
+      />
 
       {/* Confirmation modal: Eliminar evento personalizado individual */}
-      {eventToDelete && (
-        <div className="settings-modal-backdrop" onClick={() => setEventToDelete(null)}>
-          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
-            <button
-              className="custom-modal-close-btn"
-              onClick={() => setEventToDelete(null)}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="settings-confirm-header">
-              <div className="settings-confirm-icon-wrap danger">
-                <Trash2 size={22} strokeWidth={2.4} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="settings-confirm-title">
-                  Eliminar evento
-                </h3>
-                <p className="settings-confirm-desc">
-                  ¿Eliminar <strong>&quot;{eventToDelete.title}&quot;</strong>?
-                  {eventToDelete.isWeekly
-                    ? ' Se descartarán todas sus repeticiones semanales.'
-                    : ' Esta acción no se puede deshacer.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="settings-confirm-actions">
-              <button
-                type="button"
-                className="settings-btn-secondary"
-                onClick={() => setEventToDelete(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="settings-btn-primary destructive"
-                onClick={() => {
-                  onDeleteCustomEvent?.(eventToDelete.id, null, 'series');
-                  setEventToDelete(null);
-                }}
-              >
-                <Trash2 size={15} />
-                <span>Eliminar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(eventToDelete)}
+        onOpenChange={(open) => { if (!open) setEventToDelete(null); }}
+        title="Eliminar evento"
+        description={eventToDelete ? `¿Eliminar "${eventToDelete.title}"?${eventToDelete.isWeekly ? ' Se descartarán todas sus repeticiones semanales.' : ' Esta acción no se puede deshacer.'}` : ''}
+        confirmText="Eliminar"
+        variant="destructive"
+        onConfirm={() => {
+          if (eventToDelete) {
+            onDeleteCustomEvent?.(eventToDelete.id, null, 'series');
+            setEventToDelete(null);
+          }
+        }}
+      />
 
       {/* Confirmation modal: Restablecer clase individual a oficial */}
-      {overrideToReset && (
-        <div className="settings-modal-backdrop" onClick={() => setOverrideToReset(null)}>
-          <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
-            <button
-              className="custom-modal-close-btn"
-              onClick={() => setOverrideToReset(null)}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="settings-confirm-header">
-              <div className="settings-confirm-icon-wrap danger">
-                <RotateCcw size={22} strokeWidth={2.4} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 className="settings-confirm-title">
-                  Restablecer clase
-                </h3>
-                <p className="settings-confirm-desc">
-                  ¿Restablecer <strong>&quot;{overrideToReset.title}&quot;</strong> al horario y aula oficiales de WebUntis? Se descartarán tus cambios.
-                </p>
-              </div>
-            </div>
-
-            <div className="settings-confirm-actions">
-              <button
-                type="button"
-                className="settings-btn-secondary"
-                onClick={() => setOverrideToReset(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="settings-btn-primary destructive"
-                onClick={() => {
-                  onResetLessonOverride?.(overrideToReset.key);
-                  setOverrideToReset(null);
-                }}
-              >
-                <RotateCcw size={15} />
-                <span>Restablecer</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(overrideToReset)}
+        onOpenChange={(open) => { if (!open) setOverrideToReset(null); }}
+        title="Restablecer clase"
+        description={overrideToReset ? `¿Restablecer "${overrideToReset.title}" al horario y aula oficiales de WebUntis? Se descartarán tus cambios.` : ''}
+        confirmText="Restablecer"
+        variant="destructive"
+        icon={RotateCcw}
+        onConfirm={() => {
+          if (overrideToReset) {
+            onResetLessonOverride?.(overrideToReset.key);
+            setOverrideToReset(null);
+          }
+        }}
+      />
     </div>
   );
 }

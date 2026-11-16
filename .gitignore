@@ -57,3 +57,4 @@ android/*.aab
 
 # playwright local browsers
 /.browsers/
+.screenshots/
