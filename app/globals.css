@@ -871,6 +871,17 @@ html, body {
   }
 }
 
+@keyframes dialogSpringPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @media (min-width: 640px) {
   .modal-backdrop {
     align-items: center;
@@ -2820,40 +2831,49 @@ html, body {
   filter: brightness(1.08);
 }
 
-/* Scope Dialog (Single vs Series Confirmation) */
+/* ─── Scope Dialog (Single vs Series Confirmation) ───────────────── */
 .scope-dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  backdrop-filter: blur(2px);
+  z-index: 1300;
+  padding: 18px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: fadeIn 0.18s ease;
 }
 
 .scope-dialog-card {
   background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  max-width: 360px;
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  max-width: 420px;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border);
   border: 1px solid var(--border);
+  animation: dialogSpringPop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .scope-dialog-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  line-height: 1.3;
+  margin: 0;
 }
 
 .scope-dialog-subtitle {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-secondary);
-  margin-bottom: 16px;
+  line-height: 1.5;
+  margin: 4px 0 0 0;
 }
 
 .scope-dialog-buttons {
@@ -2864,37 +2884,142 @@ html, body {
 
 .scope-btn {
   width: 100%;
-  padding: 10px 14px;
-  font-size: 13px;
+  padding: 11px 16px;
+  font-size: 13.5px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: 11px;
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  transition: all 0.15s ease;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.scope-btn:active {
+  transform: scale(0.97);
 }
 
 .scope-btn.single {
   background: var(--accent);
   color: #FFFFFF;
   border-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.scope-btn.single:hover {
+  filter: brightness(1.08);
 }
 
 .scope-btn.series {
   background: var(--surface);
   color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.scope-btn.series:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-secondary);
 }
 
 .scope-btn.cancel {
   background: transparent;
   border-color: transparent;
   color: var(--text-secondary);
+  padding: 8px 14px;
 }
 
-.scope-btn:hover {
-  filter: brightness(1.05);
+.scope-btn.cancel:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .scope-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Rich Scope Option Tiles (Modern Cards with Icons) ─────────── */
+.scope-option-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.scope-option-tile:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.scope-option-tile:active {
+  transform: scale(0.98);
+}
+
+.scope-option-tile.destructive:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.scope-option-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.scope-option-tile:hover .scope-option-icon {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.scope-option-tile.destructive .scope-option-icon {
+  color: #ef4444;
+}
+
+.scope-option-tile.destructive:hover .scope-option-icon {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.scope-option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.scope-option-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.scope-option-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin-top: 2px;
 }
 
 /* ─── Floating Swap Action Banner ─────────────────────────────────── */
@@ -3235,10 +3360,10 @@ html, body {
 .settings-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1200;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3248,13 +3373,13 @@ html, body {
 
 .settings-confirm-dialog {
   width: 100%;
-  max-width: 440px;
+  max-width: 430px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   padding: 24px;
-  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border);
-  animation: dialogPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border);
+  animation: dialogSpringPop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -3279,23 +3404,26 @@ html, body {
 .settings-confirm-icon-wrap {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .settings-confirm-icon-wrap.danger {
-  background: rgba(239, 68, 68, 0.14);
+  background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.15);
 }
 
 .settings-confirm-icon-wrap.primary {
-  background: rgba(99, 102, 241, 0.14);
+  background: rgba(99, 102, 241, 0.12);
   color: var(--accent);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.15);
 }
 
 .settings-confirm-title {
@@ -3304,6 +3432,7 @@ html, body {
   color: var(--text-primary);
   line-height: 1.3;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .settings-confirm-desc {
@@ -3313,10 +3442,86 @@ html, body {
   margin: 4px 0 0 0;
 }
 
+/* ─── Compact Metrics & Status Chips for Confirmations ─────────── */
+.dialog-stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.dialog-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 0.15s ease;
+}
+
+.dialog-stat-chip.cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+.dialog-stat-chip.swapped {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+.dialog-stat-chip.edited {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.22);
+}
+
+.dialog-stat-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.dark .dialog-stat-chip-count {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.dialog-safe-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.08);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.dark .dialog-safe-pill {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+/* ─── Deprecated Summary Box (kept for backward compatibility) ──── */
 .settings-dialog-summary-box {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -3342,7 +3547,7 @@ html, body {
   color: var(--text-muted);
   line-height: 1.4;
   padding-top: 6px;
-  border-top: 1px dashed var(--border);
+  border-top: 1px solid var(--border-light);
 }
 
 .settings-confirm-actions {
@@ -3350,6 +3555,88 @@ html, body {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 6px;
+}
+
+.settings-btn-primary:active,
+.settings-btn-secondary:active,
+.settings-btn-outline-danger:active {
+  transform: scale(0.97);
+}
+
+/* ─── Lesson Modal Actions & Drift Modernization ────────────────── */
+.lesson-drift-banner {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #b45309;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  font-size: 0.86rem;
+  text-align: left;
+  backdrop-filter: blur(4px);
+}
+
+.dark .lesson-drift-banner {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.lesson-drift-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+}
+
+.lesson-drift-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  margin-bottom: 5px;
+  font-size: 0.82rem;
+}
+
+.dark .lesson-drift-item {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.lesson-drift-badge-before {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.lesson-drift-badge-after {
+  font-weight: 700;
+}
+
+.lesson-action-row {
+  display: flex;
+  gap: 8px;
+}
+
+.lesson-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+}
+
+.lesson-action-btn:active {
+  transform: scale(0.97);
 }
 
 /* ─── Custom Events Header Card ───────────────────────────────────── */

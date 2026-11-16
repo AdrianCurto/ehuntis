@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
+  CalendarRange,
   Clock,
   MapPin,
   AlignLeft,
@@ -755,31 +756,81 @@ export default function CustomEventModal({
         {/* Modal de confirmación para eventos recurrentes (Guardar / Eliminar) */}
         {confirmScopeModal && (
           <div className="scope-dialog-overlay" onClick={() => setConfirmScopeModal(null)}>
-            <div className="scope-dialog-card" onClick={e => e.stopPropagation()}>
-              <div className="scope-dialog-title">
-                {confirmScopeModal === 'delete' ? '¿Qué repeticiones deseas eliminar?' : '¿Qué repeticiones deseas modificar?'}
+            <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+              <button
+                className="custom-modal-close-btn"
+                onClick={() => setConfirmScopeModal(null)}
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="settings-confirm-header">
+                <div className={`settings-confirm-icon-wrap ${confirmScopeModal === 'delete' ? 'danger' : 'primary'}`}>
+                  {confirmScopeModal === 'delete' ? (
+                    <Trash2 size={22} strokeWidth={2.4} />
+                  ) : (
+                    <CalendarRange size={22} strokeWidth={2.4} />
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="settings-confirm-title">
+                    {confirmScopeModal === 'delete' ? 'Eliminar repeticiones' : 'Modificar repeticiones'}
+                  </h3>
+                  <p className="settings-confirm-desc">
+                    {confirmScopeModal === 'delete'
+                      ? 'Este evento se repite semanalmente. Elige qué instancias deseas eliminar:'
+                      : 'Este evento se repite semanalmente. Elige el alcance de tus cambios:'}
+                  </p>
+                </div>
               </div>
-              <div className="scope-dialog-subtitle">
-                Este es un evento semanal recurrente.
-              </div>
-              <div className="scope-dialog-buttons">
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                 <button
                   type="button"
-                  className="scope-btn single"
+                  className={`scope-option-tile${confirmScopeModal === 'delete' ? ' destructive' : ''}`}
                   onClick={() => confirmScopeModal === 'delete' ? handleConfirmDelete('single') : handleConfirmSave('single')}
                 >
-                  {confirmScopeModal === 'delete' ? 'Eliminar solo esta fecha' : 'Modificar solo esta fecha'}
+                  <div className="scope-option-icon">
+                    <CalendarIcon size={17} />
+                  </div>
+                  <div className="scope-option-content">
+                    <div className="scope-option-title">
+                      {confirmScopeModal === 'delete' ? 'Solo esta fecha' : 'Solo esta fecha'}
+                    </div>
+                    <div className="scope-option-desc">
+                      {confirmScopeModal === 'delete'
+                        ? 'Se conservan las demás semanas del horario'
+                        : 'Aplica los cambios únicamente a este día'}
+                    </div>
+                  </div>
                 </button>
+
                 <button
                   type="button"
-                  className="scope-btn series"
+                  className={`scope-option-tile${confirmScopeModal === 'delete' ? ' destructive' : ''}`}
                   onClick={() => confirmScopeModal === 'delete' ? handleConfirmDelete('series') : handleConfirmSave('series')}
                 >
-                  {confirmScopeModal === 'delete' ? 'Eliminar todas las repeticiones' : 'Modificar toda la repetición'}
+                  <div className="scope-option-icon">
+                    <CalendarRange size={17} />
+                  </div>
+                  <div className="scope-option-content">
+                    <div className="scope-option-title">
+                      {confirmScopeModal === 'delete' ? 'Toda la serie semanal' : 'Toda la serie semanal'}
+                    </div>
+                    <div className="scope-option-desc">
+                      {confirmScopeModal === 'delete'
+                        ? 'Elimina todas las fechas pasadas y futuras'
+                        : 'Actualiza todas las repeticiones del curso'}
+                    </div>
+                  </div>
                 </button>
+              </div>
+
+              <div className="settings-confirm-actions">
                 <button
                   type="button"
-                  className="scope-btn cancel"
+                  className="settings-btn-secondary"
                   onClick={() => setConfirmScopeModal(null)}
                 >
                   Cancelar
@@ -793,31 +844,47 @@ export default function CustomEventModal({
         {confirmSingleDelete && (
           <div className="scope-dialog-overlay" onClick={() => setConfirmSingleDelete(false)}>
             <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
-              <div className="scope-dialog-title">
-                ¿Eliminar este evento?
+              <button
+                className="custom-modal-close-btn"
+                onClick={() => setConfirmSingleDelete(false)}
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="settings-confirm-header">
+                <div className="settings-confirm-icon-wrap danger">
+                  <Trash2 size={22} strokeWidth={2.4} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="settings-confirm-title">
+                    Eliminar evento
+                  </h3>
+                  <p className="settings-confirm-desc">
+                    ¿Eliminar <strong>&quot;{title.trim() || 'este evento'}&quot;</strong>? Esta acción no se puede deshacer.
+                  </p>
+                </div>
               </div>
-              <div className="scope-dialog-subtitle">
-                Esta acción eliminará el evento &quot;{title.trim() || 'este evento'}&quot; y no se puede deshacer.
-              </div>
-              <div className="scope-dialog-buttons">
+
+              <div className="settings-confirm-actions">
                 <button
                   type="button"
-                  className="scope-btn single"
-                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                  className="settings-btn-secondary"
+                  onClick={() => setConfirmSingleDelete(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="settings-btn-primary destructive"
                   onClick={() => {
                     setConfirmSingleDelete(false);
                     onDelete(rawEvent.id, targetDateNum, 'series');
                     onClose();
                   }}
                 >
-                  Eliminar evento
-                </button>
-                <button
-                  type="button"
-                  className="scope-btn cancel"
-                  onClick={() => setConfirmSingleDelete(false)}
-                >
-                  Cancelar
+                  <Trash2 size={15} />
+                  <span>Eliminar</span>
                 </button>
               </div>
             </div>

@@ -133,28 +133,21 @@ export default function LessonModal({
 
         {/* Drift warning banner si WebUntis actualizó datos */}
         {hasDrift && (
-          <div
-            style={{
-              background: isDark ? 'rgba(245, 158, 11, 0.22)' : 'rgba(254, 243, 199, 0.95)',
-              border: '1px solid #f59e0b',
-              color: isDark ? '#fbbf24' : '#92400e',
-              padding: '12px 14px',
-              borderRadius: 12,
-              marginBottom: 16,
-              fontSize: '0.86rem',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, marginBottom: 4 }}>
-              <AlertTriangle size={16} /> WebUntis ha actualizado esta clase:
+          <div className="lesson-drift-banner">
+            <div className="lesson-drift-header">
+              <AlertTriangle size={16} />
+              <span>WebUntis ha actualizado esta clase:</span>
             </div>
-            <ul style={{ margin: '4px 0 10px 18px', padding: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
               {lesson.driftChanges.map((ch, idx) => (
-                <li key={idx} style={{ marginBottom: 2 }}>
-                  <strong>{ch.label}:</strong> {ch.before} → <span style={{ fontWeight: 600 }}>{ch.after}</span>
-                </li>
+                <div key={idx} className="lesson-drift-item">
+                  <span style={{ fontWeight: 600 }}>{ch.label}:</span>
+                  <span className="lesson-drift-badge-before">{ch.before}</span>
+                  <span>→</span>
+                  <span className="lesson-drift-badge-after">{ch.after}</span>
+                </div>
               ))}
-            </ul>
+            </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"
@@ -164,10 +157,11 @@ export default function LessonModal({
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: 8,
-                  padding: '6px 12px',
+                  padding: '7px 12px',
                   fontWeight: 600,
                   fontSize: '0.8rem',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 Adoptar cambio oficial
@@ -180,10 +174,11 @@ export default function LessonModal({
                   color: 'inherit',
                   border: '1px solid currentColor',
                   borderRadius: 8,
-                  padding: '6px 12px',
+                  padding: '7px 12px',
                   fontWeight: 600,
                   fontSize: '0.8rem',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 Mantener mi versión
@@ -467,32 +462,48 @@ export default function LessonModal({
 
         {/* Diálogo de confirmación para restablecer clase a versión original */}
         {showResetConfirm && (
-          <div className="scope-dialog-overlay" style={{ zIndex: 1200 }} onClick={() => setShowResetConfirm(false)}>
+          <div className="scope-dialog-overlay" onClick={() => setShowResetConfirm(false)}>
             <div className="scope-dialog-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
-              <div className="scope-dialog-title">
-                ¿Restablecer clase a versión original?
+              <button
+                className="custom-modal-close-btn"
+                onClick={() => setShowResetConfirm(false)}
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="settings-confirm-header">
+                <div className="settings-confirm-icon-wrap danger">
+                  <RotateCcw size={22} strokeWidth={2.4} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="settings-confirm-title">
+                    Restablecer clase
+                  </h3>
+                  <p className="settings-confirm-desc">
+                    ¿Restablecer esta clase a los datos oficiales de WebUntis? Se descartarán tus modificaciones.
+                  </p>
+                </div>
               </div>
-              <div className="scope-dialog-subtitle">
-                Se descartarán las modificaciones personalizadas (aula, horario o notas) y volverá a los datos oficiales de WebUntis.
-              </div>
-              <div className="scope-dialog-buttons">
+
+              <div className="settings-confirm-actions">
                 <button
                   type="button"
-                  className="scope-btn single"
-                  style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                  className="settings-btn-secondary"
+                  onClick={() => setShowResetConfirm(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="settings-btn-primary destructive"
                   onClick={() => {
                     setShowResetConfirm(false);
                     onResetOverride?.(lesson);
                   }}
                 >
-                  Restablecer a versión original
-                </button>
-                <button
-                  type="button"
-                  className="scope-btn cancel"
-                  onClick={() => setShowResetConfirm(false)}
-                >
-                  Cancelar
+                  <RotateCcw size={15} />
+                  <span>Restablecer</span>
                 </button>
               </div>
             </div>

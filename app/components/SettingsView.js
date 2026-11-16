@@ -24,6 +24,7 @@ import {
   ArrowDownAZ,
   Pencil,
   Check,
+  CheckCircle2,
   X,
   Search,
   FileText,
@@ -1559,7 +1560,7 @@ export default function SettingsView({
                   Renombrar configuración
                 </h3>
                 <p className="settings-confirm-desc">
-                  Elige un nombre descriptivo para identificar este horario (ej. Primer Cuatrimestre, Exámenes).
+                  Introduce un nombre para identificar este horario (ej. Primer Cuatrimestre).
                 </p>
               </div>
             </div>
@@ -1619,8 +1620,7 @@ export default function SettingsView({
                   Eliminar configuración
                 </h3>
                 <p className="settings-confirm-desc">
-                  ¿Estás seguro de que deseas eliminar <strong>&quot;{activeConfig.name}&quot;</strong>?
-                  Esta acción no se puede deshacer.
+                  ¿Eliminar <strong>&quot;{activeConfig.name}&quot;</strong>? Esta acción no se puede deshacer.
                 </p>
               </div>
             </div>
@@ -1666,33 +1666,43 @@ export default function SettingsView({
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h3 className="settings-confirm-title">
-                  Restablecer clases a oficial
+                  Restablecer horario oficial
                 </h3>
                 <p className="settings-confirm-desc">
-                  ¿Deseas descartar todas las modificaciones y devolver tus clases a los horarios y aulas oficiales de WebUntis?
+                  Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis.
                 </p>
               </div>
             </div>
 
-            <div className="settings-dialog-summary-box">
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Resumen de cambios a descartar:
+            {/* Chips de cambios que se desharán */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="dialog-stat-chips">
+                {stats.cancelledCount > 0 && (
+                  <div className="dialog-stat-chip cancelled" title="Clases marcadas como canceladas">
+                    <Ban size={13} />
+                    <span>{stats.cancelledCount} {stats.cancelledCount === 1 ? 'cancelada' : 'canceladas'}</span>
+                  </div>
+                )}
+                {stats.swappedCount > 0 && (
+                  <div className="dialog-stat-chip swapped" title="Clases intercambiadas de hora">
+                    <ArrowUpDown size={13} />
+                    <span>{stats.swappedCount} {stats.swappedCount === 1 ? 'intercambio' : 'intercambios'}</span>
+                  </div>
+                )}
+                {stats.editedCount > 0 && (
+                  <div className="dialog-stat-chip edited" title="Clases con horario, aula o notas editadas">
+                    <Pencil size={13} />
+                    <span>{stats.editedCount} {stats.editedCount === 1 ? 'editada' : 'editadas'}</span>
+                  </div>
+                )}
               </div>
-              <div className="settings-dialog-stat-row">
-                <span>Clases canceladas por ti:</span>
-                <span className="settings-dialog-stat-value">{stats.cancelledCount}</span>
-              </div>
-              <div className="settings-dialog-stat-row">
-                <span>Clases intercambiadas con otras:</span>
-                <span className="settings-dialog-stat-value">{stats.swappedCount}</span>
-              </div>
-              <div className="settings-dialog-stat-row">
-                <span>Clases con horario/aula personalizado:</span>
-                <span className="settings-dialog-stat-value">{stats.editedCount}</span>
-              </div>
-              <div className="settings-dialog-note">
-                ℹ Tus eventos personales añadidos ({stats.customCount}) no se verán afectados ni eliminados.
-              </div>
+
+              {stats.customCount > 0 && (
+                <div className="dialog-safe-pill">
+                  <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
+                  <span>Tus <strong>{stats.customCount}</strong> {stats.customCount === 1 ? 'evento personal queda' : 'eventos personales quedan'} intactos.</span>
+                </div>
+              )}
             </div>
 
             <div className="settings-confirm-actions">
@@ -1740,9 +1750,9 @@ export default function SettingsView({
                   Eliminar evento
                 </h3>
                 <p className="settings-confirm-desc">
-                  ¿Estás seguro de que deseas eliminar <strong>&quot;{eventToDelete.title}&quot;</strong>?
+                  ¿Eliminar <strong>&quot;{eventToDelete.title}&quot;</strong>?
                   {eventToDelete.isWeekly
-                    ? ' Se eliminarán todas las repeticiones semanales de este evento.'
+                    ? ' Se descartarán todas sus repeticiones semanales.'
                     : ' Esta acción no se puede deshacer.'}
                 </p>
               </div>
@@ -1793,7 +1803,7 @@ export default function SettingsView({
                   Restablecer clase
                 </h3>
                 <p className="settings-confirm-desc">
-                  ¿Deseas restablecer la clase <strong>&quot;{overrideToReset.title}&quot;</strong> a su estado original de WebUntis? Se descartarán las modificaciones personalizadas (horario, aula o notas).
+                  ¿Restablecer <strong>&quot;{overrideToReset.title}&quot;</strong> al horario y aula oficiales de WebUntis? Se descartarán tus cambios.
                 </p>
               </div>
             </div>
