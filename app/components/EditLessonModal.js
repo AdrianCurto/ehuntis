@@ -93,14 +93,19 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        className="max-w-md p-6 overflow-y-auto max-h-[90vh]"
-        style={{ borderTop: `4px solid ${color.bg}` }}
+        className="max-w-md p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
       >
-        <ResponsiveModalHeader className="mb-2">
+        {/* Barra interior de acento de color */}
+        <div
+          className="absolute top-0 inset-x-0 h-1.5 rounded-t-[inherit] pointer-events-none z-10"
+          style={{ backgroundColor: color.bg }}
+        />
+
+        <ResponsiveModalHeader className="mb-4">
           <ResponsiveModalTitle className="text-base font-bold">
             Personalizar clase
           </ResponsiveModalTitle>
-          <div className="text-xs text-[var(--text-secondary)]">
+          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
             {dayName} {dateFormatted}
           </div>
         </ResponsiveModalHeader>

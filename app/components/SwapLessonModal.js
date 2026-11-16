@@ -112,10 +112,14 @@ export default function SwapLessonModal({
     return (
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-lg p-6 overflow-y-auto max-h-[90vh]"
-          style={{ borderTop: `4px solid var(--accent)` }}
+          className="max-w-lg p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
         >
-          <ResponsiveModalHeader className="mb-3">
+          {/* Barra interior de acento de color */}
+          <div
+            className="absolute top-0 inset-x-0 h-1.5 rounded-t-[inherit] pointer-events-none z-10 bg-[var(--accent)]"
+          />
+
+          <ResponsiveModalHeader className="mb-4">
             <div className="flex items-center gap-2.5">
               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] shrink-0">
                 <ArrowUpDown className="w-4 h-4" />
@@ -124,7 +128,7 @@ export default function SwapLessonModal({
                 <ResponsiveModalTitle className="text-base font-bold">
                   Confirmar intercambio
                 </ResponsiveModalTitle>
-                <div className="text-xs text-[var(--text-secondary)]">
+                <div className="text-xs text-[var(--text-secondary)] mt-0.5">
                   Las dos clases intercambiarán sus horarios y aulas
                 </div>
               </div>
@@ -271,15 +275,20 @@ export default function SwapLessonModal({
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        className="max-w-lg p-6 overflow-y-auto max-h-[90vh]"
-        style={{ borderTop: `4px solid ${originColor.bg}` }}
+        className="max-w-lg p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
       >
-        <ResponsiveModalHeader className="mb-2">
+        {/* Barra interior de acento de color */}
+        <div
+          className="absolute top-0 inset-x-0 h-1.5 rounded-t-[inherit] pointer-events-none z-10"
+          style={{ backgroundColor: originColor.bg }}
+        />
+
+        <ResponsiveModalHeader className="mb-4">
           <ResponsiveModalTitle className="text-base font-bold flex items-center gap-2">
             <ArrowUpDown className="w-4 h-4 text-[var(--accent)]" />
             <span>Intercambiar clase</span>
           </ResponsiveModalTitle>
-          <div className="text-xs text-[var(--text-secondary)]">
+          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
             {originDayName} {originDateFormatted} • {formatTime(lesson.startTime)}–{formatTime(lesson.endTime)}
           </div>
         </ResponsiveModalHeader>
@@ -315,24 +324,24 @@ export default function SwapLessonModal({
           <div className="flex-1 h-px bg-[var(--border)]" />
         </div>
 
-        {/* Filtros y buscador */}
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1">
+        {/* Filtros y buscador: en móvil buscador a ancho completo y selector debajo */}
+        <div className="flex flex-col sm:flex-row gap-2 mb-3">
+          <div className="w-full sm:flex-1">
             <Input
               startIcon={Search}
               placeholder="Buscar por asignatura, aula..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 text-xs"
+              className="h-9 text-xs w-full"
             />
           </div>
 
-          <div className="flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] p-0.5 shrink-0">
+          <div className="grid grid-cols-2 sm:flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] p-0.5 shrink-0">
             <button
               type="button"
               onClick={() => setFilterMode('same_day')}
               className={cn(
-                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer',
+                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer text-center',
                 filterMode === 'same_day'
                   ? 'bg-[var(--accent)] text-white shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -344,7 +353,7 @@ export default function SwapLessonModal({
               type="button"
               onClick={() => setFilterMode('all')}
               className={cn(
-                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer',
+                'px-2.5 py-1 text-xs font-semibold rounded-[var(--radius-sm)] transition-all cursor-pointer text-center',
                 filterMode === 'all'
                   ? 'bg-[var(--accent)] text-white shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'

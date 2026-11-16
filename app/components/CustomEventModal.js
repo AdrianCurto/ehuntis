@@ -341,12 +341,17 @@ export default function CustomEventModal({
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-lg p-5 sm:p-6 overflow-y-auto max-h-[90vh]"
-          style={{ borderTop: `4px solid ${activeColorStyle.bg}` }}
+          className="max-w-lg p-0 overflow-hidden max-h-[90vh] flex flex-col"
         >
+          {/* Barra interior de acento de color (sin desbordes ni arcos en esquinas) */}
+          <div
+            className="absolute top-0 inset-x-0 h-1.5 rounded-t-[inherit] pointer-events-none z-10"
+            style={{ backgroundColor: activeColorStyle.bg }}
+          />
+
           {/* Sub-paso: Seleccionar alcance para Guardar o Eliminar (sin modal sobre modal) */}
           {viewStep === 'scope-save' || viewStep === 'scope-delete' ? (
-            <div className="space-y-4 animate-in fade-in-50 duration-200">
+            <div className="p-5 sm:p-6 space-y-4 animate-in fade-in-50 duration-200 overflow-y-auto">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -445,24 +450,26 @@ export default function CustomEventModal({
               </div>
             </div>
           ) : (
-            /* Vista del Formulario Principal */
-            <form onSubmit={handleSaveClick} className="space-y-4" noValidate>
-              <ResponsiveModalHeader className="mb-2">
+            /* Vista del Formulario Principal con cuerpo scrollable y pie fijo */
+            <form onSubmit={handleSaveClick} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
+              <ResponsiveModalHeader className="px-5 sm:px-6 pt-5 sm:pt-6 pb-2 mb-2 shrink-0">
                 <ResponsiveModalTitle>
                   {isEditing ? 'Editar evento' : 'Nuevo evento'}
                 </ResponsiveModalTitle>
               </ResponsiveModalHeader>
 
-              {/* Título */}
-              <div className="space-y-1.5">
-                <Input
-                  placeholder="Título del evento..."
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  autoFocus={!isEditing}
-                  className="text-base font-medium"
-                />
-              </div>
+              {/* Cuerpo del formulario con scroll independiente */}
+              <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-1 space-y-4">
+                {/* Título */}
+                <div className="space-y-1.5">
+                  <Input
+                    placeholder="Título del evento..."
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    autoFocus={!isEditing}
+                    className="text-base font-medium"
+                  />
+                </div>
 
               {/* Categoría */}
               <div className="space-y-1.5">
@@ -696,7 +703,7 @@ export default function CustomEventModal({
                 <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
                   Color en el horario
                 </label>
-                <div className="grid grid-cols-7 sm:grid-cols-8 gap-2 p-1">
+                <div className="grid grid-cols-7 gap-2 sm:gap-2.5 p-1 justify-items-center">
                   {CHROMATIC_ORDER_MAIN.concat(CHROMATIC_ORDER_SOFT).map((idx) => {
                     const cStyle = getSubjectColorStyle(idx, isDark);
                     const isSelected = selectedColor === idx;
@@ -728,9 +735,10 @@ export default function CustomEventModal({
                   {formError}
                 </div>
               )}
+              </div>
 
-              {/* Botones de Acción */}
-              <ResponsiveModalFooter className="flex-row justify-between items-center gap-2 pt-4">
+              {/* Pie de Acciones fijo en la parte inferior */}
+              <ResponsiveModalFooter className="flex-row justify-between items-center gap-2 px-5 sm:px-6 py-3 sm:py-4 border-t border-[var(--border-light)] bg-[var(--surface)] shrink-0 z-10 mt-auto">
                 {isEditing ? (
                   <Button
                     type="button"

@@ -86,8 +86,8 @@ export default function CustomEventDetailModal({
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-md p-6 overflow-y-auto"
-          style={{ background: color.bg, borderTop: color.border ? `2px solid ${color.border}` : undefined }}
+          className="max-w-md p-6 overflow-hidden"
+          style={{ background: color.bg }}
         >
           {viewMode === 'scope-delete' ? (
             <div className="space-y-4 animate-in fade-in-50 duration-200">
@@ -163,8 +163,8 @@ export default function CustomEventDetailModal({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Cabecera con fecha y hora */}
-              <div className="flex items-start justify-between gap-3">
+              {/* Cabecera con fecha y hora (pr-8 para dejar espacio al botón de cierre X en escritorio) */}
+              <div className="flex items-start justify-between gap-3 pr-8">
                 <div>
                   <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
                     {dayName} {dateStr}
@@ -172,21 +172,6 @@ export default function CustomEventDetailModal({
                   <div className="text-lg font-bold" style={{ color: color.text }}>
                     {timeStr}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onEdit}
-                    aria-label="Editar evento"
-                    title="Editar evento"
-                    className="p-2 rounded-full transition-transform active:scale-95 cursor-pointer"
-                    style={{
-                      color: color.text,
-                      background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-                    }}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
 
@@ -234,7 +219,7 @@ export default function CustomEventDetailModal({
                 )}
               </div>
 
-              {/* Pie con botón de eliminar */}
+              {/* Pie con botones de acción */}
               <div className="pt-4 flex items-center justify-between border-t border-black/10 dark:border-white/10">
                 <Button
                   variant="destructiveOutline"
@@ -244,13 +229,23 @@ export default function CustomEventDetailModal({
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   <span>Eliminar</span>
                 </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onClose}
-                >
-                  Cerrar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onEdit}
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                    <span>Editar</span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onClose}
+                  >
+                    Cerrar
+                  </Button>
+                </div>
               </div>
             </div>
           )}

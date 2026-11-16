@@ -144,6 +144,7 @@ export function DatePicker({
         value={calendarDate}
         onChange={handleDateChange}
         isDisabled={disabled}
+        shouldForceLeadingZeros
         aria-label={ariaLabel}
         className="w-full"
       >
@@ -152,7 +153,10 @@ export function DatePicker({
             {(segment) => (
               <DateSegment
                 segment={segment}
-                className="rounded px-0.5 outline-none focus:bg-[var(--accent)] focus:text-white data-[placeholder]:text-[var(--text-muted)] text-sm"
+                className={cn(
+                  'rounded outline-none focus:bg-[var(--accent)] focus:text-white data-[placeholder]:text-[var(--text-muted)] text-sm',
+                  segment.type === 'literal' ? 'px-0 text-[var(--text-muted)]' : 'px-0.5'
+                )}
               />
             )}
           </DateInput>

@@ -29,7 +29,7 @@ export const SheetContent = React.forwardRef(
       <SheetPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-[22px] border-t border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl outline-none overflow-y-auto',
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col rounded-t-[22px] border-t border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl outline-none overflow-hidden',
           className
         )}
         {...props}

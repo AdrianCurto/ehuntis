@@ -34,7 +34,18 @@ function waitForServer(url, maxRetries = 60) {
 
 async function capture() {
   console.log('📸 Iniciando batería de capturas visuales de EHUntis UI...');
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+  if (fs.existsSync(OUT_DIR)) {
+    for (const f of fs.readdirSync(OUT_DIR)) {
+      if (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')) {
+        try {
+          fs.unlinkSync(path.join(OUT_DIR, f));
+        } catch (_) {}
+      }
+    }
+    console.log('🧹 Limpieza de capturas anteriores completada.');
+  } else {
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+  }
 
   console.log(`📡 Levantando Next.js en entorno de desarrollo en puerto ${PORT}...`);
   const serverProcess = spawn('node', ['./node_modules/next/dist/bin/next', 'dev', '-p', String(PORT), '-H', '127.0.0.1'], {
@@ -88,17 +99,35 @@ async function capture() {
         const page = await context.newPage();
         await page.goto(LOCAL_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
-        // Sincronizar tema con el botón de la página si es necesario
-        const isCurrentlyDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
-        if (theme === 'dark' && !isCurrentlyDark) {
-          await page.evaluate(() => {
+        // Sincronizar tema con localStorage y clase en html
+        await page.evaluate((targetTheme) => {
+          try {
+            localStorage.setItem('ehuntis_theme', targetTheme);
+          } catch (_) {}
+          if (targetTheme === 'dark') {
             document.documentElement.classList.add('dark');
-          });
-        } else if (theme === 'light' && isCurrentlyDark) {
-          await page.evaluate(() => {
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
             document.documentElement.classList.remove('dark');
-          });
+            document.documentElement.style.colorScheme = 'light';
+          }
+        }, theme);
+
+        // Si el botón de toggle en la UI indica el estado inverso, pulsarlo para sincronizar estado de React
+        const toggleBtn = page.getByRole('button', { name: /Modo (Oscuro|Claro)/i });
+        if (await toggleBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          const btnText = await toggleBtn.textContent();
+          if (theme === 'dark' && btnText.includes('Modo Oscuro')) {
+            await toggleBtn.click();
+          } else if (theme === 'light' && btnText.includes('Modo Claro')) {
+            await toggleBtn.click();
+          }
         }
+
+        // Ocultar cualquier portal residual o indicador de desarrollo de Next.js
+        await page.addStyleTag({
+          content: 'nextjs-portal, [data-nextjs-toast], #__next-build-watcher { display: none !important; }',
+        });
         await page.waitForTimeout(300);
 
         // 1. Captura de Componentes Base
@@ -118,40 +147,43 @@ async function capture() {
         await page.waitForTimeout(300);
 
         const modalTriggers = [
-          { label: 'Crear Evento', file: '03-modal-new-event' },
-          { label: 'Editar Evento Recurrente', file: '04-modal-edit-recurring' },
-          { label: 'Detalle de Evento', file: '05-modal-detail' },
-          { label: 'Detalle de Clase', file: '06-modal-lesson' },
-          { label: 'Clase con Remote Drift', file: '07-modal-lesson-drift' },
-          { label: 'Editar Clase', file: '08-modal-edit-lesson' },
-          { label: 'Intercambiar Clase', file: '09-modal-swap-lesson' },
-          { label: 'ConfirmDialog Estándar', file: '10-modal-confirm' },
+          { id: '#btn-modal-custom-new', file: '03-modal-new-event' },
+          { id: '#btn-modal-custom-edit', file: '04-modal-edit-recurring' },
+          { id: '#btn-modal-custom-detail', file: '05-modal-detail' },
+          { id: '#btn-modal-lesson', file: '06-modal-lesson' },
+          { id: '#btn-modal-lesson-drift', file: '07-modal-lesson-drift' },
+          { id: '#btn-modal-lesson-edit', file: '08-modal-edit-lesson' },
+          { id: '#btn-modal-lesson-swap', file: '09-modal-swap-lesson' },
+          { id: '#btn-modal-confirm', file: '10-modal-confirm' },
         ];
 
         for (const m of modalTriggers) {
-          const btn = page.getByText(m.label, { exact: true });
-          if (await btn.isVisible()) {
-            await btn.click();
-            await page.waitForTimeout(400);
+          const btn = page.locator(m.id);
+          await btn.click({ force: true });
+          await page.waitForTimeout(500);
 
-            const mPath = path.join(OUT_DIR, `${theme}-${cfg.name}-${m.file}.png`);
-            await page.screenshot({ path: mPath, fullPage: false });
-            console.log(`  ✓ Guardado: ${path.basename(mPath)}`);
+          const mPath = path.join(OUT_DIR, `${theme}-${cfg.name}-${m.file}.png`);
+          await page.screenshot({ path: mPath, fullPage: false });
+          console.log(`  ✓ Guardado: ${path.basename(mPath)}`);
 
-            // Cerrar el modal mediante botón de cerrar, cancelar o Escape
-            const closeBtn = page.locator('button[aria-label="Cerrar"]').last();
-            if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-              await closeBtn.click();
+          // Cerrar el modal mediante botón de cerrar, cancelar exacto o Escape
+          const closeBtn = page.locator('button[aria-label="Cerrar"]').last();
+          if (await closeBtn.isVisible({ timeout: 400 }).catch(() => false)) {
+            await closeBtn.click({ force: true });
+          } else {
+            const cancelBtn = page.getByRole('button', { name: /^Cancelar$/i }).last();
+            if (await cancelBtn.isVisible({ timeout: 400 }).catch(() => false)) {
+              await cancelBtn.click({ force: true });
             } else {
-              const cancelBtn = page.getByRole('button', { name: 'Cancelar' }).last();
-              if (await cancelBtn.isVisible({ timeout: 500 }).catch(() => false)) {
-                await cancelBtn.click();
-              } else {
-                await page.keyboard.press('Escape');
-              }
+              await page.keyboard.press('Escape');
             }
-            await page.waitForTimeout(300);
           }
+          await page.waitForTimeout(200);
+          if ((await page.locator('[role="dialog"]').count()) > 0) {
+            await page.keyboard.press('Escape');
+          }
+          await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 3000 }).catch(() => {});
+          await page.waitForTimeout(300);
         }
 
         await context.close();

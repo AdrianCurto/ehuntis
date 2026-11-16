@@ -16,6 +16,7 @@ const nextConfig = {
       },
     ];
   },
+  devIndicators: false,
   skipTrailingSlashRedirect: true,
   async headers() {
     return [

@@ -38,7 +38,7 @@ export function ConfirmDialog({
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent className="max-w-md p-6">
+      <ResponsiveModalContent className="max-w-md p-6 overflow-hidden" showCloseButton={false}>
         <ResponsiveModalHeader className="gap-3">
           <div className="flex items-center gap-3">
             <div
@@ -55,18 +55,19 @@ export function ConfirmDialog({
             </ResponsiveModalTitle>
           </div>
           {description && (
-            <ResponsiveModalDescription className="text-sm text-[var(--text-secondary)] pl-13">
+            <ResponsiveModalDescription className="text-sm text-[var(--text-secondary)] pl-13 pt-1 leading-relaxed">
               {description}
             </ResponsiveModalDescription>
           )}
         </ResponsiveModalHeader>
-        <ResponsiveModalFooter className="flex-row justify-end gap-2 pt-4">
-          <Button variant="secondary" size="md" onClick={handleCancel}>
+        <ResponsiveModalFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 pt-6 mt-2 border-t border-[var(--border-light)]">
+          <Button variant="secondary" size="md" className="w-full sm:w-auto" onClick={handleCancel}>
             {cancelText}
           </Button>
           <Button
             variant={variant === 'destructive' ? 'destructive' : 'default'}
             size="md"
+            className="w-full sm:w-auto"
             onClick={handleConfirm}
           >
             {confirmText}

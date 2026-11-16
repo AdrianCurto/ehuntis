@@ -45,10 +45,12 @@ import {
   CHROMATIC_ORDER_SOFT,
   getSubjectColorStyle,
 } from '@/app/utils/colorLogic';
+import { useTheme } from '@/app/utils/useTheme';
 import { toast } from 'sonner';
 
 export default function CatalogClient() {
-  const [isDark, setIsDark] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const [activeTab, setActiveTab] = useState('components');
 
   // Input states
@@ -64,13 +66,7 @@ export default function CatalogClient() {
   const [activeModal, setActiveModal] = useState(null); // 'custom-event-new' | 'custom-event-edit' | 'custom-detail' | 'lesson' | 'lesson-drift' | 'edit-lesson' | 'swap-lesson' | 'confirm'
 
   const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setTheme(isDark ? 'light' : 'dark');
   };
 
   return (
@@ -312,6 +308,7 @@ export default function CatalogClient() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
                 <Button
+                  id="btn-modal-custom-new"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -325,6 +322,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-custom-edit"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -338,6 +336,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-custom-detail"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -351,6 +350,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-lesson"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -364,6 +364,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-lesson-drift"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -377,6 +378,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-lesson-edit"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -390,6 +392,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-lesson-swap"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"
@@ -403,6 +406,7 @@ export default function CatalogClient() {
                 </Button>
 
                 <Button
+                  id="btn-modal-confirm"
                   variant="outline"
                   size="md"
                   className="justify-start gap-2.5 h-auto py-3"

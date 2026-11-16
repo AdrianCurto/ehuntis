@@ -142,6 +142,7 @@ export function TimePicker({
         onChange={handleTimeChange}
         isDisabled={disabled}
         hourCycle={24}
+        shouldForceLeadingZeros
         aria-label={ariaLabel}
         className="w-full"
       >
@@ -150,7 +151,10 @@ export function TimePicker({
             {(segment) => (
               <DateSegment
                 segment={segment}
-                className="rounded px-0.5 outline-none focus:bg-[var(--accent)] focus:text-white data-[placeholder]:text-[var(--text-muted)]"
+                className={cn(
+                  'rounded outline-none focus:bg-[var(--accent)] focus:text-white data-[placeholder]:text-[var(--text-muted)]',
+                  segment.type === 'literal' ? 'px-0 text-[var(--text-muted)]' : 'px-0.5'
+                )}
               />
             )}
           </DateInput>

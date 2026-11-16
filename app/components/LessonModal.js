@@ -82,10 +82,9 @@ export default function LessonModal({
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose?.(); }}>
         <ResponsiveModalContent
-          className="max-w-md p-6 overflow-y-auto max-h-[90vh]"
+          className="max-w-md p-6 overflow-hidden max-h-[90vh] overflow-y-auto"
           style={{
             background: color.bg,
-            borderTop: color.border ? `2px solid ${color.border}` : undefined,
           }}
         >
           {/* Cabecera */}
@@ -236,12 +235,13 @@ export default function LessonModal({
 
           {/* Botones de acción */}
           <div className="space-y-2 pt-3 border-t border-black/10 dark:border-white/10">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
               <Button
                 variant={isUserCancelled ? 'default' : 'secondary'}
                 size="md"
                 onClick={() => onToggleCancelled?.(lesson)}
                 className={cn(
+                  'w-full',
                   isUserCancelled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 )}
               >
@@ -253,7 +253,7 @@ export default function LessonModal({
                 ) : (
                   <>
                     <Ban className="w-4 h-4 mr-1.5 text-rose-500" />
-                    <span>Marcar cancelada</span>
+                    <span>Cancelar clase</span>
                   </>
                 )}
               </Button>
@@ -261,6 +261,7 @@ export default function LessonModal({
               <Button
                 variant="secondary"
                 size="md"
+                className="w-full"
                 onClick={() => onOpenEdit?.(lesson)}
               >
                 <Pencil className="w-4 h-4 mr-1.5" />
