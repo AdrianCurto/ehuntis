@@ -98,7 +98,7 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
     onSave(lesson, {
       customStartTime: startNum,
       customEndTime: endNum,
-      customRooms: roomsArr.length > 0 ? roomsArr : undefined,
+      customRooms: roomsArr,
       customNotes: notes.trim(),
     });
     onClose();

@@ -41,7 +41,7 @@ import {
   getSubjectColorStyle,
 } from '../utils/colorLogic';
 import { formatRooms } from '../utils/subgroups';
-import { formatTime } from '../utils/lessonOverrides';
+import { formatTime, hasLessonOverrideChanges } from '../utils/lessonOverrides';
 import { toDateNumber } from '../utils/dayLogic';
 
 function parseDateNumber(dateNum) {
@@ -268,6 +268,7 @@ export default function SettingsView({
         if (!ov) return;
         const matched = timetable.find(l => (l.lessonKey && l.lessonKey === key) || (l.id && l.id === ov.lessonId));
         const snap = ov.originalSnapshot || {};
+        if (!hasLessonOverrideChanges(ov, snap, matched)) return;
         const subjectName = matched?.subjects?.[0] || ov.swappedWith?.subjectName || 'Clase';
         const dateNum = ov.customDate || ov.date || matched?.date || snap.date || 0;
         const dateObj = parseDateNumber(dateNum);
@@ -1542,7 +1543,7 @@ export default function SettingsView({
         <div className="settings-modal-backdrop" onClick={() => setRenameModalOpen(false)}>
           <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <button
-              className="modal-close-btn"
+              className="custom-modal-close-btn"
               onClick={() => setRenameModalOpen(false)}
               aria-label="Cerrar"
             >
@@ -1602,7 +1603,7 @@ export default function SettingsView({
         <div className="settings-modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
           <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
             <button
-              className="modal-close-btn"
+              className="custom-modal-close-btn"
               onClick={() => setDeleteModalOpen(false)}
               aria-label="Cerrar"
             >
@@ -1652,7 +1653,7 @@ export default function SettingsView({
         <div className="settings-modal-backdrop" onClick={() => setResetAllOverridesModalOpen(false)}>
           <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
             <button
-              className="modal-close-btn"
+              className="custom-modal-close-btn"
               onClick={() => setResetAllOverridesModalOpen(false)}
               aria-label="Cerrar"
             >
@@ -1723,7 +1724,7 @@ export default function SettingsView({
         <div className="settings-modal-backdrop" onClick={() => setEventToDelete(null)}>
           <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
             <button
-              className="modal-close-btn"
+              className="custom-modal-close-btn"
               onClick={() => setEventToDelete(null)}
               aria-label="Cerrar"
             >
@@ -1776,7 +1777,7 @@ export default function SettingsView({
         <div className="settings-modal-backdrop" onClick={() => setOverrideToReset(null)}>
           <div className="settings-confirm-dialog" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
             <button
-              className="modal-close-btn"
+              className="custom-modal-close-btn"
               onClick={() => setOverrideToReset(null)}
               aria-label="Cerrar"
             >

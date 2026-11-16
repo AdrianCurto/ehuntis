@@ -108,34 +108,27 @@ export default function LessonModal({
           style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
         />
 
-        <button
-          className="modal-close-btn"
-          onClick={onClose}
-          aria-label="Cerrar"
-          style={{ 
-            color: color.text,
-            background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 32,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <X size={18} />
-        </button>
-
         {/* Cabecera */}
-        <div className="modal-header" style={{ marginBottom: 14 }}>
-          <div className="modal-day" style={{ color: color.text, opacity: 0.75 }}>
-            {dayName} {dateStr}
+        <div className="custom-event-modal-header" style={{ marginBottom: 14, alignItems: 'flex-start' }}>
+          <div>
+            <div className="modal-day" style={{ color: color.text, opacity: 0.85, fontWeight: 600, fontSize: '0.92rem', textAlign: 'left' }}>
+              {dayName} {dateStr}
+            </div>
+            <div className="modal-time" style={{ color: color.text, opacity: 0.95, fontWeight: 800, fontSize: '1.05rem', textAlign: 'left', marginTop: 2 }}>
+              {timeStr}
+            </div>
           </div>
-          <div className="modal-time" style={{ color: color.text, opacity: 0.85, fontWeight: 700 }}>
-            {timeStr}
-          </div>
+          <button
+            className="custom-modal-close-btn"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              color: color.text,
+              background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Drift warning banner si WebUntis actualizó datos */}

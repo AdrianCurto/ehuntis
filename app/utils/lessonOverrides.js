@@ -135,6 +135,107 @@ function checkRemoteDrift(lesson, override) {
 }
 
 /**
+ * Normaliza una lista de aulas para comparación fiable (espacios limpios, ordenadas, minúsculas).
+ * @param {Array|string} rooms
+ * @returns {Array<string>}
+ */
+function normalizeRooms(rooms) {
+  if (!rooms) return [];
+  const list = Array.isArray(rooms) ? rooms : [rooms];
+  return list
+    .map(r => (typeof r === 'string' ? r.replace(/\s+/g, ' ').trim() : String(r).trim()))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+/**
+ * Comprueba si dos listas o strings de aulas son equivalentes.
+ * @param {Array|string} roomsA
+ * @param {Array|string} roomsB
+ * @returns {boolean}
+ */
+function areRoomsEqual(roomsA, roomsB) {
+  const normA = normalizeRooms(roomsA);
+  const normB = normalizeRooms(roomsB);
+  if (normA.length !== normB.length) return false;
+  return normA.every((r, idx) => r.toLowerCase() === normB[idx].toLowerCase());
+}
+
+/**
+ * Comprueba si un override contiene alguna modificación real respecto al estado oficial de WebUntis.
+ * Devuelve false si todos los campos son idénticos a los oficiales (o vacíos en el caso de notas).
+ *
+ * @param {Object} override
+ * @param {Object} [snapshot] Snapshot original
+ * @param {Object} [lesson] Lección actual de WebUntis
+ * @returns {boolean} true si hay diferencias con el estado oficial, false si es idéntica a la oficial
+ */
+function hasLessonOverrideChanges(override, snapshot, lesson) {
+  if (!override || typeof override !== 'object') return false;
+
+  const snap = snapshot || override.originalSnapshot || {};
+  const rawLesson = lesson || {};
+
+  // 1. Cancelación manual por el usuario
+  if (Boolean(override.userCancelled)) {
+    return true;
+  }
+
+  // 2. Intercambio (swap) activo con otra clase
+  if (override.swappedWith) {
+    return true;
+  }
+
+  // 3. Notas personales no vacías
+  if (typeof override.customNotes === 'string' && override.customNotes.trim() !== '') {
+    return true;
+  }
+
+  // 4. Fecha modificada
+  const officialDate = rawLesson.rawDate ?? rawLesson.date ?? snap.date;
+  if (
+    override.customDate !== undefined &&
+    override.customDate !== null &&
+    officialDate !== undefined &&
+    override.customDate !== officialDate
+  ) {
+    return true;
+  }
+
+  // 5. Horario de inicio modificado
+  const officialStart = rawLesson.rawStartTime ?? rawLesson.startTime ?? snap.startTime;
+  if (
+    override.customStartTime !== undefined &&
+    override.customStartTime !== null &&
+    officialStart !== undefined &&
+    override.customStartTime !== officialStart
+  ) {
+    return true;
+  }
+
+  // 6. Horario de fin modificado
+  const officialEnd = rawLesson.rawEndTime ?? rawLesson.endTime ?? snap.endTime;
+  if (
+    override.customEndTime !== undefined &&
+    override.customEndTime !== null &&
+    officialEnd !== undefined &&
+    override.customEndTime !== officialEnd
+  ) {
+    return true;
+  }
+
+  // 7. Aulas modificadas
+  const officialRooms = rawLesson.rawRooms ?? rawLesson.rooms ?? snap.rooms ?? [];
+  if (override.customRooms !== undefined && override.customRooms !== null) {
+    if (!areRoomsEqual(override.customRooms, officialRooms)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Aplica los overrides sobre la lista de lecciones obtenidas de WebUntis.
  * Devuelve un nuevo array de lecciones enriquecidas con las modificaciones del usuario
  * y los metadatos de drift.
@@ -173,7 +274,7 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
       ov = overridesList.find(o => o.lessonId === lesson.id);
     }
 
-    if (!ov) {
+    if (!ov || !hasLessonOverrideChanges(ov, ov.originalSnapshot, lesson)) {
       return {
         ...lesson,
         lessonKey: key,
@@ -252,6 +353,12 @@ function setLessonOverride(currentOverrides = {}, lesson, patch = {}) {
     originalSnapshot: snap,
     updatedAt: Date.now(),
   };
+
+  // Si tras aplicar el parche todos los campos vuelven a coincidir exactamente con el estado oficial,
+  // se elimina el override para que la clase deje de figurar como personalizada
+  if (!hasLessonOverrideChanges(updatedOverride, snap, lesson)) {
+    return removeLessonOverride(currentOverrides, key);
+  }
 
   return {
     ...currentOverrides,
@@ -417,6 +524,51 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     updatedAt: Date.now(),
   };
 
+  // Comprobar si al hacer swap ambas clases vuelven a coincidir con su estado oficial original
+  const isBackToOfficialA =
+    overrideA.customDate === snapA.date &&
+    overrideA.customStartTime === snapA.startTime &&
+    overrideA.customEndTime === snapA.endTime &&
+    areRoomsEqual(overrideA.customRooms, snapA.rooms);
+
+  const isBackToOfficialB =
+    overrideB.customDate === snapB.date &&
+    overrideB.customStartTime === snapB.startTime &&
+    overrideB.customEndTime === snapB.endTime &&
+    areRoomsEqual(overrideB.customRooms, snapB.rooms);
+
+  if (isBackToOfficialA && isBackToOfficialB) {
+    const nextOverrides = { ...currentOverrides };
+
+    // Limpiar swap de A
+    delete overrideA.swappedWith;
+    delete overrideA.customDate;
+    delete overrideA.customStartTime;
+    delete overrideA.customEndTime;
+    delete overrideA.customRooms;
+
+    if (!hasLessonOverrideChanges(overrideA, snapA, lessonA)) {
+      delete nextOverrides[keyA];
+    } else {
+      nextOverrides[keyA] = overrideA;
+    }
+
+    // Limpiar swap de B
+    delete overrideB.swappedWith;
+    delete overrideB.customDate;
+    delete overrideB.customStartTime;
+    delete overrideB.customEndTime;
+    delete overrideB.customRooms;
+
+    if (!hasLessonOverrideChanges(overrideB, snapB, lessonB)) {
+      delete nextOverrides[keyB];
+    } else {
+      nextOverrides[keyB] = overrideB;
+    }
+
+    return nextOverrides;
+  }
+
   return {
     ...currentOverrides,
     [keyA]: overrideA,
@@ -436,4 +588,6 @@ module.exports = {
   removeLessonOverride,
   resolveDrift,
   swapLessons,
+  hasLessonOverrideChanges,
+  areRoomsEqual,
 };

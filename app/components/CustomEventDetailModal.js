@@ -108,55 +108,40 @@ export default function CustomEventDetailModal({
           style={{ background: color.text, opacity: 0.3, cursor: 'grab', touchAction: 'none' }}
         />
 
-        {/* Botón Cerrar (Izquierda) */}
-        <button
-          className="modal-close-btn"
-          onClick={onClose}
-          aria-label="Cerrar"
-          style={{ 
-            color: color.text,
-            background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 32,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <X size={18} />
-        </button>
-
-        {/* Botón Editar con icono de lápiz (Derecha) */}
-        <button
-          className="modal-menu-btn"
-          onClick={onEdit}
-          aria-label="Editar evento"
-          title="Editar evento"
-          style={{
-            color: color.text,
-            background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 34,
-            height: 34,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          <Pencil size={18} strokeWidth={2.2} />
-        </button>
-
-        <div className="modal-header">
-          <div className="modal-day" style={{ color: color.text, opacity: 0.7 }}>
-            {dayName} {dateStr}
+        {/* Cabecera */}
+        <div className="custom-event-modal-header" style={{ marginBottom: 14, alignItems: 'flex-start' }}>
+          <div>
+            <div className="modal-day" style={{ color: color.text, opacity: 0.85, fontWeight: 600, fontSize: '0.92rem', textAlign: 'left' }}>
+              {dayName} {dateStr}
+            </div>
+            <div className="modal-time" style={{ color: color.text, opacity: 0.95, fontWeight: 800, fontSize: '1.05rem', textAlign: 'left', marginTop: 2 }}>
+              {timeStr}
+            </div>
           </div>
-          <div className="modal-time" style={{ color: color.text, opacity: 0.6 }}>
-            {timeStr}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="custom-modal-close-btn"
+              onClick={onEdit}
+              aria-label="Editar evento"
+              title="Editar evento"
+              style={{
+                color: color.text,
+                background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+              }}
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              className="custom-modal-close-btn"
+              onClick={onClose}
+              aria-label="Cerrar"
+              style={{
+                color: color.text,
+                background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
 

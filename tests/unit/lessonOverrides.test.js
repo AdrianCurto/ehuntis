@@ -13,6 +13,8 @@ const {
   removeLessonOverride,
   resolveDrift,
   swapLessons,
+  hasLessonOverrideChanges,
+  areRoomsEqual,
 } = require('../../app/utils/lessonOverrides');
 
 describe('lessonOverrides utility suite', () => {
@@ -304,6 +306,80 @@ describe('lessonOverrides utility suite', () => {
       const next = removeLessonOverride(current, '20261109_900');
       assert.equal(next['20261109_900'], undefined);
     });
+
+    test('automatically removes override when reactivating a cancelled class if that was the only change', () => {
+      const lesson = {
+        id: 850,
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['Aula 1.2'],
+        code: null,
+      };
+
+      // 1. Marcar clase como cancelada
+      const withCancelled = setLessonOverride({}, lesson, { userCancelled: true });
+      assert.ok(withCancelled['20261109_850']);
+      assert.equal(withCancelled['20261109_850'].userCancelled, true);
+
+      // 2. Reactivar clase (deshacer la cancelación)
+      const restored = setLessonOverride(withCancelled, lesson, { userCancelled: false });
+      assert.equal(restored['20261109_850'], undefined, 'El override debe eliminarse por completo al volver a ser oficial');
+    });
+
+    test('keeps override when reactivating cancelled class if other custom edits remain', () => {
+      const lesson = {
+        id: 860,
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['Aula 1.2'],
+        code: null,
+      };
+
+      // 1. Cancelar y añadir nota
+      const step1 = setLessonOverride({}, lesson, { userCancelled: true, customNotes: 'Examen pospuesto' });
+      assert.ok(step1['20261109_860']);
+
+      // 2. Reactivar clase pero conservando la nota
+      const step2 = setLessonOverride(step1, lesson, { userCancelled: false });
+      assert.ok(step2['20261109_860'], 'El override debe mantenerse porque aún tiene notas personalizadas');
+      assert.equal(step2['20261109_860'].userCancelled, false);
+      assert.equal(step2['20261109_860'].customNotes, 'Examen pospuesto');
+
+      // 3. Quitar la nota (dejándola vacía)
+      const step3 = setLessonOverride(step2, lesson, { customNotes: '   ' });
+      assert.equal(step3['20261109_860'], undefined, 'Al vaciar la nota y estar reactivada, el override debe eliminarse');
+    });
+
+    test('automatically removes override when custom timing and room are restored to original snapshot values', () => {
+      const lesson = {
+        id: 870,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['Aula 1.1'],
+        code: null,
+      };
+
+      // 1. Modificar horario y aula
+      const step1 = setLessonOverride({}, lesson, {
+        customStartTime: 900,
+        customEndTime: 1100,
+        customRooms: ['Aula 2.5'],
+        customNotes: '',
+      });
+      assert.ok(step1['20261109_870']);
+
+      // 2. Restaurar horario y aula a los valores originales oficiales
+      const step2 = setLessonOverride(step1, lesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['Aula 1.1'],
+        customNotes: '',
+      });
+      assert.equal(step2['20261109_870'], undefined, 'Al volver a horario y aula originales, se elimina el override');
+    });
   });
 
   describe('swapLessons atomic operation', () => {
@@ -434,11 +510,77 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(resFri.rawDate, 20261113);
     });
 
+    test('automatically removes overrides when swapping lessons back to their original slots', () => {
+      const lessonA = {
+        id: 4001,
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['Aula 1'],
+        subjects: ['Química'],
+      };
+      const lessonB = {
+        id: 4002,
+        date: 20261109,
+        startTime: 1100,
+        endTime: 1300,
+        rooms: ['Aula 2'],
+        subjects: ['Física'],
+      };
+
+      // 1. Swap inicial
+      const swapped = swapLessons({}, lessonA, lessonB);
+      assert.ok(swapped['20261109_4001']);
+      assert.ok(swapped['20261109_4002']);
+
+      const [appliedA, appliedB] = applyLessonOverrides([lessonA, lessonB], swapped);
+
+      // 2. Volver a intercambiar ambas clases para regresarlas a sus posiciones iniciales
+      const unswapped = swapLessons(swapped, appliedA, appliedB);
+      assert.equal(unswapped['20261109_4001'], undefined, 'El override de la clase A debe eliminarse al volver a ser oficial');
+      assert.equal(unswapped['20261109_4002'], undefined, 'El override de la clase B debe eliminarse al volver a ser oficial');
+    });
+
     test('swapLessons aborts if lessons are invalid or identical', () => {
       const lesson = { id: 1001, date: 20261109 };
       assert.deepEqual(swapLessons({}, lesson, lesson), {});
       assert.deepEqual(swapLessons({}, null, lesson), {});
       assert.deepEqual(swapLessons({}, lesson, null), {});
+    });
+  });
+
+  describe('hasLessonOverrideChanges and areRoomsEqual', () => {
+    test('areRoomsEqual compares room arrays robustly with whitespace and case tolerance', () => {
+      assert.equal(areRoomsEqual(['Aula 1.1'], ['aula 1.1']), true);
+      assert.equal(areRoomsEqual(['1.1', '1.2'], ['1.2', '1.1']), true);
+      assert.equal(areRoomsEqual([], []), true);
+      assert.equal(areRoomsEqual(null, []), true);
+      assert.equal(areRoomsEqual(['Aula 1.1'], ['Aula 2.0']), false);
+      assert.equal(areRoomsEqual(['Aula 1.1'], []), false);
+    });
+
+    test('hasLessonOverrideChanges accurately detects differences vs official state', () => {
+      const snap = {
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['Aula 1.1'],
+        code: null,
+      };
+
+      // Sin cambios
+      assert.equal(hasLessonOverrideChanges({ userCancelled: false }, snap), false);
+      assert.equal(hasLessonOverrideChanges({ customStartTime: 900, customEndTime: 1100, customRooms: ['Aula 1.1'] }, snap), false);
+      assert.equal(hasLessonOverrideChanges({ customNotes: '   ' }, snap), false);
+
+      // Con cambios
+      assert.equal(hasLessonOverrideChanges({ userCancelled: true }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ swappedWith: { lessonKey: 'abc' } }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ customNotes: 'Apuntes' }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ customStartTime: 930 }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ customEndTime: 1130 }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ customRooms: ['Lab 2'] }, snap), true);
+      assert.equal(hasLessonOverrideChanges({ customDate: 20261110 }, snap), true);
     });
   });
 

@@ -226,12 +226,14 @@ html, body {
 }
 
 .dark .week-nav-date-input,
-.dark input[type="date"] {
+.dark input[type="date"],
+.dark input[type="time"] {
   color-scheme: dark !important;
 }
 
-.dark input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) saturate(100%) invert(69%) sepia(13%) saturate(543%) hue-rotate(177deg) brightness(91%) contrast(87%);
 }
 
 .week-nav-arrows {
@@ -910,17 +912,31 @@ html, body {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.12);
+  background: var(--bg-secondary);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  color: rgba(0,0,0,0.6);
-  transition: background 0.15s;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  z-index: 10;
 }
-.modal-close-btn:active { background: rgba(0,0,0,0.2); }
+.modal-close-btn::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+}
+.modal-close-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+.modal-close-btn:active { transform: scale(0.92); }
 
 .modal-menu-btn {
   position: absolute;
@@ -929,15 +945,31 @@ html, body {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.12);
+  background: var(--bg-secondary);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  color: rgba(0,0,0,0.6);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  z-index: 10;
 }
+.modal-menu-btn::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+}
+.modal-menu-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+.modal-menu-btn:active { transform: scale(0.92); }
 
 .modal-header {
   text-align: center;
@@ -1122,6 +1154,28 @@ html, body {
   justify-content: center;
   font-size: 16px;
   color: var(--text-secondary);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.group-picker-close::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+}
+
+.group-picker-close:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.group-picker-close:active {
+  transform: scale(0.92);
 }
 
 .group-picker-search {
@@ -2310,11 +2364,27 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.custom-modal-close-btn::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
 }
 
 .custom-modal-close-btn:hover {
   background: var(--border);
   color: var(--text-primary);
+}
+
+.custom-modal-close-btn:active {
+  transform: scale(0.92);
 }
 
 .custom-event-modal-title {
@@ -2432,9 +2502,16 @@ html, body {
   transform: scale(1.15);
 }
 
-[data-theme='dark'] .event-input-time::-webkit-calendar-picker-indicator,
-[data-theme='dark'] .event-input-date::-webkit-calendar-picker-indicator {
-  filter: invert(1);
+.dark .event-input-time::-webkit-calendar-picker-indicator,
+.dark .event-input-date::-webkit-calendar-picker-indicator {
+  filter: brightness(0) saturate(100%) invert(69%) sepia(13%) saturate(543%) hue-rotate(177deg) brightness(91%) contrast(87%);
+  opacity: 0.85;
+}
+
+.dark .event-input-time::-webkit-calendar-picker-indicator:hover,
+.dark .event-input-date::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(95%) sepia(8%) saturate(300%) hue-rotate(180deg) brightness(105%) contrast(95%);
 }
 
 .reset-end-date-link {
@@ -3184,10 +3261,13 @@ html, body {
   position: relative;
 }
 
+.settings-confirm-dialog .custom-modal-close-btn,
 .settings-confirm-dialog .modal-close-btn {
+  position: absolute;
   top: 18px;
   right: 18px;
   left: auto;
+  z-index: 10;
 }
 
 .settings-confirm-header {
