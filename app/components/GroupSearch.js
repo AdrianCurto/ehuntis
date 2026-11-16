@@ -71,16 +71,8 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
             {query && (
               <button
                 type="button"
+                className="group-search-clear-btn"
                 onClick={() => setQuery('')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
                 aria-label="Borrar búsqueda"
               >
                 <X size={14} />

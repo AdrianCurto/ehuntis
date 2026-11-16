@@ -147,23 +147,29 @@ export default function SettingsView({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('date-asc');       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [hidePast, setHidePast] = useState(false);        // 'Ocultar pasadas' toggle
   const [visibleLimit, setVisibleLimit] = useState(25);
   const sortDropdownRef = useRef(null);
+  const configDropdownRef = useRef(null);
 
-  // Close sort menu on click outside or escape key
+  // Close sort menu and config dropdown on click outside or escape key
   useEffect(() => {
     function handleClickOutside(event) {
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
         setIsSortOpen(false);
       }
+      if (configDropdownRef.current && !configDropdownRef.current.contains(event.target)) {
+        setIsConfigOpen(false);
+      }
     }
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         setIsSortOpen(false);
+        setIsConfigOpen(false);
       }
     }
-    if (isSortOpen) {
+    if (isSortOpen || isConfigOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
@@ -173,7 +179,7 @@ export default function SettingsView({
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isSortOpen]);
+  }, [isSortOpen, isConfigOpen]);
 
   // Modals state
   const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -523,18 +529,57 @@ export default function SettingsView({
             <div className="settings-section-label">Configuración activa</div>
             <div className="config-selector-card">
               <div className="config-selector-header">
-                <select
-                  className="config-select-native"
-                  value={activeConfig.id}
-                  onChange={(e) => onSelectConfig(e.target.value)}
-                  aria-label="Seleccionar configuración activa"
-                >
-                  {configs.map(cfg => (
-                    <option key={cfg.id} value={cfg.id}>
-                      {cfg.name} ({cfg.selectedGroups?.length || 0} {cfg.selectedGroups?.length === 1 ? 'grupo' : 'grupos'})
-                    </option>
-                  ))}
-                </select>
+                <div className="config-dropdown-container" ref={configDropdownRef}>
+                  <button
+                    type="button"
+                    className={`config-dropdown-trigger${isConfigOpen ? ' open' : ''}`}
+                    onClick={() => setIsConfigOpen(prev => !prev)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isConfigOpen}
+                    aria-label="Seleccionar configuración activa"
+                  >
+                    <div className="config-dropdown-trigger-content">
+                      <Layers size={15} className="config-dropdown-icon" />
+                      <span className="config-dropdown-name">{activeConfig.name}</span>
+                      <span className="config-dropdown-badge">
+                        {activeConfig.selectedGroups?.length || 0} {activeConfig.selectedGroups?.length === 1 ? 'grupo' : 'grupos'}
+                      </span>
+                    </div>
+                    <ChevronDown size={14} className={`config-dropdown-chevron${isConfigOpen ? ' open' : ''}`} />
+                  </button>
+
+                  {isConfigOpen && (
+                    <div className="config-dropdown-menu" role="listbox">
+                      <div className="config-dropdown-menu-header">Configuraciones de horario</div>
+                      {configs.map(cfg => {
+                        const isSelected = cfg.id === activeConfig.id;
+                        const groupsCount = cfg.selectedGroups?.length || 0;
+                        return (
+                          <button
+                            key={cfg.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`config-dropdown-menu-item${isSelected ? ' selected' : ''}`}
+                            onClick={() => {
+                              onSelectConfig(cfg.id);
+                              setIsConfigOpen(false);
+                            }}
+                          >
+                            <Layers size={14} className="config-dropdown-item-icon" />
+                            <div className="config-dropdown-item-text">
+                              <span className="config-dropdown-item-name">{cfg.name}</span>
+                              <span className="config-dropdown-item-sub">
+                                {groupsCount} {groupsCount === 1 ? 'grupo' : 'grupos'}
+                              </span>
+                            </div>
+                            {isSelected && <Check size={14} className="config-dropdown-item-check" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="config-actions" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>

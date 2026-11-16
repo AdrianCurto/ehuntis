@@ -43,17 +43,28 @@ object CustomEventsLogic {
                 lesson
             } else {
                 val isUserCancelled = ov.userCancelled == true
-                lesson.copy(
-                    date = ov.customDate ?: lesson.date,
-                    startTime = ov.customStartTime ?: lesson.startTime,
-                    endTime = ov.customEndTime ?: lesson.endTime,
-                    rooms = ov.customRooms ?: lesson.rooms,
-                    notes = ov.customNotes ?: lesson.notes,
-                    isUserCancelled = isUserCancelled,
-                    code = if (isUserCancelled) "cancelled" else lesson.code,
-                    isOverridden = true,
-                    swappedWith = ov.swappedWith
-                )
+                val hasNotes = !ov.customNotes.isNullOrBlank()
+                val hasDateChange = ov.customDate != null && ov.customDate != lesson.date
+                val hasStartChange = ov.customStartTime != null && ov.customStartTime != lesson.startTime
+                val hasEndChange = ov.customEndTime != null && ov.customEndTime != lesson.endTime
+                val hasRoomsChange = ov.customRooms != null && ov.customRooms != lesson.rooms
+                val hasChanges = isUserCancelled || ov.swappedWith != null || hasNotes || hasDateChange || hasStartChange || hasEndChange || hasRoomsChange
+
+                if (!hasChanges) {
+                    lesson
+                } else {
+                    lesson.copy(
+                        date = ov.customDate ?: lesson.date,
+                        startTime = ov.customStartTime ?: lesson.startTime,
+                        endTime = ov.customEndTime ?: lesson.endTime,
+                        rooms = ov.customRooms ?: lesson.rooms,
+                        notes = ov.customNotes ?: lesson.notes,
+                        isUserCancelled = isUserCancelled,
+                        code = if (isUserCancelled) "cancelled" else lesson.code,
+                        isOverridden = true,
+                        swappedWith = ov.swappedWith
+                    )
+                }
             }
         }
     }

@@ -27,8 +27,16 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       config: { runsInWidget: false, runsInAccessoryWidget: false },
       args: { queryParameters: { close: 'true' } },
       ListWidget: class {},
-      Color: class { constructor(hex) { this.hex = hex; } },
-      Font: { boldSystemFont: () => {}, systemFont: () => {} },
+      Color: class {
+        constructor(hex, alpha) { this.hex = hex; this.alpha = alpha; }
+        static dynamic(l, d) { return l; }
+        static white() { return new this('#ffffff'); }
+        static black() { return new this('#000000'); }
+      },
+      Font: {
+        boldSystemFont: (s) => ({ size: s, weight: 'bold' }),
+        systemFont: (s) => ({ size: s, weight: 'normal' })
+      },
       Device: { isUsingDarkAppearance: () => false, screenSize: () => ({ width: 390, height: 844 }), screenScale: () => 3 },
       FileManager: { local: () => mockFM, iCloud: () => mockFM },
       DrawContext: class {
@@ -40,7 +48,17 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
         fill() {}
         stroke() {}
         fillPath() {}
+        strokePath() {}
+        fillRect() {}
         drawText() {}
+        drawTextInRect() {}
+        drawImageInRect() {}
+        setFont() {}
+        setTextColor() {}
+        setTextAlignedCenter() {}
+        setTextAlignedLeft() {}
+        setTextAlignedRight() {}
+        addPath() {}
         getImage() { return {}; }
       },
       Point: class { constructor(x, y) { this.x = x; this.y = y; } },
@@ -49,6 +67,8 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       Path: class {
         addRoundedRect() {}
         addRect() {}
+        move() {}
+        addLine() {}
       },
     };
 
@@ -131,6 +151,32 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.equal(res.notes, 'Repaso con el profesor');
       assert.equal(res.swappedWith?.subjectName, 'Física');
     });
+
+    test('sanitizes customDate strings to integer numbers', () => {
+      const lesson = { id: 333, date: 20261109, startTime: 900 };
+      const overrides = {
+        '20261109_333': { lessonId: 333, customDate: '20261117' },
+      };
+      const [res] = widgetEnv.applyLessonOverrides([lesson], overrides);
+      assert.equal(typeof res.date, 'number');
+      assert.equal(res.date, 20261117);
+    });
+  });
+
+  describe('getDeviceWidgetSize in iOS script', () => {
+    test('handles standard families and accessory widgets correctly', () => {
+      const med = widgetEnv.getDeviceWidgetSize('medium');
+      assert.ok(med.w > 300);
+      assert.ok(med.h > 100);
+
+      const accRect = widgetEnv.getDeviceWidgetSize('accessoryRectangular');
+      assert.equal(accRect.w, 150);
+      assert.equal(accRect.h, 44);
+
+      const accCirc = widgetEnv.getDeviceWidgetSize('accessoryCircular');
+      assert.equal(accCirc.w, 44);
+      assert.equal(accCirc.h, 44);
+    });
   });
 
   describe('expandCustomEventsForDates in iOS script', () => {
@@ -182,6 +228,31 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.ok(expWeekly);
       assert.equal(expWeekly.isCustomEvent, true);
       assert.equal(expWeekly.date, 20261109);
+    });
+
+    test('resilient against string dates and string recurrence exceptions', () => {
+      const ev = {
+        id: 'ev_str',
+        title: 'String Event',
+        startTime: 1000,
+        endTime: 1100,
+        recurrence: {
+          type: 'weekly',
+          daysOfWeek: [1],
+          startDate: '20261101',
+          endDate: '20261130',
+          exceptions: ['20261116'], // string exception!
+        },
+      };
+
+      const dates = [
+        new Date(2026, 10, 9),  // 20261109 -> matches!
+        new Date(2026, 10, 16), // 20261116 -> string exception, must be skipped!
+      ];
+
+      const res = widgetEnv.expandCustomEventsForDates([ev], dates);
+      assert.equal(res.length, 1);
+      assert.equal(res[0].date, 20261109);
     });
   });
 
@@ -269,6 +340,94 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       const range = widgetEnv.computeVisibleTimeRange([lateLesson]);
       assert.equal(range.lastHour, 23);
       assert.ok(range.endMinutes >= 22 * 60 + 30);
+    });
+  });
+
+  describe('toDateNumber robust input handling in iOS script', () => {
+    test('handles Date objects, numbers, and strings safely without throwing', () => {
+      const d = new Date(2026, 10, 16);
+      assert.equal(widgetEnv.toDateNumber(d), 20261116);
+      assert.equal(widgetEnv.toDateNumber(20261116), 20261116);
+      assert.equal(widgetEnv.toDateNumber('20261116'), 20261116);
+      assert.equal(widgetEnv.toDateNumber(null), 0);
+      assert.equal(widgetEnv.toDateNumber(undefined), 0);
+    });
+  });
+
+  describe('updateSubjectColors and custom events exclusion', () => {
+    test('does not pollute subject color map with custom events', () => {
+      const officialLesson = {
+        date: 20261116,
+        subjectIds: [100],
+        subjects: ['Química'],
+        isCustomEvent: false,
+      };
+      const customEventLesson = {
+        date: 20261116,
+        subjectIds: ['custom_ev_1'],
+        subjects: ['Gimnasio'],
+        isCustomEvent: true,
+        colorIndex: 3,
+      };
+
+      widgetEnv.updateSubjectColors([officialLesson, customEventLesson]);
+      const colorOfficial = widgetEnv.getColorForSubject(100, false);
+      assert.ok(colorOfficial.bg);
+
+      // Official lesson must get palette index 0 since it is the only academic subject
+      const resolvedPalette = widgetEnv.getResolvedPalette(false);
+      assert.equal(colorOfficial.bg, resolvedPalette[0].bg);
+    });
+  });
+
+  describe('rendering execution for daily and weekly views in iOS script', () => {
+    test('renderTimetable and renderWeekTimetable execute cleanly without runtime crashes', () => {
+      const dc = new widgetEnv.DrawContext();
+      const lessons = [
+        {
+          id: 1,
+          date: 20261116,
+          startTime: 900,
+          endTime: 1100,
+          subjectIds: [10],
+          subjects: ['Cálculo I'],
+          rooms: ['0.1'],
+          type: 'Magistral',
+        },
+        {
+          id: 'custom_ev_1_20261116',
+          eventId: 'ev_1',
+          date: 20261116,
+          startTime: 1200,
+          endTime: 1300,
+          subjects: ['Estudio'],
+          rooms: ['Biblio'],
+          isCustomEvent: true,
+          colorIndex: 4,
+          type: 'PERSONAL',
+        },
+        {
+          id: 2,
+          date: 20261117,
+          startTime: 1000,
+          endTime: 1200,
+          subjectIds: [20],
+          subjects: ['Física'],
+          rooms: ['1.2'],
+          type: 'GA',
+          code: 'cancelled',
+          isUserCancelled: true,
+        },
+      ];
+
+      const monday = new Date(2026, 10, 16);
+      assert.doesNotThrow(() => {
+        widgetEnv.renderTimetable(dc, 338, 114, monday, lessons, false, new Date(2026, 10, 16, 10, 0), 1.0, {});
+      });
+
+      assert.doesNotThrow(() => {
+        widgetEnv.renderWeekTimetable(dc, 338, 114, monday, lessons, false, new Date(2026, 10, 16, 10, 0), 1.0, {});
+      });
     });
   });
 });

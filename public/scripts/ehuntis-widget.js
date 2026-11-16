@@ -49,6 +49,9 @@ const FILES = {
 // Tamaños de widget en puntos calculados dinámicamente según el dispositivo físico (iOS)
 // Previene el escalado / aspect-fill de iOS que distorsiona proporciones y recorta bordes.
 function getDeviceWidgetSize(family) {
+  if (family && String(family).startsWith("accessory")) {
+    return WIDGET_SIZES[family] || { w: 150, h: 44 };
+  }
   let sw = 390, sh = 844;
   try {
     if (typeof Device !== 'undefined' && typeof Device.screenSize === 'function') {
@@ -397,8 +400,20 @@ async function syncIfNeeded(settings, force = false, instanceId) {
   if (!force && elapsed < MIN_INTERVAL && hasTimetable) return;
 
   try {
-    const userData = await fetchUserData(settings.username);
+    const rawUserData = await fetchUserData(settings.username);
     const prevUserData = loadUserData(settings.username);
+    const userData = {
+      ...rawUserData,
+      custom_events: rawUserData.custom_events !== undefined && rawUserData.custom_events !== null
+        ? rawUserData.custom_events
+        : (prevUserData?.custom_events || []),
+      custom_categories: rawUserData.custom_categories !== undefined && rawUserData.custom_categories !== null
+        ? rawUserData.custom_categories
+        : (prevUserData?.custom_categories || []),
+      lesson_overrides: rawUserData.lesson_overrides !== undefined && rawUserData.lesson_overrides !== null
+        ? rawUserData.lesson_overrides
+        : (prevUserData?.lesson_overrides || {}),
+    };
     saveUserData(userData, settings.username);
     if (userData.active_config_id && !settings.configId) {
       settings.configId = null; // Mantener "seguir activo"
@@ -448,9 +463,20 @@ function getAcademicYearBounds(date) {
   return { start, end };
 }
 
-// LocalDate → YYYYMMDD Int
+// LocalDate / Date / Number → YYYYMMDD Int
 function toDateNumber(date) {
-  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+  if (typeof date === "number") return date;
+  if (!date) return 0;
+  if (typeof date.getFullYear === "function") {
+    return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+  }
+  if (typeof date === "string") {
+    const parsed = parseInt(date, 10);
+    if (!isNaN(parsed) && parsed > 10000000) return parsed;
+    const d = new Date(date);
+    if (!isNaN(d.getTime())) return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  return 0;
 }
 
 // YYYYMMDD Int → Date
@@ -1067,13 +1093,21 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
     if (!ov) return lesson;
 
     const isUserCancelled = Boolean(ov.userCancelled);
+    const hasNotes = typeof ov.customNotes === 'string' && ov.customNotes.trim() !== '';
+    const hasDateChange = ov.customDate !== undefined && ov.customDate !== null && toDateNumber(ov.customDate) !== toDateNumber(lesson.date);
+    const hasStartChange = ov.customStartTime !== undefined && ov.customStartTime !== null && ov.customStartTime !== lesson.startTime;
+    const hasEndChange = ov.customEndTime !== undefined && ov.customEndTime !== null && ov.customEndTime !== lesson.endTime;
+    const hasRoomsChange = ov.customRooms !== undefined && ov.customRooms !== null && JSON.stringify(ov.customRooms) !== JSON.stringify(lesson.rooms);
+    const hasChanges = isUserCancelled || Boolean(ov.swappedWith) || hasNotes || hasDateChange || hasStartChange || hasEndChange || hasRoomsChange;
+
+    if (!hasChanges) return lesson;
 
     return {
       ...lesson,
       lessonKey: key,
       isOverridden: true,
-      date: ov.customDate !== undefined ? ov.customDate : lesson.date,
-      rawDate: lesson.date,
+      date: ov.customDate !== undefined ? toDateNumber(ov.customDate) : toDateNumber(lesson.date),
+      rawDate: toDateNumber(lesson.date),
       rawStartTime: lesson.startTime,
       rawEndTime: lesson.endTime,
       rawRooms: lesson.rooms,
@@ -1109,17 +1143,17 @@ function expandCustomEventsForDates(customEvents = [], targetDates = []) {
       if (!event || !event.recurrence) continue;
 
       const exceptions = Array.isArray(event.recurrence.exceptions) ? event.recurrence.exceptions : [];
-      if (exceptions.includes(dateNum)) continue;
+      if (exceptions.some(ex => toDateNumber(ex) === dateNum)) continue;
 
       let matches = false;
 
       if (event.recurrence.type === "none") {
-        matches = event.recurrence.date === dateNum;
+        matches = toDateNumber(event.recurrence.date) === dateNum;
       } else if (event.recurrence.type === "weekly") {
         const days = Array.isArray(event.recurrence.daysOfWeek) ? event.recurrence.daysOfWeek : [];
         const isDayMatched = days.includes(dayOfWeek);
-        const isAfterStart = !event.recurrence.startDate || dateNum >= event.recurrence.startDate;
-        const isBeforeEnd = !event.recurrence.endDate || dateNum <= event.recurrence.endDate;
+        const isAfterStart = !event.recurrence.startDate || dateNum >= toDateNumber(event.recurrence.startDate);
+        const isBeforeEnd = !event.recurrence.endDate || dateNum <= toDateNumber(event.recurrence.endDate);
         matches = isDayMatched && isAfterStart && isBeforeEnd;
       }
 
@@ -1237,7 +1271,8 @@ function classifyPeriod(dates) {
 
 function updateSubjectColors(allLessons) {
   const subjectDates = new Map();
-  for (const l of allLessons) {
+  for (const l of (allLessons || [])) {
+    if (!l || l.isCustomEvent) continue;
     const id = l.subjectIds && l.subjectIds[0] != null ? l.subjectIds[0] : null;
     if (id == null || l.date <= 0) continue;
     if (!subjectDates.has(id)) subjectDates.set(id, new Set());
@@ -1971,6 +2006,41 @@ function drawDashedRoundRect(dc, x, y, w, h, r, dashLen, gapLen, color, alpha, l
   dc.strokePath();
 }
 
+// Dibuja el borde distintivo lateral izquierdo siguiendo la curvatura del rectángulo redondeado
+// Equivalente exacto a border-left en web y al clipRect de Android
+function drawLeftBorder(dc, x, y, w, h, r, color, lineWidth) {
+  const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+  const inset = lineWidth / 2;
+  const innerW = Math.max(0, w - 2 * inset);
+  const innerH = Math.max(0, h - 2 * inset);
+  const innerRad = Math.max(0.5, rad - inset);
+  const innerX = x + inset;
+  const innerY = y + inset;
+
+  const lTop = Math.max(0, innerW - 2 * innerRad);
+  const lSide = Math.max(0, innerH - 2 * innerRad);
+  const lArc = 0.5 * Math.PI * innerRad;
+  const totalP = 2 * lTop + 2 * lSide + 4 * lArc;
+  if (totalP <= 0) return;
+
+  const startDist = totalP - 2 * lArc - lSide;
+  const endDist = totalP;
+
+  const path = new Path();
+  const ptStart = getRoundRectPoint(startDist, innerX, innerY, innerW, innerH, innerRad);
+  path.move(ptStart);
+  const step = 2.0;
+  for (let s = startDist + step; s < endDist; s += step) {
+    path.addLine(getRoundRectPoint(s, innerX, innerY, innerW, innerH, innerRad));
+  }
+  path.addLine(getRoundRectPoint(endDist, innerX, innerY, innerW, innerH, innerRad));
+
+  dc.setStrokeColor(color);
+  dc.setLineWidth(lineWidth);
+  dc.addPath(path);
+  dc.strokePath();
+}
+
 
 // Dibuja texto centrado horizontalmente en DrawContext
 function drawCenteredText(dc, text, fontSize, isBold, color, alpha, cx, topY, maxW, lineH) {
@@ -2114,11 +2184,13 @@ function drawLessonCard(dc, lesson, rect, isToday, nowMinutes, startMins, endMin
 
   // Borde distintivo izquierdo para eventos propios (matching web .lesson-block.is-custom-event)
   if (lesson.isCustomEvent) {
-    const accentIndicatorColor = isDark ? new Color("#60A5FA", 0.95) : new Color("#2563EB", 0.95);
-    dc.setFillColor(accentIndicatorColor);
-    const indW = 3.5 * scale;
-    drawRoundRect(dc, rect.x, rect.y, indW + 2 * scale, bH, cornerRadius);
-    dc.fillPath();
+    // Ancho sutil y proporcionado: 1.8 en semana (evita aplastar el texto en columnas estrechas) y 2.8 en día
+    const indW = (isDayView ? 2.8 : 1.8) * scale;
+    const indAlpha = lesson.isDimmed ? 0.35 : (isPast ? (isDark ? 0.42 : 0.10) : (isDark ? 0.72 : 0.18));
+    const indicatorColor = isDark
+      ? new Color(bdHex, indAlpha)
+      : new Color("#000000", indAlpha);
+    drawLeftBorder(dc, rect.x, rect.y, bW, bH, cornerRadius, indicatorColor, indW);
   }
 
   // Borde
@@ -3502,7 +3574,20 @@ async function showSettingsScreen(settings, instanceId) {
       } else if (action === "request_connect") {
         const targetUser = payload.username;
         try {
-          const uData = await fetchUserData(targetUser);
+          const rawUserData = await fetchUserData(targetUser);
+          const prevUserData = loadUserData(targetUser);
+          const uData = {
+            ...rawUserData,
+            custom_events: rawUserData.custom_events !== undefined && rawUserData.custom_events !== null
+              ? rawUserData.custom_events
+              : (prevUserData?.custom_events || []),
+            custom_categories: rawUserData.custom_categories !== undefined && rawUserData.custom_categories !== null
+              ? rawUserData.custom_categories
+              : (prevUserData?.custom_categories || []),
+            lesson_overrides: rawUserData.lesson_overrides !== undefined && rawUserData.lesson_overrides !== null
+              ? rawUserData.lesson_overrides
+              : (prevUserData?.lesson_overrides || {}),
+          };
           userData = uData;
           currentSettings.username = targetUser;
           if (freshSys) currentSettings.systemThemeCached = freshSys;
@@ -3833,12 +3918,17 @@ async function buildWidget(settings, instanceId) {
   const isWeekMode = settings.viewMode === "weekly" && family !== "small";
 
   if (isWeekMode) {
-    // Semana: Lun-Vie de la semana del targetDate
+    // Semana: Lun-(Vie/Sáb/Dom) según si hay clases en fin de semana
     const dow = targetDate.getDay(); // 0=dom
     const mondayOffset = dow === 0 ? -6 : 1 - dow;
     const monday = addDays(targetDate, mondayOffset);
-    const friday = addDays(monday, 4);
-    headerText = `Semana · ${formatDateShort(monday)} - ${formatDateShort(friday)}`;
+    const satNum = toDateNumber(addDays(monday, 5));
+    const sunNum = toDateNumber(addDays(monday, 6));
+    const hasSun = (finalLessons || []).some(l => l && toDateNumber(l.date) === sunNum);
+    const hasSat = (finalLessons || []).some(l => l && toDateNumber(l.date) === satNum);
+    const endOffset = hasSun ? 6 : (hasSat ? 5 : 4);
+    const endDay = addDays(monday, endOffset);
+    headerText = `Semana · ${formatDateShort(monday)} - ${formatDateShort(endDay)}`;
     if (config2 && configs.length > 1) headerText += ` · ${config2.name}`;
   } else {
     const dayNameShort = getDayOfWeekName(targetDate).substring(0,3);

@@ -80,9 +80,9 @@ data class UserResponse(
     val updated_at: String? = null,
     /** Palette provided by the server — widgets use this instead of hardcoded colors */
     val palette: ApiPalette? = null,
-    val custom_events: List<CustomEventDto> = emptyList(),
-    val custom_categories: List<String> = emptyList(),
-    val lesson_overrides: Map<String, LessonOverrideDto> = emptyMap()
+    val custom_events: List<CustomEventDto>? = null,
+    val custom_categories: List<String>? = null,
+    val lesson_overrides: Map<String, LessonOverrideDto>? = null
 )
 
 @Serializable(with = SelectedGroupSerializer::class)

@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
+import com.ehuntis.widget.data.ApiClient
 import com.ehuntis.widget.data.CustomEventsLogic
 import com.ehuntis.widget.data.DayLogic
 import com.ehuntis.widget.data.LocalCacheManager
@@ -317,7 +318,7 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             views.setContentDescription(R.id.widget_timetable_image, accessibilityDesc)
 
             // 7. Click en el horario -> Abrir web de EHUntis
-            val openWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ehuntis.vercel.app")).apply {
+            val openWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse(ApiClient.baseUrl)).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             val pendingWeb = PendingIntent.getActivity(

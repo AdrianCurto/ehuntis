@@ -15,6 +15,7 @@ const {
   swapLessons,
   hasLessonOverrideChanges,
   areRoomsEqual,
+  cleanObsoleteLessonOverrides,
 } = require('../../app/utils/lessonOverrides');
 
 describe('lessonOverrides utility suite', () => {
@@ -380,6 +381,64 @@ describe('lessonOverrides utility suite', () => {
       });
       assert.equal(step2['20261109_870'], undefined, 'Al volver a horario y aula originales, se elimina el override');
     });
+
+    test('automatically removes override when editing room back to official room with formatted code (P2 G3A vs P2G3A)', () => {
+      const lesson = {
+        id: 880,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['P2 G3A'], // WebUntis official format with space
+        code: null,
+      };
+
+      // 1. Cambiar aula a otra distinta
+      const step1 = setLessonOverride({}, lesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3B'],
+        customNotes: '',
+      });
+      assert.ok(step1['20261109_880'], 'El override debe guardarse al cambiar el aula');
+
+      // 2. Volver a cambiar el aula para dejarla como es la real (en formato limpio del modal P2G3A o con espacio P2 G3A)
+      const step2 = setLessonOverride(step1, lesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3A'],
+        customNotes: '',
+      });
+      assert.equal(step2['20261109_880'], undefined, 'Al volver a poner el aula real (P2G3A vs P2 G3A), el override se elimina');
+    });
+
+    test('automatically removes override when adding a note and then clearing it on a class with code room', () => {
+      const lesson = {
+        id: 890,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['P2 G3A'],
+        code: null,
+      };
+
+      // 1. Añadir nota (el modal envía customRooms con el formato formateado P2G3A)
+      const step1 = setLessonOverride({}, lesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3A'],
+        customNotes: 'Repasar tema 4',
+      });
+      assert.ok(step1['20261109_890']);
+
+      // 2. Quitar la nota (dejándola vacía)
+      const step2 = setLessonOverride(step1, lesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3A'],
+        customNotes: '',
+      });
+      assert.equal(step2['20261109_890'], undefined, 'Al quitar la nota personal, el override debe eliminarse');
+    });
   });
 
   describe('swapLessons atomic operation', () => {
@@ -559,6 +618,15 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(areRoomsEqual(['Aula 1.1'], []), false);
     });
 
+    test('areRoomsEqual recognizes UPV/EHU alphanumeric room codes with or without internal spaces or suffixes', () => {
+      assert.equal(areRoomsEqual(['P2 G3A'], ['P2G3A']), true);
+      assert.equal(areRoomsEqual(['P2G3A_14838'], ['P2G3A']), true);
+      assert.equal(areRoomsEqual(['P1 I2S'], ['P1I2S']), true);
+      assert.equal(areRoomsEqual(['P 2 G 3 A'], ['P2G3A']), true);
+      assert.equal(areRoomsEqual(['Aula 1.4', 'P2 G3A'], ['P2G3A', 'Aula 1.4']), true);
+      assert.equal(areRoomsEqual(['P2G3A'], ['P2G3B']), false);
+    });
+
     test('hasLessonOverrideChanges accurately detects differences vs official state', () => {
       const snap = {
         date: 20261109,
@@ -573,6 +641,16 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(hasLessonOverrideChanges({ customStartTime: 900, customEndTime: 1100, customRooms: ['Aula 1.1'] }, snap), false);
       assert.equal(hasLessonOverrideChanges({ customNotes: '   ' }, snap), false);
 
+      // Con códigos de aula equivalentes (ej. oficial P2 G3A y override P2G3A)
+      const snapCode = {
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        rooms: ['P2 G3A'],
+        code: null,
+      };
+      assert.equal(hasLessonOverrideChanges({ customStartTime: 900, customEndTime: 1100, customRooms: ['P2G3A'], customNotes: '' }, snapCode), false);
+
       // Con cambios
       assert.equal(hasLessonOverrideChanges({ userCancelled: true }, snap), true);
       assert.equal(hasLessonOverrideChanges({ swappedWith: { lessonKey: 'abc' } }, snap), true);
@@ -581,6 +659,65 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(hasLessonOverrideChanges({ customEndTime: 1130 }, snap), true);
       assert.equal(hasLessonOverrideChanges({ customRooms: ['Lab 2'] }, snap), true);
       assert.equal(hasLessonOverrideChanges({ customDate: 20261110 }, snap), true);
+    });
+  });
+
+  describe('cleanObsoleteLessonOverrides lifecycle', () => {
+    test('removes override when official WebUntis schedule updates to match the user custom room', () => {
+      const initialOfficialLesson = {
+        id: 990,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['Aula 1.1'],
+        code: null,
+      };
+
+      // Usuario personalizó el aula a P2G3A
+      const overrides = setLessonOverride({}, initialOfficialLesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3A'],
+        customNotes: '',
+      });
+      assert.ok(overrides['20261109_990']);
+
+      // Posteriormente, WebUntis actualiza oficialmente el aula de esta clase a P2 G3A
+      const updatedOfficialLesson = {
+        ...initialOfficialLesson,
+        rooms: ['P2 G3A'], // WebUntis format with space
+      };
+
+      const cleaned = cleanObsoleteLessonOverrides(overrides, [updatedOfficialLesson]);
+      assert.equal(cleaned['20261109_990'], undefined, 'El override debe eliminarse ya que el aula oficial ahora coincide con la puesta por el usuario');
+    });
+
+    test('preserves override when other fields still differ from updated official schedule', () => {
+      const initialOfficialLesson = {
+        id: 991,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['Aula 1.1'],
+        code: null,
+      };
+
+      // Usuario personalizó aula y además puso una nota
+      const overrides = setLessonOverride({}, initialOfficialLesson, {
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P2G3A'],
+        customNotes: 'Llevar apuntes',
+      });
+
+      // WebUntis actualiza el aula a P2 G3A, pero la nota del usuario sigue existiendo
+      const updatedOfficialLesson = {
+        ...initialOfficialLesson,
+        rooms: ['P2 G3A'],
+      };
+
+      const cleaned = cleanObsoleteLessonOverrides(overrides, [updatedOfficialLesson]);
+      assert.ok(cleaned['20261109_991'], 'El override se conserva porque contiene notas personales');
     });
   });
 

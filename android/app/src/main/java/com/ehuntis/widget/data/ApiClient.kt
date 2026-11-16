@@ -10,7 +10,9 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    var baseUrl: String = "https://ehuntis.vercel.app"
+    // URL de previsualización para pruebas y depuración en feature/custom-events.
+    // NOTA: Revertir a "https://ehuntis.vercel.app" antes de fusionar esta rama a main.
+    var baseUrl: String = "https://ehuntis-git-feature-custom-events-affablepixies-projects.vercel.app"
 
     val json = Json {
         ignoreUnknownKeys = true

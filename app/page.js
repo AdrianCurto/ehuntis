@@ -26,6 +26,7 @@ import {
   resolveDrift,
   swapLessons,
   formatTime,
+  cleanObsoleteLessonOverrides,
 } from './utils/lessonOverrides';
 import {
   getResolvedTargetDate,
@@ -1394,6 +1395,19 @@ export default function Home() {
 
   const timetableWithOverrides = useMemo(() => {
     return applyLessonOverrides(filteredTimetable, lessonOverrides);
+  }, [filteredTimetable, lessonOverrides]);
+
+  // Auto-eliminar overrides que vuelven a ser idénticos al horario oficial tras actualizaciones de WebUntis
+  useEffect(() => {
+    if (!filteredTimetable || filteredTimetable.length === 0) return;
+    if (!lessonOverrides || Object.keys(lessonOverrides).length === 0) return;
+
+    const cleaned = cleanObsoleteLessonOverrides(lessonOverrides, filteredTimetable);
+    if (cleaned !== lessonOverrides && Object.keys(cleaned).length !== Object.keys(lessonOverrides).length) {
+      isUserDirtyRef.current = true;
+      setLessonOverrides(cleaned);
+      saveStoredLessonOverrides(cleaned);
+    }
   }, [filteredTimetable, lessonOverrides]);
 
   const combinedTimetable = useMemo(() => {

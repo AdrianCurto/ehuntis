@@ -555,19 +555,37 @@ object TimetableRenderEngine {
 
         // Borde distintivo izquierdo para eventos propios (matching web .lesson-block.is-custom-event)
         if (lesson.isCustomEvent) {
+            // Ancho sutil y proporcionado: 1.8dp en semana (evita aplastar el texto en columnas estrechas) y 2.8dp en día
+            val indicatorWidth = (if (isDayView) 2.8f else 1.8f) * density
+
+            val baseAlpha = if (isDark) 180 else 46
+            val finalAlpha = when {
+                lesson.isDimmed -> (baseAlpha * 0.45f).toInt()
+                isPast -> (baseAlpha * (if (isDark) 0.52f else 0.58f)).toInt()
+                else -> baseAlpha
+            }
+
             val indicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = if (isDark) Color.parseColor("#60A5FA") else Color.parseColor("#2563EB")
+                color = if (isDark) {
+                    // Modo oscuro: Tono acento extraído de la paleta del propio evento (armónico y distinguible)
+                    Color.argb(
+                        finalAlpha,
+                        Color.red(blockColor.border),
+                        Color.green(blockColor.border),
+                        Color.blue(blockColor.border)
+                    )
+                } else {
+                    // Modo claro: Sombra sutil que oscurece el fondo pastel del evento (matching border-left web)
+                    Color.argb(finalAlpha, 0, 0, 0)
+                }
                 style = Paint.Style.FILL
             }
-            val indicatorWidth = 3.5f * density
+
             canvas.save()
-            canvas.clipRect(blockRect)
-            canvas.drawRoundRect(
-                RectF(blockRect.left, blockRect.top, blockRect.left + indicatorWidth * 2f, blockRect.bottom),
-                dynamicCornerRadius,
-                dynamicCornerRadius,
-                indicatorPaint
-            )
+            // Limitar el trazado estrictamente a la franja lateral izquierda (sin desbordar ni abultar)
+            canvas.clipRect(blockRect.left, blockRect.top, blockRect.left + indicatorWidth, blockRect.bottom)
+            // Curvar con el mismo dynamicCornerRadius para que las esquinas sigan perfectamente el contorno
+            canvas.drawRoundRect(blockRect, dynamicCornerRadius, dynamicCornerRadius, indicatorPaint)
             canvas.restore()
         }
 

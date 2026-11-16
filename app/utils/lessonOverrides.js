@@ -4,6 +4,8 @@
  * y detectar automáticamente discrepancias (drift) si la universidad actualiza datos después.
  */
 
+const { formatRoom, formatRooms } = require('./subgroups');
+
 const LESSON_OVERRIDES_STORAGE_KEY = 'ehuntis_lesson_overrides_v1';
 
 /**
@@ -109,9 +111,9 @@ function checkRemoteDrift(lesson, override) {
   // Cambio de aula oficial
   const rawRooms = lesson.rawRooms ?? lesson.rooms ?? [];
   const snapRooms = snap.rooms ?? [];
-  const rawRoomsStr = rawRooms.join(', ').trim();
-  const snapRoomsStr = snapRooms.join(', ').trim();
-  if (rawRoomsStr !== snapRoomsStr) {
+  if (!areRoomsEqual(rawRooms, snapRooms)) {
+    const rawRoomsStr = formatRooms(rawRooms);
+    const snapRoomsStr = formatRooms(snapRooms);
     changes.push({
       field: 'room',
       label: 'Aula oficial',
@@ -136,6 +138,8 @@ function checkRemoteDrift(lesson, override) {
 
 /**
  * Normaliza una lista de aulas para comparación fiable (espacios limpios, ordenadas, minúsculas).
+ * Aplica formatRoom para eliminar discrepancias de espaciado o identificadores internos en códigos de aula (ej. "P2 G3A" vs "P2G3A").
+ *
  * @param {Array|string} rooms
  * @returns {Array<string>}
  */
@@ -143,6 +147,7 @@ function normalizeRooms(rooms) {
   if (!rooms) return [];
   const list = Array.isArray(rooms) ? rooms : [rooms];
   return list
+    .map(r => (typeof r === 'string' ? formatRoom(r) : formatRoom(String(r))))
     .map(r => (typeof r === 'string' ? r.replace(/\s+/g, ' ').trim() : String(r).trim()))
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -175,6 +180,7 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
 
   const snap = snapshot || override.originalSnapshot || {};
   const rawLesson = lesson || {};
+  const isOverriddenLesson = Boolean(rawLesson.isOverridden);
 
   // 1. Cancelación manual por el usuario
   if (Boolean(override.userCancelled)) {
@@ -192,7 +198,10 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
   }
 
   // 4. Fecha modificada
-  const officialDate = rawLesson.rawDate ?? rawLesson.date ?? snap.date;
+  const officialDate = isOverriddenLesson
+    ? (rawLesson.rawDate ?? snap.date)
+    : (rawLesson.date ?? snap.date);
+
   if (
     override.customDate !== undefined &&
     override.customDate !== null &&
@@ -203,7 +212,10 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
   }
 
   // 5. Horario de inicio modificado
-  const officialStart = rawLesson.rawStartTime ?? rawLesson.startTime ?? snap.startTime;
+  const officialStart = isOverriddenLesson
+    ? (rawLesson.rawStartTime ?? snap.startTime)
+    : (rawLesson.startTime ?? snap.startTime);
+
   if (
     override.customStartTime !== undefined &&
     override.customStartTime !== null &&
@@ -214,7 +226,10 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
   }
 
   // 6. Horario de fin modificado
-  const officialEnd = rawLesson.rawEndTime ?? rawLesson.endTime ?? snap.endTime;
+  const officialEnd = isOverriddenLesson
+    ? (rawLesson.rawEndTime ?? snap.endTime)
+    : (rawLesson.endTime ?? snap.endTime);
+
   if (
     override.customEndTime !== undefined &&
     override.customEndTime !== null &&
@@ -225,7 +240,10 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
   }
 
   // 7. Aulas modificadas
-  const officialRooms = rawLesson.rawRooms ?? rawLesson.rooms ?? snap.rooms ?? [];
+  const officialRooms = isOverriddenLesson
+    ? (rawLesson.rawRooms ?? snap.rooms ?? [])
+    : (rawLesson.rooms ?? snap.rooms ?? []);
+
   if (override.customRooms !== undefined && override.customRooms !== null) {
     if (!areRoomsEqual(override.customRooms, officialRooms)) {
       return true;
@@ -576,6 +594,58 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   };
 }
 
+/**
+ * Limpia y devuelve un nuevo mapa de overrides eliminando aquellos que ya no contienen
+ * ninguna modificación real respecto al horario oficial cargado de WebUntis.
+ * Se invoca automáticamente cuando WebUntis actualiza clases oficiales para que dejen de figurar
+ * como personalizadas si ahora coinciden con lo que el usuario tenía fijado.
+ *
+ * @param {Object} currentOverrides Mapa actual de overrides
+ * @param {Array} lessons Lista de lecciones oficiales de WebUntis
+ * @returns {Object} Overrides limpios sin entradas obsoletas
+ */
+function cleanObsoleteLessonOverrides(currentOverrides = {}, lessons = []) {
+  if (!currentOverrides || typeof currentOverrides !== 'object' || Object.keys(currentOverrides).length === 0) {
+    return currentOverrides;
+  }
+  if (!Array.isArray(lessons) || lessons.length === 0) {
+    return currentOverrides;
+  }
+
+  let hasChanges = false;
+  const next = { ...currentOverrides };
+
+  for (const [key, ov] of Object.entries(currentOverrides)) {
+    if (!ov || typeof ov !== 'object') {
+      delete next[key];
+      hasChanges = true;
+      continue;
+    }
+
+    // Buscar la lección correspondiente en la lista oficial
+    const matched = lessons.find(l => {
+      if (!l || l.isCustomEvent) return false;
+      const lKey = l.lessonKey || getLessonKey(l);
+      if (lKey === key) return true;
+      if (ov.lessonId !== undefined && ov.lessonId !== null && l.id === ov.lessonId) return true;
+      return false;
+    });
+
+    if (!matched) {
+      // Si la lección no está en este conjunto de lecciones, no la eliminamos para no borrar overrides de otros grupos/fechas
+      continue;
+    }
+
+    // Comprobar si tras la actualización oficial de WebUntis la lección ya no difiere del estado oficial
+    if (!hasLessonOverrideChanges(ov, ov.originalSnapshot, matched)) {
+      delete next[key];
+      hasChanges = true;
+    }
+  }
+
+  return hasChanges ? next : currentOverrides;
+}
+
 module.exports = {
   LESSON_OVERRIDES_STORAGE_KEY,
   formatTime,
@@ -590,4 +660,5 @@ module.exports = {
   swapLessons,
   hasLessonOverrideChanges,
   areRoomsEqual,
+  cleanObsoleteLessonOverrides,
 };
