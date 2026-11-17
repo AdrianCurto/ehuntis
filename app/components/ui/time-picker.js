@@ -5,7 +5,7 @@ import { Clock, Keyboard, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './sheet';
 import { cn } from '@/app/utils/cn';
-import { parseValueToTime } from '@/app/utils/dateTimeUtils';
+import { parseValueToTime, formatTime } from '@/app/utils/dateTimeUtils';
 
 export { parseValueToTime };
 
@@ -15,6 +15,7 @@ export function TimePicker({
   value,
   onChange,
   disabled = false,
+  error = false,
   className,
   ariaLabel = 'Hora',
   step = 5,
@@ -141,7 +142,7 @@ export function TimePicker({
   };
 
   const displayTime = hasValue
-    ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+    ? formatTime(hour * 100 + minute)
     : '--:--';
 
   const pickerContent = (
@@ -185,7 +186,7 @@ export function TimePicker({
                 activeHourRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
               }}
               className={cn(
-                'w-16 h-13 rounded-xl flex items-center justify-center text-3xl font-bold font-mono tracking-wider transition-all cursor-pointer outline-none',
+                'w-16 h-13 rounded-xl flex items-center justify-center text-3xl font-bold tabular-nums tracking-tight transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60',
                 activeSegment === 'hour'
                   ? 'bg-[var(--accent)] text-white shadow-md ring-2 ring-[var(--accent)]/30'
                   : 'bg-[var(--surface-hover)] text-[var(--text-primary)] hover:bg-[var(--surface-active)]'
@@ -202,7 +203,7 @@ export function TimePicker({
                 activeMinuteRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
               }}
               className={cn(
-                'w-16 h-13 rounded-xl flex items-center justify-center text-3xl font-bold font-mono tracking-wider transition-all cursor-pointer outline-none',
+                'w-16 h-13 rounded-xl flex items-center justify-center text-3xl font-bold tabular-nums tracking-tight transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60',
                 activeSegment === 'minute'
                   ? 'bg-[var(--accent)] text-white shadow-md ring-2 ring-[var(--accent)]/30'
                   : 'bg-[var(--surface-hover)] text-[var(--text-primary)] hover:bg-[var(--surface-active)]'
@@ -232,7 +233,7 @@ export function TimePicker({
                 }
               }}
               placeholder="08"
-              className="w-16 h-13 rounded-xl text-center text-3xl font-bold font-mono tracking-wider bg-[var(--surface-hover)] text-[var(--text-primary)] border-2 border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+              className="w-16 h-13 rounded-xl text-center text-3xl font-bold tabular-nums tracking-tight bg-[var(--surface-hover)] text-[var(--text-primary)] border-2 border-[var(--accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
               aria-label="Horas"
             />
             <span className="text-2xl font-bold text-[var(--text-muted)]">:</span>
@@ -254,7 +255,7 @@ export function TimePicker({
                 }
               }}
               placeholder="00"
-              className="w-16 h-13 rounded-xl text-center text-3xl font-bold font-mono tracking-wider bg-[var(--surface-hover)] text-[var(--text-primary)] border-2 border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+              className="w-16 h-13 rounded-xl text-center text-3xl font-bold tabular-nums tracking-tight bg-[var(--surface-hover)] text-[var(--text-primary)] border-2 border-[var(--accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40"
               aria-label="Minutos"
             />
           </>
@@ -279,7 +280,7 @@ export function TimePicker({
                     type="button"
                     onClick={() => handleHourSelect(hStr)}
                     className={cn(
-                      'w-full py-1.5 rounded-lg text-xs font-mono font-medium text-center transition-colors cursor-pointer outline-none',
+                      'w-full py-1.5 rounded-lg text-xs tabular-nums font-medium text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
                       isSelected
                         ? 'bg-[var(--accent)] text-white font-bold shadow-xs'
                         : 'text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'
@@ -307,7 +308,7 @@ export function TimePicker({
                     type="button"
                     onClick={() => handleMinuteSelect(mStr)}
                     className={cn(
-                      'w-full py-1.5 rounded-lg text-xs font-mono font-medium text-center transition-colors cursor-pointer outline-none',
+                      'w-full py-1.5 rounded-lg text-xs tabular-nums font-medium text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
                       isSelected
                         ? 'bg-[var(--accent)] text-white font-bold shadow-xs'
                         : 'text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'
@@ -344,35 +345,30 @@ export function TimePicker({
   );
 
   const triggerContent = (
-    <div
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-disabled={disabled}
+    <button
+      type="button"
+      disabled={disabled}
       aria-label={ariaLabel}
+      data-invalid={Boolean(error) || undefined}
       onClick={() => {
         if (!disabled) setIsOpen(true);
       }}
-      onKeyDown={(e) => {
-        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          setIsOpen(true);
-        }
-      }}
       className={cn(
         'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors cursor-pointer select-none',
-        'hover:border-[var(--border-hover)] focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)]',
+        'hover:border-[var(--accent)]/50 focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
+        error && 'border-[var(--destructive)] focus-visible:border-[var(--destructive)] focus-visible:ring-[var(--destructive)]/50',
         disabled && 'cursor-not-allowed opacity-50 pointer-events-none',
         className
       )}
       {...props}
     >
-      <span className={cn('font-mono text-sm tabular-nums tracking-wide', !hasValue && 'text-[var(--text-muted)]')}>
+      <span className={cn('text-sm tabular-nums', !hasValue && 'text-[var(--text-muted)]')}>
         {displayTime}
       </span>
-      <div className="flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors p-0.5 rounded-md">
+      <span className="flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors p-0.5 rounded-md">
         <Clock className="w-4 h-4" />
-      </div>
-    </div>
+      </span>
+    </button>
   );
 
   return (

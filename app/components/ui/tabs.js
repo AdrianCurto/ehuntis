@@ -10,7 +10,7 @@ export const TabsList = React.forwardRef(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'inline-flex h-10 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--bg-secondary)] p-1 text-[var(--text-secondary)] border border-[var(--border)]',
+      'inline-flex h-11 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--bg-secondary)] p-1 text-[var(--text-secondary)] border border-[var(--border)] gap-1',
       className
     )}
     {...props}
@@ -22,7 +22,10 @@ export const TabsTrigger = React.forwardRef(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-semibold ring-offset-[var(--bg)] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[var(--surface)] data-[state=active]:text-[var(--text-primary)] data-[state=active]:shadow-xs cursor-pointer select-none',
+      'relative inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-semibold transition-all duration-150 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none',
+      'border border-transparent hover:text-[var(--text-primary)]',
+      'data-[state=active]:bg-[var(--accent)]/14 data-[state=active]:text-[var(--accent)] data-[state=active]:border-[var(--accent)]/30 dark:data-[state=active]:bg-indigo-500/22 dark:data-[state=active]:text-white dark:data-[state=active]:border-indigo-400/35 data-[state=active]:shadow-xs',
+      'after:content-[""] after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:h-[2px] after:w-0 after:rounded-full after:bg-[var(--accent)] after:transition-all after:duration-200 data-[state=active]:after:w-7',
       className
     )}
     {...props}
@@ -34,7 +37,7 @@ export const TabsContent = React.forwardRef(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      'mt-2 ring-offset-[var(--bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2',
+      'mt-2 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 rounded-[var(--radius-lg)]',
       className
     )}
     {...props}

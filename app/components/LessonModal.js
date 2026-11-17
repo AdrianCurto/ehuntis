@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import {
-  X,
-  Clock,
   MapPin,
   User,
   Pencil,
@@ -17,16 +15,13 @@ import {
 import {
   ResponsiveModal,
   ResponsiveModalContent,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-  ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { toast } from 'sonner';
 import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
-import { formatTime } from '../utils/lessonOverrides';
+import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
 import { cn } from '../utils/cn';
 
@@ -48,6 +43,7 @@ export default function LessonModal({
   onOpenEdit,
   onOpenSwap,
   onResetOverride,
+  onRestoreOverride,
   onResolveDrift,
 }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -71,10 +67,34 @@ export default function LessonModal({
   const isOverridden = Boolean(lesson.isOverridden);
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
+  const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
+
+  const handleToggleCancelClick = () => {
+    const nextCancelled = !isUserCancelled;
+    onToggleCancelled?.(lesson);
+    toast.success(nextCancelled ? 'Clase marcada como cancelada' : 'Clase reactivada', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          onToggleCancelled?.({ ...lesson, isUserCancelled: nextCancelled });
+        },
+      },
+    });
+  };
+
   const handleResetConfirm = () => {
     setShowResetConfirm(false);
-    onResetOverride?.(lesson);
-    toast.success('Clase restablecida al horario oficial');
+    const snapshot = onResetOverride?.(lesson);
+    toast.success('Clase restablecida al horario oficial', {
+      action: onRestoreOverride
+        ? {
+            label: 'Deshacer',
+            onClick: () => {
+              onRestoreOverride(snapshot, lesson);
+            },
+          }
+        : undefined,
+    });
     onClose?.();
   };
 
@@ -86,39 +106,55 @@ export default function LessonModal({
           className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
           style={{
             background: color.bg,
+            borderColor: modalBorderColor,
           }}
         >
-          {/* Cabecera */}
-          <div className="flex flex-col items-center text-center px-6 mb-2">
-            <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
-              {dayName} {dateStr}
-            </div>
-            <div className="text-lg font-bold tabular-nums" style={{ color: color.text }}>
-              {timeStr}
+          {/* Cabecera: Asignatura primero, fecha y hora como subtitulo */}
+          <div className="pr-8 mb-3 text-left">
+            {subgroupStr && (
+              <div className="text-[11px] font-semibold uppercase tracking-wider mb-1 opacity-75" style={{ color: color.text }}>
+                {subgroupStr}
+                {lesson.type ? ` · ${lesson.type}` : ''}
+              </div>
+            )}
+            <h2 className="text-xl font-bold leading-snug tracking-tight text-balance font-[var(--font-display)]" style={{ color: color.text }}>
+              {subjectName}
+            </h2>
+            {!subgroupStr && lesson.type && (
+              <div className="text-xs font-medium opacity-80 mt-0.5" style={{ color: color.text }}>
+                {lesson.type}
+              </div>
+            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums" style={{ color: color.text, opacity: 0.85 }}>
+              <span>{dayName} {dateStr}</span>
+              <span aria-hidden="true">·</span>
+              <span className="font-bold">{timeStr}</span>
             </div>
           </div>
 
-          {/* Banner de drift remoto si WebUntis actualizó datos */}
+          {/* Banner de drift remoto si WebUntis actualizo datos */}
           {hasDrift && (
-            <div className="p-3 my-2 rounded-[var(--radius-md)] bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs">
-              <div className="flex items-center gap-1.5 font-bold mb-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span>WebUntis ha actualizado esta clase:</span>
+            <div className="p-3.5 my-3 rounded-[var(--radius-lg)] bg-white/90 dark:bg-slate-950/80 border border-amber-500/40 text-slate-900 dark:text-slate-100 text-xs shadow-sm backdrop-blur-xs">
+              <div className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-300 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>WebUntis ha actualizado esta clase</span>
               </div>
-              <div className="flex flex-col gap-1 mb-2.5">
+              <div className="flex flex-col gap-1.5 mb-3">
                 {lesson.driftChanges.map((ch, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span className="font-semibold">{ch.label}:</span>
-                    <span className="line-through opacity-70">{ch.before}</span>
-                    <span>→</span>
-                    <span className="font-bold underline">{ch.after}</span>
+                  <div key={idx} className="flex flex-wrap items-center gap-1.5 tabular-nums">
+                    <span className="font-medium text-slate-600 dark:text-slate-400">{ch.label}:</span>
+                    <span className="line-through text-slate-500 dark:text-slate-400">{ch.before}</span>
+                    <span className="text-slate-400" aria-hidden="true">→</span>
+                    <span className="font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-amber-500/15 dark:bg-amber-400/20 text-amber-950 dark:text-amber-200">
+                      {ch.after}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
-                  className="bg-amber-600 text-white hover:bg-amber-700 h-7 text-xs"
+                  className="touch-target-44 bg-[#c2410c] hover:bg-[#9a3412] text-white border border-transparent h-8 px-3 text-xs font-semibold shadow-xs"
                   onClick={() => onResolveDrift?.(lesson, 'adopt_remote')}
                 >
                   Adoptar cambio oficial
@@ -126,7 +162,7 @@ export default function LessonModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs border-amber-500/50"
+                  className="touch-target-44 h-8 px-3 text-xs font-medium bg-transparent border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                   onClick={() => onResolveDrift?.(lesson, 'keep_local')}
                 >
                   Mantener mi versión
@@ -135,167 +171,160 @@ export default function LessonModal({
             </div>
           )}
 
-          {/* Subgrupo */}
-          {subgroupStr && (
-            <div className="text-xs font-semibold opacity-75 uppercase tracking-wider mb-1 text-center" style={{ color: color.text }}>
-              {subgroupStr}
-            </div>
-          )}
-
-          {/* Nombre Asignatura */}
-          <div className="text-xl font-bold leading-snug mb-1 text-center text-balance" style={{ color: color.text }}>
-            {subjectName}
-          </div>
-
-          {/* Tipo de clase */}
-          {lesson.type && (
-            <div className="text-xs opacity-85 mb-3 text-center" style={{ color: color.text }}>
-              {lesson.type}
-            </div>
-          )}
-
           {/* Badges de estado / Swap */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-            {isUserCancelled && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                <Ban className="w-3.5 h-3.5" /> Cancelada por ti
-              </span>
-            )}
+          {(isUserCancelled || isWebUntisCancelled || lesson.swappedWith || isOverridden) && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {isUserCancelled && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/18 text-rose-800 dark:text-rose-200 border border-rose-500/30">
+                  <Ban className="w-3.5 h-3.5" /> Cancelada por ti
+                </span>
+              )}
 
-            {isWebUntisCancelled && !isUserCancelled && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                <AlertTriangle className="w-3.5 h-3.5" /> Cancelada por la universidad
-              </span>
-            )}
+              {isWebUntisCancelled && !isUserCancelled && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/30">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Cancelada por la universidad
+                </span>
+              )}
 
-            {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/30">
-                <ArrowUpDown className="w-3.5 h-3.5" /> Intercambiada con {lesson.swappedWith.subjectName}
-              </span>
-            )}
+              {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-black/8 dark:bg-white/14 border border-current/15" style={{ color: color.text }}>
+                  <ArrowUpDown className="w-3.5 h-3.5" /> Intercambiada con {lesson.swappedWith.subjectName}
+                </span>
+              )}
 
-            {isOverridden && !isUserCancelled && !lesson.swappedWith && (
-              <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-                  color: color.text,
-                }}
-              >
-                <Pencil className="w-3 h-3" /> Personalizada
-              </span>
-            )}
-          </div>
+              {isOverridden && !isUserCancelled && !lesson.swappedWith && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+                    color: color.text,
+                  }}
+                >
+                  <Pencil className="w-3 h-3" /> Personalizada
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Detalles: Profesor y Aula */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-            {teacher && (
-              <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                  color: color.text,
-                }}
-              >
-                <User className="w-3.5 h-3.5 opacity-75" />
-                <span>{teacher}</span>
-              </div>
-            )}
-            {room && (
-              <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-bold"
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-                  color: color.text,
-                }}
-              >
-                <MapPin className="w-3.5 h-3.5 opacity-75" />
-                <span>{room}</span>
-              </div>
-            )}
-          </div>
+          {(teacher || room) && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {teacher && (
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                    color: color.text,
+                  }}
+                >
+                  <User className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                  <span>{teacher}</span>
+                </div>
+              )}
+              {room && (
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-bold"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                    color: color.text,
+                  }}
+                >
+                  <MapPin className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                  <span>{room}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notas personales */}
           {lesson.notes && (
             <div
-              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words text-center"
+              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words text-left"
               style={{
                 background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                 color: color.text,
               }}
             >
-              <div className="flex items-center justify-center gap-1 font-bold opacity-75 mb-1">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Notas personales:</span>
+              <div className="flex items-center gap-1.5 font-semibold opacity-80 mb-1">
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span>Notas personales</span>
               </div>
               <div className="text-pretty">{lesson.notes}</div>
             </div>
           )}
 
-          {/* Botones de acción */}
-          <div className="space-y-2 pt-3 border-t border-black/10 dark:border-white/10">
-            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
+          {/* Botones de accion: jerarquia clara sobre fondo pastel */}
+          <div
+            className="space-y-2 pt-3.5 border-t"
+            style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
+          >
+            {/* Primario: Editar clase */}
+            <Button
+              variant="ghost"
+              size="md"
+              className="w-full font-semibold bg-white/85 hover:bg-white text-slate-900 dark:bg-white/18 dark:hover:bg-white/26 dark:text-white border border-black/10 dark:border-white/20 shadow-xs transition-all duration-150"
+              onClick={() => onOpenEdit?.(lesson)}
+            >
+              <Pencil className="w-4 h-4 mr-1.5" />
+              <span>Editar clase</span>
+            </Button>
+
+            {/* Secundario neutro: Intercambiar horario */}
+            <Button
+              variant="ghost"
+              size="md"
+              className="w-full font-medium bg-black/6 hover:bg-black/12 dark:bg-white/8 dark:hover:bg-white/14 border border-black/10 dark:border-white/14 transition-all duration-150"
+              style={{ color: color.text }}
+              onClick={() => onOpenSwap?.(lesson)}
+            >
+              <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />
+              <span>Intercambiar horario</span>
+            </Button>
+
+            {/* Accion destructiva / de estado: Ghost con texto rojo (o verde al reactivar) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-0.5">
               <Button
                 variant="ghost"
                 size="md"
-                onClick={() => onToggleCancelled?.(lesson)}
+                onClick={handleToggleCancelClick}
                 className={cn(
-                  'w-full font-semibold transition-all duration-150',
+                  'w-full font-semibold transition-all duration-150 border border-transparent',
                   isUserCancelled
-                    ? 'bg-emerald-500/18 hover:bg-emerald-500/28 dark:bg-emerald-500/22 dark:hover:bg-emerald-500/32 text-emerald-800 dark:text-emerald-200 border border-emerald-600/30 dark:border-emerald-400/35'
-                    : 'bg-rose-500/15 hover:bg-rose-500/25 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 border border-rose-500/30 dark:border-rose-400/35'
+                    ? 'text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15'
+                    : 'text-rose-700 dark:text-rose-300 hover:bg-rose-500/15'
                 )}
               >
                 {isUserCancelled ? (
                   <>
-                    <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
                     <span>Reactivar clase</span>
                   </>
                 ) : (
                   <>
-                    <Ban className="w-4 h-4 mr-1.5 text-rose-600 dark:text-rose-400" />
+                    <Ban className="w-4 h-4 mr-1.5" />
                     <span>Cancelar clase</span>
                   </>
                 )}
               </Button>
 
-              <Button
-                variant="ghost"
-                size="md"
-                className="w-full font-semibold bg-indigo-500/14 hover:bg-indigo-500/24 dark:bg-indigo-500/18 dark:hover:bg-indigo-500/28 text-indigo-800 dark:text-indigo-200 border border-indigo-500/25 dark:border-indigo-400/30 transition-all duration-150"
-                onClick={() => onOpenEdit?.(lesson)}
-              >
-                <Pencil className="w-4 h-4 mr-1.5 text-indigo-600 dark:text-indigo-400" />
-                <span>Editar clase</span>
-              </Button>
+              {isOverridden && (
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="w-full font-medium hover:bg-black/8 dark:hover:bg-white/10 transition-all duration-150"
+                  style={{ color: color.text, opacity: 0.9 }}
+                  onClick={() => setShowResetConfirm(true)}
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  <span>Restablecer</span>
+                </Button>
+              )}
             </div>
-
-            <Button
-              variant="ghost"
-              size="md"
-              className="w-full font-semibold bg-sky-500/14 hover:bg-sky-500/24 dark:bg-sky-500/18 dark:hover:bg-sky-500/28 text-sky-800 dark:text-sky-200 border border-sky-500/25 dark:border-sky-400/30 transition-all duration-150"
-              onClick={() => onOpenSwap?.(lesson)}
-            >
-              <ArrowUpDown className="w-4 h-4 mr-1.5 text-sky-600 dark:text-sky-400" />
-              <span>Intercambiar horario</span>
-            </Button>
-
-            {isOverridden && (
-              <Button
-                variant="ghost"
-                size="md"
-                className="w-full font-semibold bg-amber-500/12 hover:bg-amber-500/22 dark:bg-amber-500/16 dark:hover:bg-amber-500/26 text-amber-800 dark:text-amber-300 border border-amber-500/25 dark:border-amber-400/30 transition-all duration-150"
-                onClick={() => setShowResetConfirm(true)}
-              >
-                <RotateCcw className="w-4 h-4 mr-1.5 text-amber-600 dark:text-amber-400" />
-                <span>Restablecer a versión original</span>
-              </Button>
-            )}
           </div>
         </ResponsiveModalContent>
       </ResponsiveModal>
 
-      {/* Diálogo de confirmación para restablecer clase a versión original */}
+      {/* Dialogo de confirmacion para restablecer clase a version original */}
       <ConfirmDialog
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}

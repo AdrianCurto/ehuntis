@@ -19,6 +19,10 @@ import {
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Textarea } from '@/app/components/ui/textarea';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Switch } from '@/app/components/ui/switch';
+import { Tooltip } from '@/app/components/ui/tooltip';
+import { SegmentedControl } from '@/app/components/ui/segmented-control';
 import { Badge, Chip } from '@/app/components/ui/badge';
 import { InlineCategoryChip } from '@/app/components/ui/inline-category-chip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/app/components/ui/tabs';
@@ -61,6 +65,9 @@ export default function CatalogClient() {
   const [textareaVal, setTextareaVal] = useState('Texto de ejemplo en textarea con auto-crecimiento reactivo.');
   const [selectedChip, setSelectedChip] = useState('Clases');
   const [categories, setCategories] = useState(mockCustomCategories);
+  const [demoCheck, setDemoCheck] = useState(true);
+  const [demoSwitch, setDemoSwitch] = useState(true);
+  const [demoSegment, setDemoSegment] = useState('weekly');
 
   // Modal active states for showcase
   const [activeModal, setActiveModal] = useState(null); // 'custom-event-new' | 'custom-event-edit' | 'custom-detail' | 'lesson' | 'lesson-drift' | 'edit-lesson' | 'swap-lesson' | 'confirm'
@@ -70,45 +77,57 @@ export default function CatalogClient() {
   };
 
   return (
-    <div className={`min-h-screen bg-[var(--bg)] text-[var(--text-primary)] p-4 sm:p-8 font-[var(--font-body)] ${isDark ? 'dark' : ''}`}>
-      <div className="max-w-5xl mx-auto space-y-10">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[var(--border)]">
-          <div>
+    <div className={`min-h-screen bg-[var(--bg)] text-[var(--text-primary)] px-4 py-3 sm:p-8 font-[var(--font-body)] ${isDark ? 'dark' : ''}`}>
+      <div className="max-w-5xl mx-auto space-y-5 sm:space-y-8">
+        {/* Header compacto en movil */}
+        <header className="flex items-center justify-between gap-3 pb-3 sm:pb-5 border-b border-[var(--border)]">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[var(--accent-light)] text-[var(--accent)] uppercase tracking-wider">
-                Dev Environment
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--accent-light)] text-[var(--accent)]">
+                Dev UI
               </span>
-              <span className="text-xs text-[var(--text-muted)]">• Banco de pruebas UI</span>
+              <span className="hidden sm:inline text-xs text-[var(--text-muted)]">· Banco de pruebas de componentes</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 font-[var(--font-display)]">
-              Sistema de Diseño & Componentes EHUntis
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight mt-1 font-[var(--font-display)] truncate">
+              Sistema de Diseño EHUntis
             </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+            <p className="hidden sm:block text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
               Catálogo visual de tokens, primitivas accesibles, selectores y modales unificados.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
-              size="md"
+              size="sm"
               onClick={toggleTheme}
-              className="gap-2"
+              aria-label={isDark ? 'Modo Claro' : 'Modo Oscuro'}
+              className="gap-1.5 sm:h-10 sm:px-4 sm:text-sm"
             >
               {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
-              <span>{isDark ? 'Modo Claro' : 'Modo Oscuro'}</span>
+              <span className="hidden sm:inline">{isDark ? 'Modo Claro' : 'Modo Oscuro'}</span>
             </Button>
           </div>
         </header>
 
-        {/* Tabs de Secciones */}
+        {/* Tabs de Secciones sticky en movil y escritorio */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-3 mb-8 h-11">
-            <TabsTrigger id="tab-components" value="components">Componentes Base</TabsTrigger>
-            <TabsTrigger id="tab-pickers" value="pickers">Selectores Fecha & Hora</TabsTrigger>
-            <TabsTrigger id="tab-modals" value="modals">Modales & Diálogos</TabsTrigger>
-          </TabsList>
+          <div className="sticky top-0 z-30 -mx-4 px-4 py-2 sm:mx-0 sm:px-0 bg-[var(--bg)]/92 backdrop-blur-md mb-4 sm:mb-6">
+            <TabsList className="w-full grid grid-cols-3 h-11">
+              <TabsTrigger id="tab-components" value="components" className="px-2 text-xs sm:text-sm">
+                <span className="sm:hidden">Base</span>
+                <span className="hidden sm:inline">Componentes Base</span>
+              </TabsTrigger>
+              <TabsTrigger id="tab-pickers" value="pickers" className="px-2 text-xs sm:text-sm">
+                <span className="sm:hidden">Selectores</span>
+                <span className="hidden sm:inline">Selectores Fecha & Hora</span>
+              </TabsTrigger>
+              <TabsTrigger id="tab-modals" value="modals" className="px-2 text-xs sm:text-sm">
+                <span className="sm:hidden">Modales</span>
+                <span className="hidden sm:inline">Modales & Diálogos</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB: COMPONENTES BASE */}
           <TabsContent value="components" className="space-y-10">
@@ -140,7 +159,43 @@ export default function CatalogClient() {
                   <Button size="lg">Large (lg)</Button>
                   <Button size="icon" aria-label="Icono"><Plus className="w-4 h-4" /></Button>
                   <Button size="iconSm" variant="secondary" aria-label="Icono pequeño"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <Button loading>Guardando...</Button>
                   <Button disabled>Disabled</Button>
+                </div>
+              </div>
+            </section>
+
+            {/* 1b. Controles de seleccion y Tooltip */}
+            <section id="section-controls" className="space-y-4 p-5 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
+              <div className="border-b border-[var(--border-light)] pb-2">
+                <h2 className="text-lg font-bold font-[var(--font-display)]">Controles (`SegmentedControl`, `Checkbox`, `Switch`, `Tooltip`)</h2>
+                <p className="text-xs text-[var(--text-secondary)]">Primitivas accesibles con React Aria y foco solo por teclado</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+                <div className="space-y-2">
+                  <div className="text-[13px] font-medium text-[var(--text-primary)]">SegmentedControl unificado</div>
+                  <SegmentedControl
+                    options={[
+                      { value: 'once', label: 'Solo una vez' },
+                      { value: 'weekly', label: 'Semanal' },
+                    ]}
+                    value={demoSegment}
+                    onChange={setDemoSegment}
+                    ariaLabel="Ejemplo de control segmentado"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-5">
+                  <Checkbox checked={demoCheck} onChange={setDemoCheck}>
+                    Sin fecha límite
+                  </Checkbox>
+                  <Switch checked={demoSwitch} onChange={setDemoSwitch}>
+                    Notificaciones
+                  </Switch>
+                  <Tooltip content="Acción con ayuda contextual accesible">
+                    <Button variant="outline" size="sm">Hover / Focus Tooltip</Button>
+                  </Tooltip>
                 </div>
               </div>
             </section>
@@ -167,6 +222,14 @@ export default function CatalogClient() {
                   <Input
                     startIcon={Search}
                     placeholder="Buscar asignatura o aula..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[13px] font-medium text-[var(--text-primary)]">Estado de error y validación</label>
+                  <Input
+                    defaultValue="08:00"
+                    error="La hora de fin debe ser posterior a la hora de inicio."
                   />
                 </div>
 
@@ -258,20 +321,20 @@ export default function CatalogClient() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> DatePicker
+                  <label className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)]" /> DatePicker
                   </label>
                   <DatePicker
                     value={dateVal}
                     onChange={(str) => setDateVal(str)}
                     ariaLabel="Fecha de prueba"
                   />
-                  <div className="text-[11px] text-[var(--text-muted)]">Valor: {dateVal || '(vacío)'}</div>
+                  <div className="text-[11px] text-[var(--text-muted)] tabular-nums">Valor: {dateVal || '(vacío)'}</div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> TimePicker (15 min - Eventos)
+                  <label className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[var(--text-muted)]" /> TimePicker (15 min - Eventos)
                   </label>
                   <TimePicker
                     value={timeVal15}
@@ -279,12 +342,12 @@ export default function CatalogClient() {
                     onChange={(str) => setTimeVal15(str)}
                     ariaLabel="Hora de evento"
                   />
-                  <div className="text-[11px] text-[var(--text-muted)]">Valor: {timeVal15 || '(vacío)'}</div>
+                  <div className="text-[11px] text-[var(--text-muted)] tabular-nums">Valor: {timeVal15 || '(vacío)'}</div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" /> TimePicker (30 min - Clases)
+                  <label className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[var(--text-muted)]" /> TimePicker (30 min - Clases)
                   </label>
                   <TimePicker
                     value={timeVal30}
@@ -496,12 +559,14 @@ export default function CatalogClient() {
 
         {activeModal === 'edit-lesson' && (
           <EditLessonModal
-            lesson={mockLesson}
+            lesson={mockEditedLesson}
             isDark={isDark}
             onSave={(_, edits) => {
               toast.success('Clase personalizada guardada');
               setActiveModal(null);
             }}
+            onResetOverride={() => ({ restored: true })}
+            onRestoreOverride={() => toast.success('Cambios restaurados')}
             onClose={() => setActiveModal(null)}
           />
         )}
@@ -525,6 +590,7 @@ export default function CatalogClient() {
             onOpenChange={() => setActiveModal(null)}
             title="¿Restablecer todas las clases?"
             description="Se descartarán tus personalizaciones de horario, aula y notas, volviendo a los datos oficiales de WebUntis."
+            affectedSummary="3 clases personalizadas"
             confirmText="Restablecer"
             variant="destructive"
             icon={RotateCcw}

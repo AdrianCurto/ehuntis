@@ -44,8 +44,9 @@ describe('lessonOverrides utility suite', () => {
 
   describe('formatTime and getLessonKey', () => {
     test('formatTime formats numbers to HH:MM strings', () => {
-      assert.equal(formatTime(800), '8:00');
-      assert.equal(formatTime(830), '8:30');
+      assert.equal(formatTime(800), '08:00');
+      assert.equal(formatTime(830), '08:30');
+      assert.equal(formatTime(900), '09:00');
       assert.equal(formatTime(1405), '14:05');
       assert.equal(formatTime(null), '');
       assert.equal(formatTime('abc'), '');
@@ -192,7 +193,7 @@ describe('lessonOverrides utility suite', () => {
       assert.ok(drift);
       assert.equal(drift.length, 1);
       assert.equal(drift[0].field, 'time');
-      assert.equal(drift[0].before, '9:00–11:00');
+      assert.equal(drift[0].before, '09:00–11:00');
       assert.equal(drift[0].after, '10:00–12:00');
     });
 

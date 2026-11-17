@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import {
@@ -1547,22 +1548,53 @@ export default function Home() {
 
   const handleRemoveLessonOverride = useCallback((lessonOrKey) => {
     isUserDirtyRef.current = true;
+    let removedEntries = null;
     setLessonOverrides(prev => {
       const key = typeof lessonOrKey === 'string' ? lessonOrKey : (lessonOrKey.lessonKey || getLessonKey(lessonOrKey));
-      let updated = removeLessonOverride(prev, key);
       const partnerKey = (typeof lessonOrKey === 'object' && lessonOrKey?.swappedWith?.lessonKey) || prev[key]?.swappedWith?.lessonKey;
+      removedEntries = {};
+      if (prev[key]) removedEntries[key] = prev[key];
+      if (partnerKey && prev[partnerKey]) removedEntries[partnerKey] = prev[partnerKey];
+
+      let updated = removeLessonOverride(prev, key);
       if (partnerKey && updated[partnerKey]) {
         updated = removeLessonOverride(updated, partnerKey);
       }
       saveStoredLessonOverrides(updated);
       return updated;
     });
+    return removedEntries;
+  }, []);
+
+  const handleRestoreLessonOverride = useCallback((removedEntries) => {
+    if (!removedEntries || typeof removedEntries !== 'object' || Object.keys(removedEntries).length === 0) return;
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const restored = { ...prev, ...removedEntries };
+      saveStoredLessonOverrides(restored);
+      return restored;
+    });
   }, []);
 
   const handleResetAllLessonOverrides = useCallback(() => {
     isUserDirtyRef.current = true;
-    setLessonOverrides({});
-    saveStoredLessonOverrides({});
+    let previousOverrides = null;
+    setLessonOverrides(prev => {
+      previousOverrides = { ...prev };
+      saveStoredLessonOverrides({});
+      return {};
+    });
+    toast.success('Clases restablecidas al horario oficial', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          if (!previousOverrides || Object.keys(previousOverrides).length === 0) return;
+          isUserDirtyRef.current = true;
+          setLessonOverrides(previousOverrides);
+          saveStoredLessonOverrides(previousOverrides);
+        },
+      },
+    });
   }, []);
 
   const handleResolveLessonDrift = useCallback((lesson, action) => {
@@ -2193,6 +2225,7 @@ export default function Home() {
             setCalendarSwapOrigin(lesson);
           }}
           onResetOverride={handleRemoveLessonOverride}
+          onRestoreOverride={handleRestoreLessonOverride}
           onResolveDrift={handleResolveLessonDrift}
         />
       )}
@@ -2202,6 +2235,8 @@ export default function Home() {
           lesson={editingLesson}
           isDark={isDark}
           onSave={handleSaveLessonOverride}
+          onResetOverride={handleRemoveLessonOverride}
+          onRestoreOverride={handleRestoreLessonOverride}
           onClose={() => setEditingLesson(null)}
         />
       )}

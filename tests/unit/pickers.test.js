@@ -5,6 +5,7 @@ import {
   parseValueToTime,
   calculateMonthGridPadding,
   formatMonthYearHeading,
+  formatTime,
   SPANISH_MONTHS,
 } from '../../app/utils/dateTimeUtils.js';
 
@@ -90,6 +91,18 @@ describe('Pickers unit suite (DatePicker & TimePicker)', () => {
 
       assert.ok(merged.includes('12'));
       assert.equal(merged[3], '12', '12 debe colocarse entre 10 y 15');
+    });
+
+    test('formatTime always pads hours and minutes to 2 digits in 24h h23 cycle', () => {
+      assert.equal(formatTime(900), '09:00');
+      assert.equal(formatTime(805), '08:05');
+      assert.equal(formatTime(0), '00:00');
+      assert.equal(formatTime(2359), '23:59');
+      assert.equal(formatTime('9:00'), '09:00');
+      assert.equal(formatTime('09:30'), '09:30');
+      assert.equal(formatTime(new Date(2026, 10, 17, 9, 5)), '09:05');
+      assert.equal(formatTime(null), '');
+      assert.equal(formatTime('invalid'), '');
     });
   });
 });

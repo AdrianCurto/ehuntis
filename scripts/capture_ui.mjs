@@ -97,7 +97,8 @@ async function capture() {
         });
 
         const page = await context.newPage();
-        await page.goto(LOCAL_URL, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.goto(LOCAL_URL, { waitUntil: 'load', timeout: 30000 });
+        await page.waitForSelector('#tab-components', { state: 'visible', timeout: 15000 });
 
         // Sincronizar tema con localStorage y clase en html
         await page.evaluate((targetTheme) => {
@@ -179,10 +180,10 @@ async function capture() {
             }
           }
           await page.waitForTimeout(200);
-          if ((await page.locator('[role="dialog"]').count()) > 0) {
+          if ((await page.locator('[role="dialog"], [role="alertdialog"]').count()) > 0) {
             await page.keyboard.press('Escape');
           }
-          await page.waitForSelector('[role="dialog"]', { state: 'detached', timeout: 3000 }).catch(() => {});
+          await page.waitForSelector('[role="dialog"], [role="alertdialog"]', { state: 'detached', timeout: 3000 }).catch(() => {});
           await page.waitForTimeout(300);
         }
 

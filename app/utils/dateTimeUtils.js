@@ -1,4 +1,7 @@
 import { CalendarDate } from '@internationalized/date';
+import { formatTime } from './timeFormat.js';
+
+export { formatTime };
 
 export const SPANISH_MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

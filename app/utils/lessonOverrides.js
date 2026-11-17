@@ -5,20 +5,9 @@
  */
 
 const { formatRoom, formatRooms } = require('./subgroups');
+const { formatTime } = require('./timeFormat');
 
 const LESSON_OVERRIDES_STORAGE_KEY = 'ehuntis_lesson_overrides_v1';
-
-/**
- * Formatea número HHMM a string "HH:MM"
- * @param {number} t
- * @returns {string}
- */
-function formatTime(t) {
-  if (typeof t !== 'number') return '';
-  const h = Math.floor(t / 100);
-  const m = (t % 100).toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
 
 /**
  * Genera una clave compuesta determinista y estable para identificar una clase de WebUntis.

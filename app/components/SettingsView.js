@@ -1663,6 +1663,11 @@ export default function SettingsView({
         onOpenChange={setResetAllOverridesModalOpen}
         title="Restablecer horario oficial"
         description="Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis. Tus eventos personales quedarán intactos."
+        affectedSummary={(() => {
+          const count = Object.values(lessonOverrides || {}).filter(hasLessonOverrideChanges).length;
+          if (count <= 0) return undefined;
+          return `${count} ${count === 1 ? 'clase personalizada' : 'clases personalizadas'}`;
+        })()}
         confirmText="Restablecer todas"
         variant="destructive"
         icon={RotateCcw}

@@ -1,30 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, MapPin, AlignLeft, Calendar, CalendarRange, Trash2, X, ArrowLeft } from 'lucide-react';
+import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
-  ResponsiveModalHeader,
   ResponsiveModalTitle,
-  ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { toast } from 'sonner';
 import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
+import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
-import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAYS_SHORT = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
-
-function formatTime(t) {
-  const h = Math.floor(t / 100);
-  const m = (t % 100).toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
 
 export default function CustomEventDetailModal({
   event,
@@ -45,6 +37,7 @@ export default function CustomEventDetailModal({
   const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
   const timeStr = `${formatTime(event.startTime)}–${formatTime(event.endTime)}`;
   const color = getSubjectColorStyle(event.colorIndex ?? 4, isDark);
+  const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
 
   const title = event.subjects?.[0] || rawEvent.title || 'Evento personal';
   const location = formatRooms(event.rooms) || formatRooms(rawEvent.location) || '';
@@ -57,7 +50,7 @@ export default function CustomEventDetailModal({
     const days = (rawEvent.recurrence.daysOfWeek || []).map((d) => DAYS_SHORT[d] || '').filter(Boolean).join(', ');
     const endStr = rawEvent.recurrence.endDate
       ? `hasta ${formatDateShort(parseDateNumber(rawEvent.recurrence.endDate))}`
-      : 'hasta fin de curso';
+      : 'sin fecha límite';
     recurrenceDescription = `Repetición semanal: ${days} (${endStr})`;
   }
 
@@ -88,27 +81,30 @@ export default function CustomEventDetailModal({
         <ResponsiveModalContent
           onOpenAutoFocus={(e) => e.preventDefault()}
           className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
-          style={{ background: color.bg }}
+          style={{
+            background: color.bg,
+            borderColor: modalBorderColor,
+          }}
         >
           {viewMode === 'scope-delete' ? (
-            <div className="space-y-4 animate-in fade-in-50 duration-200">
-              <div className="flex items-center gap-2">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pr-8">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setViewMode('detail')}
                   style={{ color: color.text }}
-                  className="px-2"
+                  className="touch-target-44 px-2"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1" />
                   <span>Atrás</span>
                 </Button>
-                <ResponsiveModalTitle className="text-base font-semibold" style={{ color: color.text }}>
+                <ResponsiveModalTitle className="text-base font-bold" style={{ color: color.text }}>
                   Eliminar repeticiones
                 </ResponsiveModalTitle>
               </div>
 
-              <p className="text-xs leading-relaxed" style={{ color: color.text, opacity: 0.85 }}>
+              <p className="text-xs leading-relaxed text-left text-pretty" style={{ color: color.text, opacity: 0.85 }}>
                 Este evento se repite semanalmente. Elige qué instancias deseas eliminar:
               </p>
 
@@ -117,16 +113,16 @@ export default function CustomEventDetailModal({
                   type="button"
                   onClick={() => handleConfirmDelete('single')}
                   className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
-                  style={{ borderColor: 'rgba(0,0,0,0.1)' }}
+                  style={{ borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)' }}
                 >
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-500">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-700 dark:text-rose-300">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="text-sm font-semibold" style={{ color: color.text }}>
                       Solo esta fecha
                     </div>
-                    <div className="text-xs" style={{ color: color.text, opacity: 0.75 }}>
+                    <div className="text-xs" style={{ color: color.text, opacity: 0.78 }}>
                       Se conservan las demás semanas del horario
                     </div>
                   </div>
@@ -136,16 +132,16 @@ export default function CustomEventDetailModal({
                   type="button"
                   onClick={() => handleConfirmDelete('series')}
                   className="flex items-center gap-3 p-3.5 rounded-[var(--radius-lg)] border text-left transition-all duration-150 cursor-pointer active:scale-[0.98] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
-                  style={{ borderColor: 'rgba(0,0,0,0.1)' }}
+                  style={{ borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.10)' }}
                 >
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-500">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-700 dark:text-rose-300">
                     <CalendarRange className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="text-sm font-semibold" style={{ color: color.text }}>
                       Toda la serie semanal
                     </div>
-                    <div className="text-xs" style={{ color: color.text, opacity: 0.75 }}>
+                    <div className="text-xs" style={{ color: color.text, opacity: 0.78 }}>
                       Elimina todas las fechas pasadas y futuras
                     </div>
                   </div>
@@ -156,6 +152,7 @@ export default function CustomEventDetailModal({
                 <Button
                   variant="secondary"
                   size="md"
+                  className="w-full sm:w-auto"
                   onClick={() => setViewMode('detail')}
                 >
                   Cancelar
@@ -163,54 +160,49 @@ export default function CustomEventDetailModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Cabecera con fecha y hora */}
-              <div className="flex flex-col items-center text-center px-6">
-                <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
-                  {dayName} {dateStr}
-                </div>
-                <div className="text-lg font-bold tabular-nums" style={{ color: color.text }}>
-                  {timeStr}
-                </div>
-              </div>
-
-              {/* Categoría si existe */}
-              {category && (
-                <div className="flex justify-center">
+            <div className="space-y-4 text-left">
+              {/* Cabecera: Categoria opcional + Titulo primero + Fecha y hora como subtitulo */}
+              <div className="pr-8 space-y-1.5">
+                {category && (
                   <div
-                    className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
                     style={{
                       color: color.text,
-                      background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)',
+                      background: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
                     }}
                   >
                     {category}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Título del evento */}
-              <div className="text-xl font-bold leading-snug text-center text-balance" style={{ color: color.text }}>
-                {title}
+                <h2 className="text-xl font-bold leading-snug tracking-tight text-balance font-[var(--font-display)]" style={{ color: color.text }}>
+                  {title}
+                </h2>
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums" style={{ color: color.text, opacity: 0.85 }}>
+                  <span>{dayName} {dateStr}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-bold">{timeStr}</span>
+                </div>
               </div>
 
-              {/* Detalles adicionales */}
-              <div className="space-y-2 text-sm pt-1 flex flex-col items-center text-center" style={{ color: color.text }}>
+              {/* Detalles adicionales alineados a la izquierda */}
+              <div className="space-y-2.5 text-sm pt-0.5 flex flex-col items-start text-left" style={{ color: color.text }}>
                 {location && (
-                  <div className="flex items-center justify-center gap-2">
-                    <MapPin className="w-4 h-4 opacity-75 shrink-0" />
-                    <span>{location}</span>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 mt-0.5 opacity-75 shrink-0" />
+                    <span className="font-medium">{location}</span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-center gap-2 text-xs opacity-85">
-                  <Calendar className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                <div className="flex items-start gap-2 text-xs opacity-85">
+                  <Calendar className="w-3.5 h-3.5 mt-0.5 opacity-75 shrink-0" />
                   <span>{recurrenceDescription}</span>
                 </div>
 
                 {notes && (
                   <div
-                    className="w-full p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-3 text-center text-pretty"
+                    className="w-full p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-1 text-left text-pretty"
                     style={{
                       background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                     }}
@@ -220,43 +212,37 @@ export default function CustomEventDetailModal({
                 )}
               </div>
 
-              {/* Pie con botones de acción */}
-              <div className="pt-4 flex items-center justify-between border-t border-black/10 dark:border-white/10">
+              {/* Pie con acciones: sin boton Cerrar redundante en escritorio */}
+              <div
+                className="pt-3.5 flex items-center justify-between gap-2 border-t"
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
+              >
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDeleteClick}
-                  className="font-semibold bg-rose-500/15 hover:bg-rose-500/25 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 border border-rose-500/30 dark:border-rose-400/35 transition-all duration-150"
+                  className="touch-target-44 h-9 px-3 font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-500/15 border border-transparent transition-all duration-150"
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5 text-rose-600 dark:text-rose-400" />
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   <span>Eliminar</span>
                 </Button>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onEdit}
-                    className="font-semibold bg-indigo-500/14 hover:bg-indigo-500/24 dark:bg-indigo-500/18 dark:hover:bg-indigo-500/28 text-indigo-800 dark:text-indigo-200 border border-indigo-500/25 dark:border-indigo-400/30 transition-all duration-150"
-                  >
-                    <Pencil className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" />
-                    <span>Editar</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onClose}
-                    className="font-medium bg-black/8 hover:bg-black/14 dark:bg-white/10 dark:hover:bg-white/18 text-black/80 dark:text-white/85 border border-black/12 dark:border-white/15 transition-all duration-150"
-                  >
-                    Cerrar
-                  </Button>
-                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEdit}
+                  className="touch-target-44 h-9 px-4 font-semibold bg-white/85 hover:bg-white text-slate-900 dark:bg-white/18 dark:hover:bg-white/26 dark:text-white border border-black/10 dark:border-white/20 shadow-xs transition-all duration-150"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Editar</span>
+                </Button>
               </div>
             </div>
           )}
         </ResponsiveModalContent>
       </ResponsiveModal>
 
-      {/* Confirmación para borrado de evento puntual */}
+      {/* Confirmacion para borrado de evento puntual */}
       <ConfirmDialog
         open={confirmSingleDeleteOpen}
         onOpenChange={setConfirmSingleDeleteOpen}

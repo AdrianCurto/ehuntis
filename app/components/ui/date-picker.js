@@ -143,6 +143,7 @@ export function DatePicker({
   value,
   onChange,
   disabled = false,
+  error = false,
   className,
   ariaLabel = 'Fecha',
   ...props
@@ -185,6 +186,12 @@ export function DatePicker({
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
+      data-invalid={Boolean(error) || undefined}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget || !e.target.closest('[role="spinbutton"]')) {
+          e.preventDefault();
+        }
+      }}
       onClick={() => {
         if (!disabled) setIsOpen(true);
       }}
@@ -196,7 +203,8 @@ export function DatePicker({
       }}
       className={cn(
         'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors cursor-pointer select-none',
-        'hover:border-[var(--border-hover)] focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-1 focus-visible:ring-[var(--accent)]',
+        'hover:border-[var(--accent)]/50 focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
+        error && 'border-[var(--destructive)] focus-visible:border-[var(--destructive)] focus-visible:ring-[var(--destructive)]/50',
         disabled && 'cursor-not-allowed opacity-50 pointer-events-none'
       )}
     >
@@ -213,7 +221,7 @@ export function DatePicker({
             <DateSegment
               segment={segment}
               className={cn(
-                'rounded outline-none focus:bg-[var(--accent)] focus:text-white data-[placeholder]:text-[var(--text-muted)] text-sm',
+                'rounded outline-none focus-visible:bg-[var(--accent)] focus-visible:text-white data-[placeholder]:text-[var(--text-muted)] text-sm tabular-nums',
                 segment.type === 'literal' ? 'px-0 text-[var(--text-muted)]' : 'px-0.5'
               )}
             />
