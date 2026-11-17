@@ -84,6 +84,8 @@ export default function CustomEventDetailModal({
           style={{
             background: color.bg,
             borderColor: modalBorderColor,
+            '--card-bg': color.bg,
+            '--card-ink': color.text,
           }}
         >
           {viewMode === 'scope-delete' ? (
@@ -212,7 +214,7 @@ export default function CustomEventDetailModal({
                 )}
               </div>
 
-              {/* Pie con acciones: sin boton Cerrar redundante en escritorio */}
+              {/* Pie con acciones: contraste garantizado y tono integrado con la tarjeta */}
               <div
                 className="pt-3.5 flex items-center justify-between gap-2 border-t"
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
@@ -221,7 +223,7 @@ export default function CustomEventDetailModal({
                   variant="ghost"
                   size="sm"
                   onClick={handleDeleteClick}
-                  className="touch-target-44 h-9 px-3 font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-500/15 border border-transparent transition-all duration-150"
+                  className="lesson-card-btn-danger touch-target-44 h-9 px-3.5 font-semibold transition-all duration-150"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                   <span>Eliminar</span>
@@ -231,7 +233,7 @@ export default function CustomEventDetailModal({
                   variant="ghost"
                   size="sm"
                   onClick={onEdit}
-                  className="touch-target-44 h-9 px-4 font-semibold bg-white/85 hover:bg-white text-slate-900 dark:bg-white/18 dark:hover:bg-white/26 dark:text-white border border-black/10 dark:border-white/20 shadow-xs transition-all duration-150"
+                  className="lesson-card-btn-primary touch-target-44 h-9 px-4 font-semibold shadow-xs transition-all duration-150"
                 >
                   <Pencil className="w-3.5 h-3.5 mr-1.5" />
                   <span>Editar</span>

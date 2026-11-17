@@ -32,10 +32,10 @@ export function Switch({
         <>
           <span
             className={cn(
-              'touch-target-44 relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+              'touch-target-44 relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent ring-1 ring-inset ring-black/10 dark:ring-white/15 transition-colors duration-200',
               sel
                 ? 'bg-[var(--accent)]'
-                : 'bg-[var(--border)] dark:bg-slate-700',
+                : 'bg-black/20 dark:bg-white/22',
               isFocusVisible && 'ring-2 ring-[var(--accent)]/50 ring-offset-2 ring-offset-[var(--surface)]'
             )}
           >

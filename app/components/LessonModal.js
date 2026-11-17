@@ -63,7 +63,7 @@ export default function LessonModal({
   const subgroupStr = classes.length > 0 ? classes.join(', ') : '';
 
   const isUserCancelled = Boolean(lesson.isUserCancelled);
-  const isWebUntisCancelled = lesson.rawCode === 'cancelled' || (lesson.code === 'cancelled' && !isUserCancelled);
+  const isWebUntisCancelled = lesson.code === 'cancelled' && !isUserCancelled;
   const isOverridden = Boolean(lesson.isOverridden);
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
@@ -107,6 +107,8 @@ export default function LessonModal({
           style={{
             background: color.bg,
             borderColor: modalBorderColor,
+            '--card-bg': color.bg,
+            '--card-ink': color.text,
           }}
         >
           {/* Cabecera: Asignatura primero, fecha y hora como subtitulo */}
@@ -148,6 +150,11 @@ export default function LessonModal({
                     <span className="font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-amber-500/15 dark:bg-amber-400/20 text-amber-950 dark:text-amber-200">
                       {ch.after}
                     </span>
+                    {ch.userValue && (
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        (tu cambio: {ch.userValue})
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -253,7 +260,7 @@ export default function LessonModal({
             </div>
           )}
 
-          {/* Botones de accion: jerarquia clara sobre fondo pastel */}
+          {/* Botones de accion: jerarquia tonal integrada y contraste garantizado en cualquier tarjeta */}
           <div
             className="space-y-2 pt-3.5 border-t"
             style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
@@ -262,7 +269,7 @@ export default function LessonModal({
             <Button
               variant="ghost"
               size="md"
-              className="w-full font-semibold bg-white/85 hover:bg-white text-slate-900 dark:bg-white/18 dark:hover:bg-white/26 dark:text-white border border-black/10 dark:border-white/20 shadow-xs transition-all duration-150"
+              className="lesson-card-btn-primary w-full font-semibold shadow-xs transition-all duration-150"
               onClick={() => onOpenEdit?.(lesson)}
             >
               <Pencil className="w-4 h-4 mr-1.5" />
@@ -273,25 +280,22 @@ export default function LessonModal({
             <Button
               variant="ghost"
               size="md"
-              className="w-full font-medium bg-black/6 hover:bg-black/12 dark:bg-white/8 dark:hover:bg-white/14 border border-black/10 dark:border-white/14 transition-all duration-150"
-              style={{ color: color.text }}
+              className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
               onClick={() => onOpenSwap?.(lesson)}
             >
               <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />
               <span>Intercambiar horario</span>
             </Button>
 
-            {/* Accion destructiva / de estado: Ghost con texto rojo (o verde al reactivar) */}
+            {/* Accion destructiva / de estado: superficie propia de alto contraste */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-0.5">
               <Button
                 variant="ghost"
                 size="md"
                 onClick={handleToggleCancelClick}
                 className={cn(
-                  'w-full font-semibold transition-all duration-150 border border-transparent',
-                  isUserCancelled
-                    ? 'text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/15'
-                    : 'text-rose-700 dark:text-rose-300 hover:bg-rose-500/15'
+                  'w-full font-semibold transition-all duration-150',
+                  isUserCancelled ? 'lesson-card-btn-success' : 'lesson-card-btn-danger'
                 )}
               >
                 {isUserCancelled ? (
@@ -311,8 +315,7 @@ export default function LessonModal({
                 <Button
                   variant="ghost"
                   size="md"
-                  className="w-full font-medium hover:bg-black/8 dark:hover:bg-white/10 transition-all duration-150"
-                  style={{ color: color.text, opacity: 0.9 }}
+                  className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
                   onClick={() => setShowResetConfirm(true)}
                 >
                   <RotateCcw className="w-4 h-4 mr-1.5" />

@@ -350,7 +350,7 @@ export function TimePicker({
         if (!disabled) handleOpenChange(true);
       }}
       className={cn(
-        'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors cursor-pointer select-none',
+        'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-sans text-sm font-medium text-[var(--text-primary)] transition-colors cursor-pointer select-none',
         'hover:border-[var(--accent)]/50 focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
         error && 'border-[var(--destructive)] focus-visible:border-[var(--destructive)] focus-visible:ring-[var(--destructive)]/50',
         disabled && 'cursor-not-allowed opacity-50 pointer-events-none',
@@ -358,7 +358,7 @@ export function TimePicker({
       )}
       {...props}
     >
-      <span className={cn('text-sm tabular-nums', !hasValue && 'text-[var(--text-muted)]')}>
+      <span className={cn('font-sans text-sm font-medium tabular-nums', !hasValue && 'text-[var(--text-muted)]')}>
         {displayTime}
       </span>
       <span className="flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors p-0.5 rounded-md">

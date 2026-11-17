@@ -4,9 +4,6 @@ import { useState, useMemo, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   CalendarRange,
-  Clock,
-  MapPin,
-  AlignLeft,
   Trash2,
   Check,
   X,
@@ -530,7 +527,6 @@ export default function CustomEventModal({
                 {/* Categoria */}
                 <div className="space-y-1.5">
                   <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                    <Tag className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
                     <span>Etiqueta</span>
                     <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>
@@ -609,9 +605,8 @@ export default function CustomEventModal({
                 {/* Horas de Inicio y Fin */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                      <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                      <span>Inicio</span>
+                    <label className="block text-[13px] font-medium text-[var(--text-primary)]">
+                      Inicio
                     </label>
                     <TimePicker
                       value={startTimeStr}
@@ -622,9 +617,8 @@ export default function CustomEventModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                      <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                      <span>Fin</span>
+                    <label className="block text-[13px] font-medium text-[var(--text-primary)]">
+                      Fin
                     </label>
                     <TimePicker
                       value={endTimeStr}
@@ -642,9 +636,8 @@ export default function CustomEventModal({
 
                 {/* Repeticion */}
                 <div className="space-y-2.5">
-                  <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                    <CalendarIcon className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                    <span>Repetición</span>
+                  <label className="block text-[13px] font-medium text-[var(--text-primary)]">
+                    Repetición
                   </label>
 
                   <SegmentedControl
@@ -733,7 +726,6 @@ export default function CustomEventModal({
                 {/* Ubicacion y Notas */}
                 <div className="space-y-1.5">
                   <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                    <MapPin className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
                     <span>Lugar</span>
                     <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>
@@ -746,7 +738,6 @@ export default function CustomEventModal({
 
                 <div className="space-y-1.5">
                   <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-                    <AlignLeft className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
                     <span>Notas</span>
                     <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>

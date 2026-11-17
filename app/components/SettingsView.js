@@ -24,7 +24,6 @@ import {
   ArrowDownAZ,
   Pencil,
   Check,
-  CheckCircle2,
   X,
   Search,
   FileText,
@@ -32,6 +31,7 @@ import {
   AlertTriangle,
   CalendarCheck,
   SlidersHorizontal,
+  MoreHorizontal,
   Settings as SettingsIcon
 } from 'lucide-react';
 import {
@@ -50,6 +50,8 @@ import {
   ResponsiveModalTitle,
   ResponsiveModalFooter,
 } from './ui/responsive-modal';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { Switch } from './ui/switch';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { formatRooms } from '../utils/subgroups';
@@ -87,16 +89,6 @@ const SORT_OPTIONS = [
   { id: 'title-asc', label: 'Asignatura (A - Z)', icon: ArrowDownAZ },
   { id: 'type', label: 'Tipo de cambio', icon: Layers },
 ];
-
-function Toggle({ checked, onChange, id }) {
-  return (
-    <label className="toggle" htmlFor={id} onClick={(e) => e.stopPropagation()}>
-      <input id={id} type="checkbox" checked={checked} onChange={onChange} />
-      <div className="toggle-track" />
-      <div className="toggle-thumb" />
-    </label>
-  );
-}
 
 function ChevronIcon({ open }) {
   return (
@@ -159,10 +151,28 @@ export default function SettingsView({
   const [sortBy, setSortBy] = useState('date-asc');       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [configActionsOpen, setConfigActionsOpen] = useState(false);
   const [hidePast, setHidePast] = useState(false);        // 'Ocultar pasadas' toggle
   const [visibleLimit, setVisibleLimit] = useState(25);
   const sortDropdownRef = useRef(null);
   const configDropdownRef = useRef(null);
+
+  const handleConfigMenuKeyDown = (e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const items = Array.from(e.currentTarget.querySelectorAll('button[role="menuitem"]:not(:disabled)'));
+    if (items.length === 0) return;
+    const currentIdx = items.indexOf(document.activeElement);
+    e.preventDefault();
+    if (e.key === 'Home') {
+      items[0].focus();
+    } else if (e.key === 'End') {
+      items[items.length - 1].focus();
+    } else {
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      const nextIdx = currentIdx < 0 ? 0 : (currentIdx + delta + items.length) % items.length;
+      items[nextIdx].focus();
+    }
+  };
 
   // Close sort menu and config dropdown on click outside or escape key
   useEffect(() => {
@@ -496,19 +506,10 @@ export default function SettingsView({
 
       {/* ── Modern Segmented Nav ────────────────────────────────────────────── */}
       <Tabs value={settingsTab} onValueChange={setSettingsTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-6 h-11">
-          <TabsTrigger value="groups" className="gap-2">
-            <Layers size={14} />
-            <span>Horario y Grupos</span>
-          </TabsTrigger>
-          <TabsTrigger value="custom" className="gap-2">
-            <Sparkles size={14} />
-            <span>Eventos y Cambios</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="gap-2">
-            <Palette size={14} />
-            <span>Apariencia</span>
-          </TabsTrigger>
+        <TabsList className="w-full grid grid-cols-3 mb-5 h-11">
+          <TabsTrigger value="groups">Horario y Grupos</TabsTrigger>
+          <TabsTrigger value="custom">Eventos y Cambios</TabsTrigger>
+          <TabsTrigger value="appearance">Apariencia</TabsTrigger>
         </TabsList>
 
         {/* ══════════════════════════════════════════════════════════════════════
@@ -516,11 +517,23 @@ export default function SettingsView({
         ══════════════════════════════════════════════════════════════════════ */}
         <TabsContent value="groups">
           {/* Active Configuration Card */}
-          <div className="settings-section" style={{ paddingBottom: 0 }}>
-            <div className="settings-section-label">Configuración activa</div>
+          <div className="settings-section !gap-0">
+            <div className="flex items-center justify-between gap-3 mb-2.5 px-1">
+              <div className="settings-section-label !p-0">Configuración activa</div>
+              <button
+                type="button"
+                onClick={() => onCreateConfig()}
+                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[var(--radius-sm)] bg-[var(--accent)] text-white text-xs font-semibold shadow-xs hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shrink-0"
+                title="Nueva configuración"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>Nueva</span>
+              </button>
+            </div>
+
             <div className="config-selector-card">
               <div className="config-selector-header">
-                <div className="config-dropdown-container" ref={configDropdownRef}>
+                <div className="config-dropdown-container min-w-0" ref={configDropdownRef}>
                   <button
                     type="button"
                     className={`config-dropdown-trigger${isConfigOpen ? ' open' : ''}`}
@@ -532,7 +545,7 @@ export default function SettingsView({
                     <div className="config-dropdown-trigger-content">
                       <Layers size={15} className="config-dropdown-icon" />
                       <span className="config-dropdown-name">{activeConfig.name}</span>
-                      <span className="config-dropdown-badge">
+                      <span className="config-dropdown-badge tabular-nums">
                         {activeConfig.selectedGroups?.length || 0} {activeConfig.selectedGroups?.length === 1 ? 'grupo' : 'grupos'}
                       </span>
                     </div>
@@ -560,7 +573,7 @@ export default function SettingsView({
                             <Layers size={14} className="config-dropdown-item-icon" />
                             <div className="config-dropdown-item-text">
                               <span className="config-dropdown-item-name">{cfg.name}</span>
-                              <span className="config-dropdown-item-sub">
+                              <span className="config-dropdown-item-sub tabular-nums">
                                 {groupsCount} {groupsCount === 1 ? 'grupo' : 'grupos'}
                               </span>
                             </div>
@@ -571,105 +584,122 @@ export default function SettingsView({
                     </div>
                   )}
                 </div>
-              </div>
 
-              <div className="config-actions" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="config-icon-btn"
-                    onClick={openRenameModal}
-                    title="Renombrar configuración"
+                <Popover open={configActionsOpen} onOpenChange={setConfigActionsOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-[38px] w-[38px] shrink-0"
+                      aria-label="Más acciones de la configuración"
+                      aria-haspopup="menu"
+                      aria-expanded={configActionsOpen}
+                      title="Más acciones"
+                    >
+                      <MoreHorizontal size={17} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={6}
+                    className="w-52 p-1.5"
+                    role="menu"
+                    aria-label="Acciones de la configuración activa"
+                    onKeyDown={handleConfigMenuKeyDown}
                   >
-                    <Edit2 size={13} />
-                    <span>Renombrar</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="config-icon-btn"
-                    onClick={() => onDuplicateConfig(activeConfig.id)}
-                    title="Duplicar configuración"
-                  >
-                    <Copy size={13} />
-                    <span>Duplicar</span>
-                  </button>
-
-                  {configs.length > 1 && (
                     <button
                       type="button"
-                      className="config-icon-btn destructive"
-                      onClick={handleDeleteClick}
-                      title="Eliminar configuración"
+                      role="menuitem"
+                      onClick={() => {
+                        setConfigActionsOpen(false);
+                        openRenameModal();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
                     >
-                      <Trash2 size={13} />
-                      <span>Eliminar</span>
+                      <Edit2 size={14} className="shrink-0 text-[var(--text-secondary)]" />
+                      <span>Renombrar</span>
                     </button>
-                  )}
 
-                  {Boolean(activeConfig.customColors && Object.keys(activeConfig.customColors).length > 0) && (
                     <button
                       type="button"
-                      className="config-icon-btn"
-                      onClick={onResetSubjectColors}
-                      title="Restablecer colores predeterminados"
+                      role="menuitem"
+                      onClick={() => {
+                        setConfigActionsOpen(false);
+                        onDuplicateConfig(activeConfig.id);
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
                     >
-                      <RotateCcw size={13} />
-                      <span>Restablecer colores</span>
+                      <Copy size={14} className="shrink-0 text-[var(--text-secondary)]" />
+                      <span>Duplicar</span>
                     </button>
-                  )}
-                </div>
 
-                <button
-                  type="button"
-                  className="config-icon-btn"
-                  style={{ background: 'var(--accent)', color: 'white', borderColor: 'var(--accent)' }}
-                  onClick={() => onCreateConfig()}
-                  title="Nueva configuración"
-                >
-                  <Plus size={14} />
-                  <span>Nueva</span>
-                </button>
+                    {(Object.keys(customColors || {}).length > 0 || Boolean(activeConfig.customColors && Object.keys(activeConfig.customColors).length > 0)) && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setConfigActionsOpen(false);
+                          onResetSubjectColors?.();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                      >
+                        <RotateCcw size={14} className="shrink-0 text-[var(--text-secondary)]" />
+                        <span>Restablecer colores</span>
+                      </button>
+                    )}
+
+                    {configs.length > 1 && (
+                      <>
+                        <hr className="my-1 border-0 border-t border-[var(--border)]" />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setConfigActionsOpen(false);
+                            handleDeleteClick();
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:outline-none transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={14} className="shrink-0" />
+                          <span>Eliminar</span>
+                        </button>
+                      </>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
 
           {/* Display Options */}
-          <div className="settings-section" style={{ paddingBottom: 0 }}>
+          <div className="mt-3">
             <div className="settings-card" style={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-[var(--text-primary)] leading-snug">
                     Mostrar otros subgrupos (atenuados)
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  <div className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
                     Muestra los subgrupos no elegidos en gris para ver las clases de tus compañeros
                   </div>
                 </div>
-                <Toggle
-                  id="toggle-dimmed-subgroups"
-                  checked={showDimmedSubgroups}
-                  onChange={onToggleShowDimmedSubgroups}
-                />
+                <div className="shrink-0 pt-0.5">
+                  <Switch
+                    isSelected={showDimmedSubgroups}
+                    onChange={onToggleShowDimmedSubgroups}
+                    aria-label="Mostrar otros subgrupos atenuados"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
           {/* Groups list */}
-          <div className="settings-section">
-            <div className="settings-section-header">
-              <div className="settings-section-label">Grupos en &quot;{activeConfig.name}&quot;</div>
-              {Object.keys(customColors || {}).length > 0 && (
-                <button
-                  type="button"
-                  className="reset-colors-btn"
-                  onClick={onResetSubjectColors}
-                  title="Restablecer todos los colores personalizados al modo automático"
-                >
-                  <RotateCcw size={13} />
-                  <span>Restablecer colores</span>
-                </button>
-              )}
+          <div className="settings-section !gap-0">
+            <div className="mt-7 mb-2.5 flex items-center justify-between gap-3 px-1">
+              <div className="settings-section-label !p-0 truncate">
+                Grupos en &quot;{activeConfig.name}&quot;
+              </div>
             </div>
 
             {selectedGroups.length === 0 ? (
@@ -693,7 +723,7 @@ export default function SettingsView({
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="flex flex-col gap-3">
                 {selectedGroups.map((g) => {
                   const key = groupKey(g);
                   const isExpanded = expandedGroups[key];
@@ -704,79 +734,54 @@ export default function SettingsView({
 
                   return (
                     <div key={key} className="settings-card" style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'all 0.2s ease' }}>
-                      {/* Group row */}
+                      {/* Group row: 2 clean lines (code + right controls on line 1, subtitle + count pill on line 2) */}
                       <div
-                        className="settings-row"
-                        style={{ cursor: 'pointer', gap: '12px' }}
+                        className="settings-row !items-start !px-4 !py-3.5"
+                        style={{ cursor: 'pointer', gap: '10px' }}
                         onClick={() => toggleExpanded(key)}
                       >
-                        <span style={{ color: 'var(--text-muted)' }}>
+                        <span className="mt-0.5 text-[var(--text-muted)] shrink-0">
                           <ChevronIcon open={isExpanded} />
                         </span>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Toggle
-                            id={`group-toggle-${key}`}
-                            checked={!isGroupDisabled}
-                            onChange={() => onToggleGroupDisabled(key)}
-                          />
-                        </div>
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-[15px] leading-snug text-[var(--text-primary)] truncate">
                             {g.name}
                           </div>
-                          {g.longName && (
-                            <div style={{
-                              fontSize: 12,
-                              color: 'var(--text-secondary)',
-                              marginTop: 2,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {g.longName}
+                          {(g.longName || subjectsForGroup.length > 0) && (
+                            <div className="mt-1 flex items-center gap-2 min-w-0">
+                              {g.longName && (
+                                <span className="text-xs text-[var(--text-secondary)] truncate min-w-0">
+                                  {g.longName}
+                                </span>
+                              )}
+                              {subjectsForGroup.length > 0 && (
+                                <span className="inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--accent-light)] text-[var(--accent)] border border-[var(--accent)]/20 tabular-nums">
+                                  {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length} activas
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
 
-                        {subjectsForGroup.length > 0 && (
-                          <span style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: 'var(--accent)',
-                            background: 'var(--accent-light, rgba(99, 102, 241, 0.12))',
-                            border: '1px solid rgba(99, 102, 241, 0.2)',
-                            padding: '2px 8px',
-                            borderRadius: 20,
-                            flexShrink: 0,
-                          }}>
-                            {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length} activas
-                          </span>
-                        )}
-
-                        <button
-                          type="button"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '6px',
-                            borderRadius: 8,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            transition: 'color 0.15s ease',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                          onClick={(e) => { e.stopPropagation(); onRemoveGroup(g); }}
-                          aria-label="Eliminar grupo"
+                        <div
+                          className="flex items-center gap-1.5 shrink-0"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Trash2 size={17} />
-                        </button>
+                          <Switch
+                            isSelected={!isGroupDisabled}
+                            onChange={() => onToggleGroupDisabled(key)}
+                            aria-label={`Activar grupo ${g.name}`}
+                          />
+                          <button
+                            type="button"
+                            className="h-8 w-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer shrink-0"
+                            onClick={(e) => { e.stopPropagation(); onRemoveGroup(g); }}
+                            aria-label={`Eliminar grupo ${g.name}`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Subjects expandable section */}
@@ -798,21 +803,10 @@ export default function SettingsView({
                                 });
 
                                 return (
-                                  <div
-                                    style={{
-                                      padding: '12px 18px',
-                                      borderBottom: '1px solid var(--border)',
-                                      display: 'flex',
-                                      flexWrap: 'wrap',
-                                      gap: 16,
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center'
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                      <Toggle
-                                        id={`all-${key}`}
-                                        checked={allEnabled}
+                                  <div className="px-4 py-3 border-b border-[var(--border)] flex flex-wrap gap-x-5 gap-y-2.5 justify-between items-center">
+                                    <div className="flex items-center gap-2.5">
+                                      <Switch
+                                        isSelected={allEnabled}
                                         onChange={() => {
                                           subjectsForGroup.forEach(s => {
                                             const isDisabled = disabledForGroup.includes(s.id);
@@ -820,22 +814,25 @@ export default function SettingsView({
                                             if (!allEnabled && isDisabled) onToggleSubjectForGroup(key, s.id);
                                           });
                                         }}
-                                      />
-                                      <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                        Todas las asignaturas
-                                      </span>
+                                        aria-label="Activar todas las asignaturas"
+                                      >
+                                        <span className="font-semibold text-[13px] text-[var(--text-secondary)]">
+                                          Todas las asignaturas
+                                        </span>
+                                      </Switch>
                                     </div>
 
                                     {hasAnySubgroups && (
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <Toggle
-                                          id={`all-subgroups-${key}`}
-                                          checked={allSubgroupsEnabled}
+                                      <div className="flex items-center gap-2.5">
+                                        <Switch
+                                          isSelected={allSubgroupsEnabled}
                                           onChange={() => onToggleAllSubgroupsForGroup(key, !allSubgroupsEnabled)}
-                                        />
-                                        <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                          Todos los subgrupos
-                                        </span>
+                                          aria-label="Activar todos los subgrupos"
+                                        >
+                                          <span className="font-semibold text-[13px] text-[var(--text-secondary)]">
+                                            Todos los subgrupos
+                                          </span>
+                                        </Switch>
                                       </div>
                                     )}
                                   </div>
@@ -863,43 +860,49 @@ export default function SettingsView({
                                       border: `1px solid ${colStyle.border || 'rgba(0,0,0,0.12)'}`,
                                     }}
                                   >
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                                        <Toggle
-                                          id={`subj-${key}-${subj.id}`}
-                                          checked={!isSubjDisabled}
-                                          onChange={() => onToggleSubjectForGroup(key, subj.id)}
-                                        />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ fontSize: 14, color: colStyle.text, fontWeight: 700, lineHeight: 1.25 }}>
-                                            {subj.name}
-                                          </div>
-                                          {subj.shortName && (
-                                            <div style={{ fontSize: 11, color: colStyle.text, opacity: 0.8, marginTop: 2 }}>
-                                              {subj.shortName}
-                                            </div>
-                                          )}
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-bold leading-snug" style={{ color: colStyle.text }}>
+                                          {subj.name}
                                         </div>
+                                        {subj.shortName && (
+                                          <div
+                                            className="font-mono text-[11px] opacity-50 truncate mt-0.5"
+                                            style={{ color: colStyle.text }}
+                                          >
+                                            {subj.shortName}
+                                          </div>
+                                        )}
                                       </div>
 
-                                      <button
-                                        type="button"
-                                        className="subject-palette-btn subject-color-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPickerSubjectId(prev => (prev === subj.id ? null : subj.id));
-                                        }}
-                                        title="Personalizar color de la asignatura"
-                                        style={{ color: colStyle.text }}
-                                        aria-expanded={isPickerOpen}
-                                        aria-label={`Personalizar color de ${subj.name}`}
+                                      <div
+                                        className="flex items-center gap-2 shrink-0"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
-                                        <Palette size={16} />
-                                      </button>
+                                        <button
+                                          type="button"
+                                          className="subject-palette-btn subject-color-btn"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPickerSubjectId(prev => (prev === subj.id ? null : subj.id));
+                                          }}
+                                          title="Personalizar color de la asignatura"
+                                          style={{ color: colStyle.text }}
+                                          aria-expanded={isPickerOpen}
+                                          aria-label={`Personalizar color de ${subj.name}`}
+                                        >
+                                          <Palette size={15} />
+                                        </button>
+                                        <Switch
+                                          isSelected={!isSubjDisabled}
+                                          onChange={() => onToggleSubjectForGroup(key, subj.id)}
+                                          aria-label={`Activar asignatura ${subj.name}`}
+                                        />
+                                      </div>
                                     </div>
 
                                     {!isSubjDisabled && subjectSubgroups.length > 0 && (
-                                      <div style={{ paddingLeft: 44, marginTop: 8, marginBottom: 2 }}>
+                                      <div className="mt-2.5 mb-0.5">
                                         <div className="subgroups-pill-grid">
                                           {subjectSubgroups.map(subKey => {
                                             const isSubActive = !disabledSubgroups.includes(subKey);
@@ -1083,18 +1086,6 @@ export default function SettingsView({
             </div>
 
             <div className="custom-events-header-actions">
-              {stats.cancelledCount + stats.swappedCount + stats.editedCount > 0 && (
-                <button
-                  type="button"
-                  className="settings-btn-outline-danger"
-                  onClick={() => setResetAllOverridesModalOpen(true)}
-                  title="Restablecer todas las clases a su horario oficial"
-                >
-                  <RotateCcw size={13} />
-                  <span>Restablecer clases</span>
-                </button>
-              )}
-
               <button
                 type="button"
                 className="settings-btn-primary"
@@ -1131,7 +1122,7 @@ export default function SettingsView({
               )}
             </div>
 
-            {/* Controls Row: Custom Sort Dropdown + Hide Past Toggle */}
+            {/* Controls Row: Custom Sort Dropdown + Hide Past Toggle (Single Horizontal Row) */}
             <div className="settings-toolbar-controls">
               {/* Custom Sort Dropdown (Zero Emojis, SVG Icons, Clean Accessible Popover) */}
               <div className="settings-sort-container" ref={sortDropdownRef}>
@@ -1190,8 +1181,8 @@ export default function SettingsView({
               </button>
             </div>
 
-            {/* Type Filter Pills (Clean, uncluttered, zero emojis) */}
-            <div className="settings-filter-pills-row">
+            {/* Type Filter Pills (Edge-to-edge horizontal scroll on mobile) */}
+            <div className="settings-filter-pills-row -mx-4 px-4">
               {[
                 { id: 'all', label: 'Todo' },
                 { id: 'cancelled', label: 'Canceladas' },
@@ -1253,244 +1244,206 @@ export default function SettingsView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {displayedList.map(item => {
                 const isCustom = item.itemKind === 'custom_event';
-                const dateStr = item.dateObj
-                  ? `${DAYS_SHORT[item.dateObj.getDay()]} ${item.dateObj.getDate()} ${MONTHS_SHORT[item.dateObj.getMonth()]}`
-                  : '';
                 const timeStr = `${formatTime(item.startTime)}–${formatTime(item.endTime)}`;
                 const colorStyle = isCustom ? getSubjectColorStyle(item.colorIndex, isDark) : null;
                 const relativeLabel = getRelativeDateLabel(item.dateNum, todayNum, item.isWeekly);
+                const hasBadges = Boolean(
+                  relativeLabel ||
+                  item.type === 'cancelled' ||
+                  item.type === 'swapped' ||
+                  item.type === 'edited' ||
+                  (isCustom && item.category)
+                );
 
                 return (
                   <div
                     key={item.id}
-                    style={{
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                      boxShadow: 'var(--shadow-card)',
-                      opacity: item.isPast ? 0.72 : 1,
-                      transition: 'all 0.15s ease',
-                    }}
+                    className="flex items-start gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5 shadow-[var(--shadow-card)] transition-all duration-150"
+                    style={{ opacity: item.isPast ? 0.72 : 1 }}
                   >
                     {/* Mini Calendar Date Badge */}
                     <div
+                      className="flex flex-col items-center justify-center shrink-0 min-w-[46px] px-1.5 py-1.5 rounded-[10px] border leading-none tabular-nums"
                       style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minWidth: 44,
-                        padding: '4px 6px',
-                        borderRadius: 8,
                         background: item.isPast ? 'var(--bg-secondary)' : 'var(--accent-light, rgba(99, 102, 241, 0.1))',
-                        border: '1px solid',
                         borderColor: item.isPast ? 'var(--border)' : 'rgba(99, 102, 241, 0.25)',
                         color: item.isPast ? 'var(--text-muted)' : 'var(--accent)',
-                        lineHeight: 1.1,
-                        flexShrink: 0,
                       }}
                     >
-                      <span style={{ fontSize: '0.64rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      <span className="text-[10px] font-bold uppercase tracking-wide">
                         {item.isWeekly ? 'REC' : (item.dateObj ? DAYS_SHORT[item.dateObj.getDay()] : '')}
                       </span>
-                      <span style={{ fontSize: '0.94rem', fontWeight: 800 }}>
+                      <span className="text-[15px] font-extrabold mt-0.5">
                         {item.isWeekly ? '∞' : (item.dateObj ? item.dateObj.getDate() : '')}
                       </span>
+                      {!item.isWeekly && item.dateObj && (
+                        <span className="text-[9px] font-semibold uppercase opacity-75 mt-0.5">
+                          {MONTHS_SHORT[item.dateObj.getMonth()]}
+                        </span>
+                      )}
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                        {isCustom && (
-                          <span
-                            style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              background: colorStyle.bg,
-                              border: `1.5px solid ${colorStyle.border || 'currentColor'}`,
-                              flexShrink: 0,
-                            }}
-                          />
-                        )}
-
-                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                          {item.title}
-                        </span>
-
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                          • {item.isWeekly ? 'Semanal' : dateStr}
-                        </span>
-
-                        {relativeLabel && (
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              background: item.isPast ? 'var(--bg-secondary)' : 'var(--accent-light, rgba(99, 102, 241, 0.12))',
-                              color: item.isPast ? 'var(--text-muted)' : 'var(--accent)',
-                              border: `1px solid ${item.isPast ? 'var(--border)' : 'rgba(99, 102, 241, 0.25)'}`,
-                              padding: '1px 6px',
-                              borderRadius: 6,
-                            }}
-                          >
-                            {relativeLabel}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        {/* Title only (no duplicate date) */}
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isCustom && (
+                            <span
+                              className="size-2.5 rounded-full shrink-0"
+                              style={{
+                                background: colorStyle.bg,
+                                border: `1.5px solid ${colorStyle.border || 'currentColor'}`,
+                              }}
+                            />
+                          )}
+                          <span className="font-bold text-[0.92rem] text-[var(--text-primary)] leading-snug truncate">
+                            {item.title}
                           </span>
+                        </div>
+
+                        {/* Single-line badges row */}
+                        {hasBadges && (
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-nowrap overflow-hidden">
+                            {relativeLabel && (
+                              <span
+                                className="inline-flex items-center shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none border"
+                                style={{
+                                  background: item.isPast ? 'var(--bg-secondary)' : 'var(--accent-light, rgba(99, 102, 241, 0.12))',
+                                  color: item.isPast ? 'var(--text-muted)' : 'var(--accent)',
+                                  borderColor: item.isPast ? 'var(--border)' : 'rgba(99, 102, 241, 0.25)',
+                                }}
+                              >
+                                {relativeLabel}
+                              </span>
+                            )}
+
+                            {item.type === 'cancelled' && (
+                              <span
+                                className="inline-flex items-center gap-1 min-w-0 truncate rounded-md px-2 py-0.5 text-[11px] font-semibold leading-none border"
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  color: isDark ? '#fca5a5' : '#b91c1c',
+                                  borderColor: 'rgba(239, 68, 68, 0.25)',
+                                }}
+                              >
+                                <Ban size={10} strokeWidth={2.8} className="shrink-0" />
+                                <span className="truncate">Cancelada por ti</span>
+                              </span>
+                            )}
+
+                            {item.type === 'swapped' && (
+                              <span
+                                className="inline-flex items-center gap-1 min-w-0 truncate rounded-md px-2 py-0.5 text-[11px] font-semibold leading-none border"
+                                style={{
+                                  background: 'rgba(99, 102, 241, 0.12)',
+                                  color: 'var(--accent)',
+                                  borderColor: 'rgba(99, 102, 241, 0.25)',
+                                }}
+                              >
+                                <ArrowUpDown size={10} strokeWidth={2.4} className="shrink-0" />
+                                <span className="truncate">Intercambiada con {item.swappedWith?.subjectName}</span>
+                              </span>
+                            )}
+
+                            {item.type === 'edited' && (
+                              <span
+                                className="inline-flex items-center gap-1 min-w-0 truncate rounded-md px-2 py-0.5 text-[11px] font-semibold leading-none border"
+                                style={{
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  color: isDark ? '#fbbf24' : '#b45309',
+                                  borderColor: 'rgba(245, 158, 11, 0.25)',
+                                }}
+                              >
+                                <Pencil size={10} strokeWidth={2.4} className="shrink-0" />
+                                <span className="truncate">Personalizada</span>
+                              </span>
+                            )}
+
+                            {isCustom && item.category && (
+                              <span className="inline-flex items-center min-w-0 truncate rounded-md px-2 py-0.5 text-[11px] font-semibold leading-none bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
+                                <span className="truncate">{item.category}</span>
+                              </span>
+                            )}
+                          </div>
                         )}
 
-                        {/* Status Badges */}
-                        {item.type === 'cancelled' && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              background: 'rgba(239, 68, 68, 0.14)',
-                              color: isDark ? '#fca5a5' : '#b91c1c',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                            }}
-                          >
-                            <Ban size={11} strokeWidth={2.8} /> Cancelada por ti
+                        {/* Details row */}
+                        <div className="mt-1.5 flex items-center gap-3 text-xs text-[var(--text-secondary)] flex-wrap tabular-nums">
+                          <span className="inline-flex items-center gap-1">
+                            <Clock size={12} className="shrink-0" /> {timeStr}
                           </span>
-                        )}
 
-                        {item.type === 'swapped' && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              background: 'rgba(99, 102, 241, 0.14)',
-                              color: 'var(--accent)',
-                              border: '1px solid rgba(99, 102, 241, 0.25)',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                            }}
-                          >
-                            <ArrowUpDown size={11} strokeWidth={2.4} /> Intercambiada con {item.swappedWith?.subjectName}
-                          </span>
-                        )}
+                          {item.rooms && item.rooms.length > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin size={12} className="shrink-0" /> {formatRooms(item.rooms)}
+                            </span>
+                          )}
 
-                        {item.type === 'edited' && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              background: 'rgba(245, 158, 11, 0.14)',
-                              color: isDark ? '#fbbf24' : '#b45309',
-                              border: '1px solid rgba(245, 158, 11, 0.25)',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                            }}
-                          >
-                            <Pencil size={11} strokeWidth={2.4} /> Personalizada
-                          </span>
-                        )}
-
-                        {isCustom && item.category && (
-                          <span
-                            style={{
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              background: 'var(--bg-secondary)',
-                              color: 'var(--text-secondary)',
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                            }}
-                          >
-                            {item.category}
-                          </span>
-                        )}
+                          {item.notes && (
+                            <span className="inline-flex items-center gap-1 italic min-w-0 truncate">
+                              <FileText size={12} className="shrink-0" /> &ldquo;{item.notes}&rdquo;
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Details row */}
-                      <div style={{ display: 'flex', gap: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Clock size={12} /> {timeStr}
-                        </span>
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-1.5 shrink-0">
+                        {isCustom ? (
+                          <>
+                            <button
+                              type="button"
+                              className="settings-btn-secondary"
+                              onClick={() => onEditCustomEvent?.(item.rawEvent)}
+                              title="Editar evento"
+                              style={{ padding: '5px 10px', fontSize: '0.78rem' }}
+                            >
+                              <Pencil size={13} />
+                              <span>Editar</span>
+                            </button>
 
-                        {item.rooms && item.rooms.length > 0 && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <MapPin size={12} /> {formatRooms(item.rooms)}
-                          </span>
-                        )}
-
-                        {item.notes && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                            <FileText size={12} /> &ldquo;{item.notes}&rdquo;
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      {isCustom ? (
-                        <>
+                            <button
+                              type="button"
+                              onClick={() => setEventToDelete(item)}
+                              title="Eliminar evento"
+                              aria-label={`Eliminar evento ${item.title}`}
+                              style={{
+                                padding: '6px 8px',
+                                borderRadius: 8,
+                                border: 'none',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'background 0.15s ease',
+                              }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
                             className="settings-btn-secondary"
-                            onClick={() => onEditCustomEvent?.(item.rawEvent)}
-                            title="Editar evento"
-                            style={{ padding: '6px 10px', fontSize: '0.8rem' }}
-                          >
-                            <Pencil size={13} />
-                            <span>Editar</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setEventToDelete(item)}
-                            title="Eliminar evento"
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: 8,
-                              border: 'none',
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'background 0.15s ease',
+                            onClick={() => setOverrideToReset(item)}
+                            title="Restablecer clase al estado oficial de WebUntis"
+                            style={{ padding: '5px 11px', fontSize: '0.78rem' }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.borderColor = '#ef4444';
+                              e.currentTarget.style.color = '#ef4444';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.borderColor = 'var(--border)';
+                              e.currentTarget.style.color = 'var(--text-primary)';
                             }}
                           >
-                            <Trash2 size={15} />
+                            <RotateCcw size={13} />
+                            <span>Restablecer</span>
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="settings-btn-secondary"
-                          onClick={() => setOverrideToReset(item)}
-                          title="Restablecer clase al estado oficial de WebUntis"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = '#ef4444';
-                            e.currentTarget.style.color = '#ef4444';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                            e.currentTarget.style.color = 'var(--text-primary)';
-                          }}
-                        >
-                          <RotateCcw size={13} />
-                          <span>Restablecer</span>
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1557,8 +1510,8 @@ export default function SettingsView({
           TAB 3: APARIENCIA
       ══════════════════════════════════════════════════════════════════════ */}
       <TabsContent value="appearance">
-        <div className="settings-section" style={{ paddingBottom: 0 }}>
-          <div className="settings-section-label" style={{ marginBottom: 12 }}>Tema de la interfaz</div>
+        <div className="settings-section !gap-0">
+          <div className="settings-section-label mb-2.5">Tema de la interfaz</div>
           
           <div className="theme-cards-grid" role="radiogroup" aria-label="Seleccionar tema">
             <div

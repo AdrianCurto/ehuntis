@@ -190,7 +190,7 @@ export function DatePicker({
         }
       }}
       className={cn(
-        'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors cursor-pointer select-none',
+        'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-sans text-sm font-medium text-[var(--text-primary)] transition-colors cursor-pointer select-none',
         'hover:border-[var(--accent)]/50 focus:outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
         error && 'border-[var(--destructive)] focus-visible:border-[var(--destructive)] focus-visible:ring-[var(--destructive)]/50',
         disabled && 'cursor-not-allowed opacity-50 pointer-events-none'
@@ -204,12 +204,12 @@ export function DatePicker({
         aria-label={ariaLabel}
         className="flex items-center pointer-events-none sm:pointer-events-auto"
       >
-        <DateInput className="flex items-center text-sm tabular-nums">
+        <DateInput className="flex items-center font-sans text-sm font-medium tabular-nums">
           {(segment) => (
             <DateSegment
               segment={segment}
               className={cn(
-                'rounded outline-none focus-visible:bg-[var(--accent)] focus-visible:text-white data-[placeholder]:text-[var(--text-muted)] text-sm tabular-nums',
+                'rounded outline-none focus-visible:bg-[var(--accent)] focus-visible:text-white data-[placeholder]:text-[var(--text-muted)] font-sans text-sm font-medium tabular-nums',
                 segment.type === 'literal' ? 'px-0 text-[var(--text-muted)]' : 'px-0.5'
               )}
             />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Clock, MapPin, AlignLeft, AlertCircle, RotateCcw } from 'lucide-react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -17,6 +17,7 @@ import { DatePicker } from './ui/date-picker';
 import { toast } from 'sonner';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
+import { areRoomsEqual } from '../utils/lessonOverrides';
 import { formatTime } from '../utils/dateTimeUtils';
 
 function timeNumberToString(t) {
@@ -52,10 +53,6 @@ function parseDate(dateNum) {
   const m = Math.floor((dateNum % 10000) / 100) - 1;
   const d = dateNum % 100;
   return new Date(y, m, d);
-}
-
-function normalizeRoomForCompare(str) {
-  return (str || '').replace(/\s+/g, '').toLowerCase();
 }
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -97,7 +94,7 @@ export default function EditLessonModal({
 
   const isDateModified = selectedDateNum !== officialDateNum;
   const isTimeModified = currentStartNum !== officialStartNum || currentEndNum !== officialEndNum;
-  const isRoomModified = normalizeRoomForCompare(roomsStr) !== normalizeRoomForCompare(officialRoomsStr);
+  const isRoomModified = !areRoomsEqual(roomsStr, lesson.rawRooms ?? lesson.rooms);
   const isNotesModified = Boolean(notes.trim());
   const hasAnyDiffFromOfficial = Boolean(
     lesson.isOverridden || isDateModified || isTimeModified || isRoomModified || isNotesModified
@@ -227,10 +224,7 @@ export default function EditLessonModal({
           {/* Fecha de la clase */}
           <div className="space-y-1.5">
             <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-              <span className="flex items-center">
-                <Calendar className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                Fecha
-              </span>
+              <span>Fecha</span>
               {isDateModified && (
                 <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
               )}
@@ -251,10 +245,7 @@ export default function EditLessonModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-                <span className="flex items-center">
-                  <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                  Inicio
-                </span>
+                <span>Inicio</span>
                 {currentStartNum !== officialStartNum && (
                   <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
                 )}
@@ -269,10 +260,7 @@ export default function EditLessonModal({
             </div>
             <div className="space-y-1.5">
               <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-                <span className="flex items-center">
-                  <Clock className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
-                  Fin
-                </span>
+                <span>Fin</span>
                 {currentEndNum !== officialEndNum && (
                   <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
                 )}
@@ -294,8 +282,7 @@ export default function EditLessonModal({
           {/* Aula */}
           <div className="space-y-1.5">
             <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-              <span className="flex items-center">
-                <MapPin className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
+              <span>
                 Aula / Ubicación
                 <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
               </span>
@@ -313,7 +300,6 @@ export default function EditLessonModal({
           {/* Notas personales */}
           <div className="space-y-1.5">
             <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
-              <AlignLeft className="w-3.5 h-3.5 mr-1.5 text-[var(--text-muted)]" />
               <span>Notas personales</span>
               <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
             </label>
