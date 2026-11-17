@@ -5,6 +5,7 @@ import { Clock, Keyboard, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './sheet';
 import { cn } from '@/app/utils/cn';
+import { useIsDesktop } from '@/app/utils/useMediaQuery';
 import { parseValueToTime, formatTime } from '@/app/utils/dateTimeUtils';
 
 export { parseValueToTime };
@@ -22,41 +23,33 @@ export function TimePicker({
   ...props
 }) {
   const parsedTime = React.useMemo(() => parseValueToTime(value), [value]);
+  const [uncontrolledTime, setUncontrolledTime] = React.useState(() => parsedTime);
+  const effectiveTime = value !== undefined ? parsedTime : uncontrolledTime;
 
-  const [hour, setHour] = React.useState(() => parsedTime?.hour ?? 8);
-  const [minute, setMinute] = React.useState(() => parsedTime?.minute ?? 0);
-  const [hasValue, setHasValue] = React.useState(() => parsedTime !== null);
+  const hour = effectiveTime?.hour ?? 8;
+  const minute = effectiveTime?.minute ?? 0;
+  const hasValue = effectiveTime !== null;
 
   const [isOpen, setIsOpen] = React.useState(false);
-  const [isDesktop, setIsDesktop] = React.useState(false);
+  const isDesktop = useIsDesktop();
   const [mode, setMode] = React.useState('visual'); // 'visual' | 'keyboard'
   const [activeSegment, setActiveSegment] = React.useState('hour'); // 'hour' | 'minute'
 
-  const [tempHour, setTempHour] = React.useState('');
-  const [tempMinute, setTempMinute] = React.useState('');
+  const [tempHour, setTempHour] = React.useState(() => String(hour).padStart(2, '0'));
+  const [tempMinute, setTempMinute] = React.useState(() => String(minute).padStart(2, '0'));
 
   const activeHourRef = React.useRef(null);
   const activeMinuteRef = React.useRef(null);
   const hourInputRef = React.useRef(null);
   const minuteInputRef = React.useRef(null);
 
-  React.useEffect(() => {
-    const media = window.matchMedia('(min-width: 641px)');
-    setIsDesktop(media.matches);
-    const handler = (e) => setIsDesktop(e.matches);
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, []);
-
-  React.useEffect(() => {
-    if (parsedTime) {
-      setHour(parsedTime.hour);
-      setMinute(parsedTime.minute);
-      setHasValue(true);
-    } else {
-      setHasValue(false);
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      setTempHour(String(hour).padStart(2, '0'));
+      setTempMinute(String(minute).padStart(2, '0'));
     }
-  }, [parsedTime]);
+    setIsOpen(nextOpen);
+  };
 
   // Lista de minutos: múltiplos de 5 más el minuto actual si es impar
   const minutesList = React.useMemo(() => {
@@ -68,9 +61,9 @@ export function TimePicker({
   }, [minute]);
 
   const emitTimeChange = (h, m) => {
-    setHour(h);
-    setMinute(m);
-    setHasValue(true);
+    if (value === undefined) {
+      setUncontrolledTime({ hour: h, minute: m });
+    }
     const str = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     const num = h * 100 + m;
     onChange?.(str, num);
@@ -78,21 +71,22 @@ export function TimePicker({
 
   // Scroll automático a los elementos activos al abrir en modo visual
   React.useEffect(() => {
-    if (isOpen) {
-      setTempHour(String(hour).padStart(2, '0'));
-      setTempMinute(String(minute).padStart(2, '0'));
+    if (!isOpen) return;
 
-      if (mode === 'visual') {
-        setTimeout(() => {
-          activeHourRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          activeMinuteRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }, 60);
-      } else if (mode === 'keyboard') {
-        setTimeout(() => {
-          hourInputRef.current?.focus();
-          hourInputRef.current?.select();
-        }, 60);
-      }
+    if (mode === 'visual') {
+      const id = setTimeout(() => {
+        activeHourRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        activeMinuteRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 60);
+      return () => clearTimeout(id);
+    }
+
+    if (mode === 'keyboard') {
+      const id = setTimeout(() => {
+        hourInputRef.current?.focus();
+        hourInputRef.current?.select();
+      }, 60);
+      return () => clearTimeout(id);
     }
   }, [isOpen, mode]);
 
@@ -156,6 +150,8 @@ export function TimePicker({
           type="button"
           onClick={() => {
             const nextMode = mode === 'visual' ? 'keyboard' : 'visual';
+            setTempHour(String(hour).padStart(2, '0'));
+            setTempMinute(String(minute).padStart(2, '0'));
             setMode(nextMode);
           }}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
@@ -351,7 +347,7 @@ export function TimePicker({
       aria-label={ariaLabel}
       data-invalid={Boolean(error) || undefined}
       onClick={() => {
-        if (!disabled) setIsOpen(true);
+        if (!disabled) handleOpenChange(true);
       }}
       className={cn(
         'group flex h-10 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors cursor-pointer select-none',
@@ -374,7 +370,7 @@ export function TimePicker({
   return (
     <div className="relative flex items-center w-full">
       {isDesktop ? (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
             {triggerContent}
           </PopoverTrigger>
@@ -385,7 +381,7 @@ export function TimePicker({
       ) : (
         <>
           {triggerContent}
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <Sheet open={isOpen} onOpenChange={handleOpenChange}>
             <SheetContent className="p-4 pb-8 flex flex-col items-center">
               <SheetHeader className="mb-2 w-full">
                 <SheetTitle className="text-base text-center">Seleccionar hora</SheetTitle>

@@ -18,6 +18,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-reac
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './sheet';
 import { cn } from '@/app/utils/cn';
+import { useIsDesktop } from '@/app/utils/useMediaQuery';
 import {
   parseValueToCalendarDate,
   calculateMonthGridPadding,
@@ -65,14 +66,12 @@ export function CalendarView({
   ariaLabel = 'Fecha',
   className
 }) {
-  const [calendarDate, setCalendarDate] = React.useState(() => parseValueToCalendarDate(value));
-
-  React.useEffect(() => {
-    setCalendarDate(parseValueToCalendarDate(value));
-  }, [value]);
+  const parsedValue = React.useMemo(() => parseValueToCalendarDate(value), [value]);
+  const [uncontrolledDate, setUncontrolledDate] = React.useState(() => parsedValue);
+  const calendarDate = value !== undefined ? parsedValue : uncontrolledDate;
 
   const handleSelect = (newDate) => {
-    setCalendarDate(newDate);
+    if (value === undefined) setUncontrolledDate(newDate);
     if (!newDate) {
       onSelect?.(null, null, null);
       return;
@@ -148,25 +147,14 @@ export function DatePicker({
   ariaLabel = 'Fecha',
   ...props
 }) {
-  const [calendarDate, setCalendarDate] = React.useState(() => parseValueToCalendarDate(value));
+  const parsedValue = React.useMemo(() => parseValueToCalendarDate(value), [value]);
+  const [uncontrolledDate, setUncontrolledDate] = React.useState(() => parsedValue);
+  const calendarDate = value !== undefined ? parsedValue : uncontrolledDate;
   const [isOpen, setIsOpen] = React.useState(false);
-  const [isDesktop, setIsDesktop] = React.useState(false);
-
-  React.useEffect(() => {
-    const media = window.matchMedia('(min-width: 641px)');
-    setIsDesktop(media.matches);
-    const handler = (e) => setIsDesktop(e.matches);
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, []);
-
-  React.useEffect(() => {
-    const parsed = parseValueToCalendarDate(value);
-    setCalendarDate(parsed);
-  }, [value]);
+  const isDesktop = useIsDesktop();
 
   const handleDateChange = (newDate) => {
-    setCalendarDate(newDate);
+    if (value === undefined) setUncontrolledDate(newDate);
     if (!newDate) {
       onChange?.(null, null);
       return;

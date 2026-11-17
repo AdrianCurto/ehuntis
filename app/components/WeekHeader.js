@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarView } from './ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { useIsDesktop } from '@/app/utils/useMediaQuery';
 
 const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'];
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -46,15 +47,7 @@ export default function WeekHeader({
   nextWeekDates: nextWeekDatesProp = null,
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia('(min-width: 641px)');
-    setIsDesktop(media.matches);
-    const handler = (e) => setIsDesktop(e.matches);
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, []);
+  const isDesktop = useIsDesktop();
 
   const today = new Date();
   const firstDay = weekDates?.[0] || new Date();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ArrowUpDown,
   Clock,
@@ -54,16 +54,13 @@ export default function SwapLessonModal({
   onClose,
   isDark = false,
 }) {
-  const [selectedTarget, setSelectedTarget] = useState(targetLesson);
+  const [pickedTarget, setPickedTarget] = useState(null);
   const [keepDuration, setKeepDuration] = useState(true);
   const [swapRooms, setSwapRooms] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all'); // 'same_day' | 'all'
 
-  useEffect(() => {
-    setSelectedTarget(targetLesson);
-    setSwapRooms(false);
-  }, [targetLesson]);
+  const selectedTarget = targetLesson || pickedTarget;
 
   const validCandidates = useMemo(() => {
     if (!lesson) return [];
@@ -259,7 +256,8 @@ export default function SwapLessonModal({
                   onSelectFromCalendar?.(lesson);
                   onClose();
                 } else {
-                  setSelectedTarget(null);
+                  setPickedTarget(null);
+                  setSwapRooms(false);
                 }
               }}
             >
@@ -392,7 +390,10 @@ export default function SwapLessonModal({
               return (
                 <div
                   key={cand.lessonKey || cand.id || idx}
-                  onClick={() => setSelectedTarget(cand)}
+                  onClick={() => {
+                    setPickedTarget(cand);
+                    setSwapRooms(false);
+                  }}
                   className="relative overflow-hidden flex items-center justify-between gap-3 p-2.5 pl-3.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent)] transition-all cursor-pointer"
                 >
                   {/* Franja izquierda de 3px con color visible de la asignatura */}

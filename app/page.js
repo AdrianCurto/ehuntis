@@ -380,6 +380,23 @@ export default function Home() {
     }));
   }, [activeConfig.id]);
 
+  // Refs to always access fresh state in background/network event listeners
+  const usernameRef = useRef(username);
+  const configsRef = useRef(configs);
+  const activeConfigIdRef = useRef(activeConfig.id);
+  const customEventsRef = useRef(customEvents);
+  const lessonOverridesRef = useRef(lessonOverrides);
+  const syncStatusRef = useRef(syncStatus);
+
+  useEffect(() => {
+    usernameRef.current = username;
+    configsRef.current = configs;
+    activeConfigIdRef.current = activeConfig.id;
+    customEventsRef.current = customEvents;
+    lessonOverridesRef.current = lessonOverrides;
+    syncStatusRef.current = syncStatus;
+  });
+
   // ── Cloud sync helpers ──────────────────────────────────────────────────────
   // Push local configs and custom events to Supabase via the REST API
   const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot, eventsSnapshot, categoriesSnapshot, overridesSnapshot) => {
@@ -408,20 +425,6 @@ export default function Home() {
       setSyncStatus('error');
     }
   }, []);
-
-  // Refs to always access fresh state in background/network event listeners
-  const usernameRef = useRef(username);
-  usernameRef.current = username;
-  const configsRef = useRef(configs);
-  configsRef.current = configs;
-  const activeConfigIdRef = useRef(activeConfig.id);
-  activeConfigIdRef.current = activeConfig.id;
-  const customEventsRef = useRef(customEvents);
-  customEventsRef.current = customEvents;
-  const lessonOverridesRef = useRef(lessonOverrides);
-  lessonOverridesRef.current = lessonOverrides;
-  const syncStatusRef = useRef(syncStatus);
-  syncStatusRef.current = syncStatus;
 
   // Flag to know when an update comes from the cloud (to avoid re-pushing it back in debounce)
   const isRemoteUpdateRef = useRef(false);
@@ -709,7 +712,6 @@ export default function Home() {
       window.removeEventListener('pagehide', flushPendingSync);
       document.removeEventListener('visibilitychange', handleVisibilityHide);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Stale-while-revalidate on mount: load cloud configs if user is logged in
@@ -726,8 +728,16 @@ export default function Home() {
       }
     } catch (_) {}
 
-    // Initial pull from cloud
-    pullFromCloud({ force: true });
+    // Initial pull from cloud (deferred to microtask to avoid sync setState in effect)
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        pullFromCloud({ force: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   // Only run once on mount (username stable)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1129,106 +1139,112 @@ export default function Home() {
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
     if (!initDone) return;
-    if (activeGroups.length === 0) {
-      setSemesterTimetable([]);
-      setLoadingTimetable(false);
-      return;
-    }
 
-    const today = new Date();
-    const month = today.getMonth();
-    const year = today.getFullYear();
-    const startYear = month >= 7 ? year : year - 1;
-
-    const startDate = new Date(startYear, 8, 1); // Sept 1
-    const endDate = new Date(startYear + 1, 5, 30); // June 30
-
-    const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
-    const cacheKey = `ehuntis_timetable_cache_v3_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
-
-    const isForce = forceNextFetchRef.current;
-    forceNextFetchRef.current = false;
-
-    let hasFreshCache = false;
-
-    if (!isForce) {
-      try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed?.data)) {
-            setSemesterTimetable(parsed.data);
-            // Stale-While-Revalidate: si la caché local tiene menos de 2 horas, se considera fresca.
-            // Si tiene más de 2 horas, mostramos parsed.data inmediatamente (0ms)
-            // y a continuación revalidamos en segundo plano con la API de Vercel.
-            if (Date.now() - parsed.timestamp < 2 * 60 * 60 * 1000) {
-              hasFreshCache = true;
-            }
-          }
-        }
-      } catch (e) {}
-    }
-
-    if (hasFreshCache) {
-      setLoadingTimetable(false);
-      return;
-    }
-
-    setLoadingTimetable(true);
     const abortController = new AbortController();
 
-    const startStr = startDate.toISOString();
-    const endStr = endDate.toISOString();
-    const forceQuery = isForce ? `&force=1&t=${Date.now()}` : '';
+    Promise.resolve().then(() => {
+      if (abortController.signal.aborted) return;
 
-    // Usar 'no-store' en el fetch del cliente para que Vercel CDN no sirva su propia caché
-    // y vaya directamente a buscar datos frescos de WebUntis.
-    // Sin esto, Vercel puede devolver datos con hasta 6h de antigüedad aunque el
-    // localStorage local tenga más de 2h y haya lanzado este fetch de revalidación.
-    fetch(`/api/timetable?classIds=${ids}&startDate=${startStr}&endDate=${endStr}${forceQuery}`, {
-      signal: abortController.signal,
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(d => { 
-        if (abortController.signal.aborted) return;
-        if (!d.error && Array.isArray(d)) {
-          // Guard: do NOT overwrite a valid cache with an empty/suspicious response.
-          // If the API returns fewer than 10 lessons for the whole year, something is wrong
-          // (e.g. new academic year IDs not yet published in WebUntis, or a transient error).
-          // In that case, keep the previous cached data and do NOT update the cache timestamp.
-          if (d.length < 10) {
-            console.warn('[EHUntis] Timetable fetch returned suspiciously few lessons (' + d.length + '). Not overwriting cache.');
-            setSemesterTimetable(prev => prev.length === 0 ? d : prev);
-            return;
+      if (activeGroups.length === 0) {
+        setSemesterTimetable([]);
+        setLoadingTimetable(false);
+        return;
+      }
+
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      const startYear = month >= 7 ? year : year - 1;
+
+      const startDate = new Date(startYear, 8, 1); // Sept 1
+      const endDate = new Date(startYear + 1, 5, 30); // June 30
+
+      const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
+      const cacheKey = `ehuntis_timetable_cache_v3_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
+
+      const isForce = forceNextFetchRef.current;
+      forceNextFetchRef.current = false;
+
+      let hasFreshCache = false;
+
+      if (!isForce) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed?.data)) {
+              setSemesterTimetable(parsed.data);
+              // Stale-While-Revalidate: si la caché local tiene menos de 2 horas, se considera fresca.
+              // Si tiene más de 2 horas, mostramos parsed.data inmediatamente (0ms)
+              // y a continuación revalidamos en segundo plano con la API de Vercel.
+              if (Date.now() - parsed.timestamp < 2 * 60 * 60 * 1000) {
+                hasFreshCache = true;
+              }
+            }
           }
-          setSemesterTimetable(d); 
-          try {
-            const cachePayload = {
-              timestamp: Date.now(),
-              data: d
-            };
-            localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
-            localStorage.setItem(LAST_TIMETABLE_CACHE_KEY, JSON.stringify(cachePayload));
-          } catch(e) {}
-        }
+        } catch (_) {}
+      }
+
+      if (hasFreshCache) {
+        setLoadingTimetable(false);
+        return;
+      }
+
+      setLoadingTimetable(true);
+
+      const startStr = startDate.toISOString();
+      const endStr = endDate.toISOString();
+      const forceQuery = isForce ? `&force=1&t=${Date.now()}` : '';
+
+      // Usar 'no-store' en el fetch del cliente para que Vercel CDN no sirva su propia caché
+      // y vaya directamente a buscar datos frescos de WebUntis.
+      // Sin esto, Vercel puede devolver datos con hasta 6h de antigüedad aunque el
+      // localStorage local tenga más de 2h y haya lanzado este fetch de revalidación.
+      fetch(`/api/timetable?classIds=${ids}&startDate=${startStr}&endDate=${endStr}${forceQuery}`, {
+        signal: abortController.signal,
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       })
-      .catch(err => {
-        if (err.name === 'AbortError') return;
-        console.error('Timetable fetch error:', err);
-      })
-      .finally(() => {
-        if (!abortController.signal.aborted) {
-          setLoadingTimetable(false);
-        }
-      });
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(d => {
+          if (abortController.signal.aborted) return;
+          if (!d.error && Array.isArray(d)) {
+            // Guard: do NOT overwrite a valid cache with an empty/suspicious response.
+            // If the API returns fewer than 10 lessons for the whole year, something is wrong
+            // (e.g. new academic year IDs not yet published in WebUntis, or a transient error).
+            // In that case, keep the previous cached data and do NOT update the cache timestamp.
+            if (d.length < 10) {
+              console.warn('[EHUntis] Timetable fetch returned suspiciously few lessons (' + d.length + '). Not overwriting cache.');
+              setSemesterTimetable(prev => prev.length === 0 ? d : prev);
+              return;
+            }
+            setSemesterTimetable(d);
+            try {
+              const cachePayload = {
+                timestamp: Date.now(),
+                data: d
+              };
+              localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+              localStorage.setItem(LAST_TIMETABLE_CACHE_KEY, JSON.stringify(cachePayload));
+            } catch (_) {}
+          }
+        })
+        .catch(err => {
+          if (err.name === 'AbortError') return;
+          console.error('Timetable fetch error:', err);
+        })
+        .finally(() => {
+          if (!abortController.signal.aborted) {
+            setLoadingTimetable(false);
+          }
+        });
+    });
 
     return () => {
       abortController.abort();
@@ -1405,9 +1421,16 @@ export default function Home() {
 
     const cleaned = cleanObsoleteLessonOverrides(lessonOverrides, filteredTimetable);
     if (cleaned !== lessonOverrides && Object.keys(cleaned).length !== Object.keys(lessonOverrides).length) {
-      isUserDirtyRef.current = true;
-      setLessonOverrides(cleaned);
-      saveStoredLessonOverrides(cleaned);
+      let cancelled = false;
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        isUserDirtyRef.current = true;
+        setLessonOverrides(cleaned);
+        saveStoredLessonOverrides(cleaned);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [filteredTimetable, lessonOverrides]);
 
@@ -2243,6 +2266,7 @@ export default function Home() {
 
       {(calendarSwapTarget || showSwapListModal || swappingLesson) && (calendarSwapOrigin || swappingLesson) && (
         <SwapLessonModal
+          key={calendarSwapTarget?.lessonKey || 'list'}
           lesson={calendarSwapOrigin || swappingLesson}
           targetLesson={calendarSwapTarget}
           candidateLessons={swapCandidateLessons}

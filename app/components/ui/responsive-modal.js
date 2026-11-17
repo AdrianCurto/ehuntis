@@ -17,21 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from './sheet';
-
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = React.useState(false);
-
-  React.useEffect(() => {
-    const media = window.matchMedia('(min-width: 641px)');
-    setIsDesktop(media.matches);
-
-    const handler = (e) => setIsDesktop(e.matches);
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, []);
-
-  return isDesktop;
-}
+import { useIsDesktop } from '@/app/utils/useMediaQuery';
 
 export function ResponsiveModal({
   open,
