@@ -59,11 +59,10 @@ data class SwappedWithDto(
 
 @Serializable
 data class LessonSnapshotDto(
-    val id: Long? = null,
     val date: Int? = null,
     val startTime: Int? = null,
     val endTime: Int? = null,
-    val rooms: List<String>? = null,
+    val rooms: List<String?>? = null,
     val code: String? = null
 )
 
@@ -77,7 +76,7 @@ data class LessonOverrideDto(
     val ignoreOfficialCancellation: Boolean? = null,
     val customStartTime: Int? = null,
     val customEndTime: Int? = null,
-    val customRooms: List<String>? = null,
+    val customRooms: List<String?>? = null,
     val customNotes: String? = null,
     val swappedWith: SwappedWithDto? = null,
     val originalSnapshot: LessonSnapshotDto? = null,

@@ -192,7 +192,6 @@ class ExtendedCustomEventsLogicTest {
                 lessonId = 501L,
                 customRooms = listOf("P3G2A"),
                 originalSnapshot = LessonSnapshotDto(
-                    id = 501L,
                     date = 20261109,
                     startTime = 830,
                     endTime = 1030,
@@ -223,7 +222,6 @@ class ExtendedCustomEventsLogicTest {
                 customRooms = listOf("P3G2A"),
                 customNotes = "Llevar portátil",
                 originalSnapshot = LessonSnapshotDto(
-                    id = 502L,
                     date = 20261109,
                     startTime = 830,
                     endTime = 1030,
@@ -254,7 +252,6 @@ class ExtendedCustomEventsLogicTest {
                 lessonId = 503L,
                 customDate = 20261112,
                 originalSnapshot = LessonSnapshotDto(
-                    id = 503L,
                     date = 20261109,
                     startTime = 830,
                     endTime = 1030,

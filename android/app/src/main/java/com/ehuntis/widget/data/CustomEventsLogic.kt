@@ -14,10 +14,11 @@ object CustomEventsLogic {
      * Normaliza una lista de aulas para comparación fiable (sin espacios, sin sufijos _id,
      * sin tildes, minúsculas, deduplicadas y ordenadas). Ej.: "P3 G2A" == "P3G2A".
      */
-    fun normalizeRooms(rooms: List<String>?): List<String> {
+    fun normalizeRooms(rooms: List<String?>?): List<String> {
         if (rooms.isNullOrEmpty()) return emptyList()
         val seen = LinkedHashSet<String>()
         for (entry in rooms) {
+            if (entry == null) continue
             for (part in entry.split(",")) {
                 val cleaned = part.trim().replace(ROOM_SUFFIX_REGEX, "")
                 if (cleaned.isEmpty()) continue
@@ -33,7 +34,7 @@ object CustomEventsLogic {
         return seen.sorted()
     }
 
-    fun areRoomsEqual(roomsA: List<String>?, roomsB: List<String>?): Boolean {
+    fun areRoomsEqual(roomsA: List<String?>?, roomsB: List<String?>?): Boolean {
         return normalizeRooms(roomsA) == normalizeRooms(roomsB)
     }
 
@@ -71,7 +72,7 @@ object CustomEventsLogic {
 
             val key = getLessonOverrideKey(lesson)
             val ov = overrides[key]
-                ?: if (lesson.id != null) overridesList.firstOrNull { it.lessonId == lesson.id } else null
+                ?: if (lesson.id != null && lesson.id != 0L) overridesList.firstOrNull { it.lessonId == lesson.id } else null
 
             if (ov == null) {
                 lesson
@@ -108,7 +109,7 @@ object CustomEventsLogic {
                 val customRooms = ov.customRooms
                 val userModifiedRoom = customRooms != null && !areRoomsEqual(customRooms, baseRooms)
                 val effectiveRoomsChange = userModifiedRoom && !areRoomsEqual(customRooms, officialRooms)
-                val finalRooms = if (effectiveRoomsChange) customRooms else officialRooms
+                val finalRooms = if (effectiveRoomsChange) customRooms.filterNotNull() else officialRooms
 
                 // 4. Swap (solo sigue activo si aún difiere algún campo posicional)
                 val hasPositionalChange = effectiveDateChange || effectiveTimeChange || effectiveRoomsChange

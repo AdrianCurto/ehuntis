@@ -1125,16 +1125,16 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
 
     const key = getLessonOverrideKey(lesson);
     let ov = overrides[key];
-    if (!ov && lesson.id !== undefined && lesson.id !== null) {
+    if (!ov && lesson.id !== undefined && lesson.id !== null && lesson.id !== 0) {
       ov = overridesList.find(o => o && o.lessonId === lesson.id);
     }
 
-    if (!ov) return lesson;
+    if (!ov || typeof ov !== "object") return lesson;
 
     const officialDate = toDateNumber(lesson.date);
     const officialStart = lesson.startTime;
     const officialEnd = lesson.endTime;
-    const officialRooms = lesson.rooms || [];
+    const officialRooms = Array.isArray(lesson.rooms) ? lesson.rooms : [];
     const officialCode = lesson.code || null;
     const isOfficialCancelled = officialCode === "cancelled";
 
@@ -1142,7 +1142,7 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
     const snap = hasSnap ? ov.originalSnapshot : null;
 
     // 1. Fecha
-    const baseDate = hasSnap && snap.date !== undefined ? toDateNumber(snap.date) : officialDate;
+    const baseDate = hasSnap && snap.date != null ? toDateNumber(snap.date) : officialDate;
     const hasCustomDate = ov.customDate !== undefined && ov.customDate !== null;
     const customDateNum = hasCustomDate ? toDateNumber(ov.customDate) : null;
     const userModifiedDate = hasCustomDate && customDateNum !== baseDate;
@@ -1150,8 +1150,8 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
     const finalDate = effectiveDateChange ? customDateNum : officialDate;
 
     // 2. Horario (atómico startTime + endTime)
-    const baseStart = hasSnap && snap.startTime !== undefined ? snap.startTime : officialStart;
-    const baseEnd = hasSnap && snap.endTime !== undefined ? snap.endTime : officialEnd;
+    const baseStart = hasSnap && snap.startTime != null ? snap.startTime : officialStart;
+    const baseEnd = hasSnap && snap.endTime != null ? snap.endTime : officialEnd;
     const hasCustomStart = ov.customStartTime !== undefined && ov.customStartTime !== null;
     const hasCustomEnd = ov.customEndTime !== undefined && ov.customEndTime !== null;
     const userStart = hasCustomStart ? ov.customStartTime : baseStart;
@@ -1164,11 +1164,14 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
     const finalEnd = effectiveTimeChange ? userEnd : officialEnd;
 
     // 3. Aulas
-    const baseRooms = hasSnap && snap.rooms !== undefined ? (snap.rooms || []) : officialRooms;
+    const baseRooms = hasSnap && snap.rooms != null ? (Array.isArray(snap.rooms) ? snap.rooms : [String(snap.rooms)]) : officialRooms;
     const hasCustomRooms = ov.customRooms !== undefined && ov.customRooms !== null;
-    const userModifiedRoom = hasCustomRooms && !areOverrideRoomsEqual(ov.customRooms, baseRooms);
-    const effectiveRoomsChange = userModifiedRoom && !areOverrideRoomsEqual(ov.customRooms, officialRooms);
-    const finalRooms = effectiveRoomsChange ? ov.customRooms : officialRooms;
+    const customRoomsArr = hasCustomRooms
+      ? (Array.isArray(ov.customRooms) ? ov.customRooms.filter(r => r != null) : [String(ov.customRooms)])
+      : null;
+    const userModifiedRoom = hasCustomRooms && !areOverrideRoomsEqual(customRoomsArr, baseRooms);
+    const effectiveRoomsChange = userModifiedRoom && !areOverrideRoomsEqual(customRoomsArr, officialRooms);
+    const finalRooms = effectiveRoomsChange ? customRoomsArr : officialRooms;
 
     // 4. Swap (solo sigue activo si aún difiere algún campo posicional)
     const hasPositionalChange = effectiveDateChange || effectiveTimeChange || effectiveRoomsChange;

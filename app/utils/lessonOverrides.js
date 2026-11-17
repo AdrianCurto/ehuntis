@@ -407,12 +407,12 @@ function reconcileOverrideWithLesson(lesson, override) {
   };
 
   // ── 1. Fecha (date) ────────────────────────────────────────────────────────
-  const baseDate = hasSnap && snap.date !== undefined ? snap.date : official.date;
+  const baseDate = hasSnap && snap.date != null ? snap.date : official.date;
   const hasCustomDate = override.customDate !== undefined && override.customDate !== null;
   const userModifiedDate =
-    hasCustomDate && baseDate !== undefined && Number(override.customDate) !== Number(baseDate);
+    hasCustomDate && baseDate != null && Number(override.customDate) !== Number(baseDate);
   const remoteChangedDate =
-    hasSnap && snap.date !== undefined && official.date !== undefined && Number(snap.date) !== Number(official.date);
+    hasSnap && snap.date != null && official.date != null && Number(snap.date) !== Number(official.date);
 
   let hasActiveDate = false;
   if (!userModifiedDate) {
@@ -443,20 +443,20 @@ function reconcileOverrideWithLesson(lesson, override) {
   }
 
   // ── 2. Horario (time: par atómico startTime + endTime) ─────────────────────
-  const baseStart = hasSnap && snap.startTime !== undefined ? snap.startTime : official.startTime;
-  const baseEnd = hasSnap && snap.endTime !== undefined ? snap.endTime : official.endTime;
+  const baseStart = hasSnap && snap.startTime != null ? snap.startTime : official.startTime;
+  const baseEnd = hasSnap && snap.endTime != null ? snap.endTime : official.endTime;
   const hasCustomStart = override.customStartTime !== undefined && override.customStartTime !== null;
   const hasCustomEnd = override.customEndTime !== undefined && override.customEndTime !== null;
   const userStart = hasCustomStart ? override.customStartTime : baseStart;
   const userEnd = hasCustomEnd ? override.customEndTime : baseEnd;
 
   const userModifiedTime =
-    (hasCustomStart && baseStart !== undefined && override.customStartTime !== baseStart) ||
-    (hasCustomEnd && baseEnd !== undefined && override.customEndTime !== baseEnd);
+    (hasCustomStart && baseStart != null && override.customStartTime !== baseStart) ||
+    (hasCustomEnd && baseEnd != null && override.customEndTime !== baseEnd);
   const remoteChangedTime =
     hasSnap &&
-    ((snap.startTime !== undefined && official.startTime !== undefined && snap.startTime !== official.startTime) ||
-      (snap.endTime !== undefined && official.endTime !== undefined && snap.endTime !== official.endTime));
+    ((snap.startTime != null && official.startTime != null && snap.startTime !== official.startTime) ||
+      (snap.endTime != null && official.endTime != null && snap.endTime !== official.endTime));
 
   let hasActiveTime = false;
   if (!userModifiedTime) {
@@ -509,7 +509,7 @@ function reconcileOverrideWithLesson(lesson, override) {
   }
 
   // ── 3. Aula (room) ─────────────────────────────────────────────────────────
-  const baseRooms = hasSnap && snap.rooms !== undefined ? snap.rooms : official.rooms;
+  const baseRooms = hasSnap && snap.rooms != null ? snap.rooms : official.rooms;
   const hasCustomRooms = override.customRooms !== undefined && override.customRooms !== null;
   const userModifiedRoom = hasCustomRooms && !areRoomsEqual(override.customRooms, baseRooms);
   const remoteChangedRoom = hasSnap && !areRoomsEqual(snap.rooms ?? [], official.rooms);

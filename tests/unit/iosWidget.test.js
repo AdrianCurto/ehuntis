@@ -214,6 +214,23 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.equal(res.date, 20261112);
       assert.equal(res.code, null);
     });
+
+    test('3-way reconciliation: resilient against null fields in originalSnapshot and non-array customRooms', () => {
+      const lesson = { id: 447, date: 20261109, startTime: 830, endTime: 1030, rooms: ['P3 G2A'], code: null };
+      const overrides = {
+        '20261109_447': {
+          lessonKey: '20261109_447',
+          lessonId: 447,
+          customDate: 20261109,
+          customRooms: 'P3G2A',
+          originalSnapshot: { date: null, startTime: null, endTime: null, rooms: null, code: null },
+        },
+      };
+      const [res] = widgetEnv.applyLessonOverrides([lesson], overrides);
+      assert.equal(Boolean(res.isOverridden), false);
+      assert.equal(res.date, 20261109);
+      assert.deepEqual([...res.rooms], ['P3 G2A']);
+    });
   });
 
   describe('getDeviceWidgetSize in iOS script', () => {
