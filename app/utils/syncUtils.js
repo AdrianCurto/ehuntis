@@ -3,6 +3,8 @@
  * and smart merging between local and cloud configurations and custom events.
  */
 
+const { normalizeRooms } = require('./lessonOverrides');
+
 /**
  * Checks whether the given configuration array or custom events contain non-trivial custom data.
  * A pristine/default installation (e.g. 1 configuration with 0 selected groups,
@@ -320,14 +322,26 @@ function areLessonOverridesEquivalent(ovA, ovB) {
 
   const normalizeOverride = (o) => {
     if (!o || typeof o !== 'object') return {};
+    const snap = o.originalSnapshot && typeof o.originalSnapshot === 'object'
+      ? {
+          date: o.originalSnapshot.date ?? null,
+          startTime: o.originalSnapshot.startTime ?? null,
+          endTime: o.originalSnapshot.endTime ?? null,
+          rooms: normalizeRooms(o.originalSnapshot.rooms),
+          code: o.originalSnapshot.code ?? null,
+        }
+      : null;
     return {
       lessonKey: o.lessonKey,
       userCancelled: Boolean(o.userCancelled),
-      customStartTime: o.customStartTime,
-      customEndTime: o.customEndTime,
-      customRooms: Array.isArray(o.customRooms) ? [...o.customRooms].sort() : [],
+      ignoreOfficialCancellation: Boolean(o.ignoreOfficialCancellation),
+      customDate: o.customDate ?? null,
+      customStartTime: o.customStartTime ?? null,
+      customEndTime: o.customEndTime ?? null,
+      customRooms: o.customRooms !== undefined && o.customRooms !== null ? normalizeRooms(o.customRooms) : null,
       customNotes: (o.customNotes || '').trim(),
       swappedWithKey: o.swappedWith?.lessonKey || null,
+      originalSnapshot: snap,
     };
   };
 

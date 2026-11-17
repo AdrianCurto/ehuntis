@@ -27,7 +27,8 @@ import {
   resolveDrift,
   swapLessons,
   formatTime,
-  cleanObsoleteLessonOverrides,
+  findOverrideEntry,
+  reconcileLessonOverrides,
 } from './utils/lessonOverrides';
 import {
   getResolvedTargetDate,
@@ -1414,25 +1415,26 @@ export default function Home() {
     return applyLessonOverrides(filteredTimetable, lessonOverrides);
   }, [filteredTimetable, lessonOverrides]);
 
-  // Auto-eliminar overrides que vuelven a ser idénticos al horario oficial tras actualizaciones de WebUntis
+  // Reconciliación automática 3-way de overrides contra el horario oficial de WebUntis:
+  // elimina overrides convergentes, limpia campos no conflictivos/convergentes, avanza snapshot y migra claves
   useEffect(() => {
-    if (!filteredTimetable || filteredTimetable.length === 0) return;
+    if (!semesterTimetable || semesterTimetable.length === 0) return;
     if (!lessonOverrides || Object.keys(lessonOverrides).length === 0) return;
 
-    const cleaned = cleanObsoleteLessonOverrides(lessonOverrides, filteredTimetable);
-    if (cleaned !== lessonOverrides && Object.keys(cleaned).length !== Object.keys(lessonOverrides).length) {
+    const reconciled = reconcileLessonOverrides(lessonOverrides, semesterTimetable);
+    if (reconciled !== lessonOverrides) {
       let cancelled = false;
       Promise.resolve().then(() => {
         if (cancelled) return;
         isUserDirtyRef.current = true;
-        setLessonOverrides(cleaned);
-        saveStoredLessonOverrides(cleaned);
+        setLessonOverrides(reconciled);
+        saveStoredLessonOverrides(reconciled);
       });
       return () => {
         cancelled = true;
       };
     }
-  }, [filteredTimetable, lessonOverrides]);
+  }, [semesterTimetable, lessonOverrides]);
 
   const combinedTimetable = useMemo(() => {
     return [...timetableWithOverrides, ...expandedCustomEvents];
@@ -1573,7 +1575,10 @@ export default function Home() {
     isUserDirtyRef.current = true;
     let removedEntries = null;
     setLessonOverrides(prev => {
-      const key = typeof lessonOrKey === 'string' ? lessonOrKey : (lessonOrKey.lessonKey || getLessonKey(lessonOrKey));
+      const found = typeof lessonOrKey === 'object' && lessonOrKey ? findOverrideEntry(prev, lessonOrKey) : null;
+      const key = typeof lessonOrKey === 'string'
+        ? lessonOrKey
+        : (found?.key || lessonOrKey.lessonKey || getLessonKey(lessonOrKey));
       const partnerKey = (typeof lessonOrKey === 'object' && lessonOrKey?.swappedWith?.lessonKey) || prev[key]?.swappedWith?.lessonKey;
       removedEntries = {};
       if (prev[key]) removedEntries[key] = prev[key];

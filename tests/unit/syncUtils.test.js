@@ -133,6 +133,42 @@ describe('syncUtils suite: cloud synchronization and 3-way merge', () => {
       const ovB = { '20261109_100': { userCancelled: false } };
       assert.equal(areLessonOverridesEquivalent(ovA, ovB), false);
     });
+
+    test('detects differences in customDate, ignoreOfficialCancellation and originalSnapshot while normalizing rooms', () => {
+      const base = {
+        '20261109_100': {
+          lessonKey: '20261109_100',
+          customDate: 20261110,
+          customRooms: ['P3 G2A'],
+          originalSnapshot: { date: 20261109, startTime: 900, endTime: 1100, rooms: ['Aula 1'], code: null },
+        },
+      };
+      const equivalentRoomSpacing = {
+        '20261109_100': {
+          lessonKey: '20261109_100',
+          customDate: 20261110,
+          customRooms: ['P3G2A'],
+          originalSnapshot: { date: 20261109, startTime: 900, endTime: 1100, rooms: ['Aula1'], code: null },
+        },
+      };
+      const diffDate = {
+        '20261109_100': { ...base['20261109_100'], customDate: 20261111 },
+      };
+      const diffSnap = {
+        '20261109_100': {
+          ...base['20261109_100'],
+          originalSnapshot: { date: 20261109, startTime: 1000, endTime: 1200, rooms: ['Aula 1'], code: null },
+        },
+      };
+      const diffIgnoreCancel = {
+        '20261109_100': { ...base['20261109_100'], ignoreOfficialCancellation: true },
+      };
+
+      assert.equal(areLessonOverridesEquivalent(base, equivalentRoomSpacing), true);
+      assert.equal(areLessonOverridesEquivalent(base, diffDate), false);
+      assert.equal(areLessonOverridesEquivalent(base, diffSnap), false);
+      assert.equal(areLessonOverridesEquivalent(base, diffIgnoreCancel), false);
+    });
   });
 
   describe('mergeCustomEvents', () => {

@@ -222,5 +222,26 @@ describe('Full Timetable Workflow & Multi-device Sync Integration', () => {
     const resolvedOverrides = resolveDrift(lessonOverrides, freshWebUntisLesson, 'keep_local');
     const driftAfterKeep = checkRemoteDrift(freshWebUntisLesson, resolvedOverrides['20261109_502']);
     assert.equal(driftAfterKeep, null); // Drift cleared!
+
+    // ── 10. Orthogonal update + partial convergence preserving notes ────────
+    // User edits Química (503): adds a note and changes room to P3G2A (time untouched)
+    let ov3 = setLessonOverride({}, officialLessons[2], {
+      customRooms: ['P3G2A'],
+      customNotes: 'Examen de laboratorio',
+    });
+    // WebUntis updates Química officially: changes time (untouched by user) AND sets room to 'P3 G2A' (converges!)
+    const updatedQuimica = {
+      ...officialLessons[2],
+      startTime: 1000,
+      endTime: 1200,
+      rooms: ['P3 G2A'],
+    };
+    assert.equal(checkRemoteDrift(updatedQuimica, ov3['20261110_503']), null);
+    const [appliedQuimica] = applyLessonOverrides([updatedQuimica], ov3);
+    assert.equal(appliedQuimica.hasRemoteDrift, false);
+    assert.equal(appliedQuimica.startTime, 1000);
+    assert.equal(appliedQuimica.endTime, 1200);
+    assert.deepEqual(appliedQuimica.rooms, ['P3 G2A']);
+    assert.equal(appliedQuimica.notes, 'Examen de laboratorio');
   });
 });

@@ -161,6 +161,59 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.equal(typeof res.date, 'number');
       assert.equal(res.date, 20261117);
     });
+
+    test('3-way reconciliation: room convergence with spaces (P3 G2A == P3G2A) unmarks override', () => {
+      const lesson = { id: 444, date: 20261109, startTime: 830, endTime: 1030, rooms: ['P3 G2A'], code: null };
+      const overrides = {
+        '20261109_444': {
+          lessonKey: '20261109_444',
+          lessonId: 444,
+          customRooms: ['P3G2A'],
+          originalSnapshot: { date: 20261109, startTime: 830, endTime: 1030, rooms: ['Aula 1.1'], code: null },
+        },
+      };
+      const [res] = widgetEnv.applyLessonOverrides([lesson], overrides);
+      assert.equal(Boolean(res.isOverridden), false);
+      assert.deepEqual([...res.rooms], ['P3 G2A']);
+    });
+
+    test('3-way reconciliation: legacy dense override lets untouched official room/time apply while keeping user note', () => {
+      const lesson = { id: 445, date: 20261109, startTime: 930, endTime: 1130, rooms: ['P1 I2S'], code: null };
+      const overrides = {
+        '20261109_445': {
+          lessonKey: '20261109_445',
+          lessonId: 445,
+          customDate: 20261109,
+          customStartTime: 830,
+          customEndTime: 1030,
+          customRooms: ['P3G2A'],
+          customNotes: 'Traer calculadora',
+          originalSnapshot: { date: 20261109, startTime: 830, endTime: 1030, rooms: ['P3 G2A'], code: null },
+        },
+      };
+      const [res] = widgetEnv.applyLessonOverrides([lesson], overrides);
+      assert.equal(res.isOverridden, true);
+      assert.equal(res.startTime, 930);
+      assert.equal(res.endTime, 1130);
+      assert.deepEqual([...res.rooms], ['P1 I2S']);
+      assert.equal(res.notes, 'Traer calculadora');
+    });
+
+    test('3-way reconciliation: official cancellation of moved class keeps moved class active (ignoreOfficialCancellation / conflict)', () => {
+      const cancelledOfficial = { id: 446, date: 20261109, startTime: 830, endTime: 1030, rooms: ['Aula 1'], code: 'cancelled' };
+      const overrides = {
+        '20261109_446': {
+          lessonKey: '20261109_446',
+          lessonId: 446,
+          customDate: 20261112,
+          originalSnapshot: { date: 20261109, startTime: 830, endTime: 1030, rooms: ['Aula 1'], code: null },
+        },
+      };
+      const [res] = widgetEnv.applyLessonOverrides([cancelledOfficial], overrides);
+      assert.equal(res.isOverridden, true);
+      assert.equal(res.date, 20261112);
+      assert.equal(res.code, null);
+    });
   });
 
   describe('getDeviceWidgetSize in iOS script', () => {

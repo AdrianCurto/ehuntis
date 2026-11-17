@@ -1070,8 +1070,47 @@ function getLessonOverrideKey(lesson) {
 }
 
 /**
- * Aplica los overrides sobre la lista de clases oficiales de WebUntis.
- * Modifica horarios, aula, notas, estado de cancelación visual (userCancelled) o swaps.
+ * Normaliza una lista o string de aulas para comparación insensible a espacios,
+ * sufijos internos (_14838), tildes, mayúsculas y orden (ej. "P3 G2A" == "P3G2A").
+ */
+function normalizeOverrideRooms(rooms) {
+  if (!rooms) return [];
+  const list = Array.isArray(rooms) ? rooms : [rooms];
+  const seen = new Set();
+  const result = [];
+  for (const entry of list) {
+    if (entry === null || entry === undefined) continue;
+    const parts = String(entry).split(",");
+    for (const part of parts) {
+      const cleaned = part.trim().replace(/_\d+$/, "");
+      if (!cleaned) continue;
+      const token = cleaned
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+      if (token && !seen.has(token)) {
+        seen.add(token);
+        result.push(token);
+      }
+    }
+  }
+  result.sort();
+  return result;
+}
+
+function areOverrideRoomsEqual(roomsA, roomsB) {
+  const normA = normalizeOverrideRooms(roomsA);
+  const normB = normalizeOverrideRooms(roomsB);
+  if (normA.length !== normB.length) return false;
+  return normA.every((r, idx) => r === normB[idx]);
+}
+
+/**
+ * Aplica los overrides sobre la lista de clases oficiales de WebUntis con reconciliación 3-way:
+ * - Si WebUntis cambia un campo no modificado por el usuario (según originalSnapshot), aplica el valor oficial.
+ * - Si WebUntis converge al valor del usuario (incluyendo espacios en aulas: P3 G2A == P3G2A), desmarca ese cambio.
+ * - Si no queda ningún cambio real del usuario, devuelve la clase oficial sin marcarla como editada.
  */
 function applyLessonOverrides(lessons = [], overrides = {}) {
   if (!Array.isArray(lessons)) return [];
@@ -1087,18 +1126,80 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
     const key = getLessonOverrideKey(lesson);
     let ov = overrides[key];
     if (!ov && lesson.id !== undefined && lesson.id !== null) {
-      ov = overridesList.find(o => o.lessonId === lesson.id);
+      ov = overridesList.find(o => o && o.lessonId === lesson.id);
     }
 
     if (!ov) return lesson;
 
-    const isUserCancelled = Boolean(ov.userCancelled);
-    const hasNotes = typeof ov.customNotes === 'string' && ov.customNotes.trim() !== '';
-    const hasDateChange = ov.customDate !== undefined && ov.customDate !== null && toDateNumber(ov.customDate) !== toDateNumber(lesson.date);
-    const hasStartChange = ov.customStartTime !== undefined && ov.customStartTime !== null && ov.customStartTime !== lesson.startTime;
-    const hasEndChange = ov.customEndTime !== undefined && ov.customEndTime !== null && ov.customEndTime !== lesson.endTime;
-    const hasRoomsChange = ov.customRooms !== undefined && ov.customRooms !== null && JSON.stringify(ov.customRooms) !== JSON.stringify(lesson.rooms);
-    const hasChanges = isUserCancelled || Boolean(ov.swappedWith) || hasNotes || hasDateChange || hasStartChange || hasEndChange || hasRoomsChange;
+    const officialDate = toDateNumber(lesson.date);
+    const officialStart = lesson.startTime;
+    const officialEnd = lesson.endTime;
+    const officialRooms = lesson.rooms || [];
+    const officialCode = lesson.code || null;
+    const isOfficialCancelled = officialCode === "cancelled";
+
+    const hasSnap = Boolean(ov.originalSnapshot && typeof ov.originalSnapshot === "object");
+    const snap = hasSnap ? ov.originalSnapshot : null;
+
+    // 1. Fecha
+    const baseDate = hasSnap && snap.date !== undefined ? toDateNumber(snap.date) : officialDate;
+    const hasCustomDate = ov.customDate !== undefined && ov.customDate !== null;
+    const customDateNum = hasCustomDate ? toDateNumber(ov.customDate) : null;
+    const userModifiedDate = hasCustomDate && customDateNum !== baseDate;
+    const effectiveDateChange = userModifiedDate && customDateNum !== officialDate;
+    const finalDate = effectiveDateChange ? customDateNum : officialDate;
+
+    // 2. Horario (atómico startTime + endTime)
+    const baseStart = hasSnap && snap.startTime !== undefined ? snap.startTime : officialStart;
+    const baseEnd = hasSnap && snap.endTime !== undefined ? snap.endTime : officialEnd;
+    const hasCustomStart = ov.customStartTime !== undefined && ov.customStartTime !== null;
+    const hasCustomEnd = ov.customEndTime !== undefined && ov.customEndTime !== null;
+    const userStart = hasCustomStart ? ov.customStartTime : baseStart;
+    const userEnd = hasCustomEnd ? ov.customEndTime : baseEnd;
+    const userModifiedTime =
+      (hasCustomStart && ov.customStartTime !== baseStart) ||
+      (hasCustomEnd && ov.customEndTime !== baseEnd);
+    const effectiveTimeChange = userModifiedTime && (userStart !== officialStart || userEnd !== officialEnd);
+    const finalStart = effectiveTimeChange ? userStart : officialStart;
+    const finalEnd = effectiveTimeChange ? userEnd : officialEnd;
+
+    // 3. Aulas
+    const baseRooms = hasSnap && snap.rooms !== undefined ? (snap.rooms || []) : officialRooms;
+    const hasCustomRooms = ov.customRooms !== undefined && ov.customRooms !== null;
+    const userModifiedRoom = hasCustomRooms && !areOverrideRoomsEqual(ov.customRooms, baseRooms);
+    const effectiveRoomsChange = userModifiedRoom && !areOverrideRoomsEqual(ov.customRooms, officialRooms);
+    const finalRooms = effectiveRoomsChange ? ov.customRooms : officialRooms;
+
+    // 4. Swap (solo sigue activo si aún difiere algún campo posicional)
+    const hasPositionalChange = effectiveDateChange || effectiveTimeChange || effectiveRoomsChange;
+    const activeSwap = (ov.swappedWith && hasPositionalChange) ? ov.swappedWith : null;
+
+    // 5. Cancelación
+    const rawUserCancelled = Boolean(ov.userCancelled);
+    const effectiveUserCancelled = rawUserCancelled && !isOfficialCancelled;
+    const wasOfficialCancelled = hasSnap ? snap.code === "cancelled" : false;
+    const pendingCancelConflict =
+      hasSnap && !wasOfficialCancelled && isOfficialCancelled && !rawUserCancelled &&
+      !ov.ignoreOfficialCancellation && (hasPositionalChange || Boolean(activeSwap));
+    const effectiveIgnoreOfficialCancel =
+      (Boolean(ov.ignoreOfficialCancellation) || pendingCancelConflict) && isOfficialCancelled;
+
+    let finalCode = officialCode;
+    if (effectiveUserCancelled) {
+      finalCode = "cancelled";
+    } else if (effectiveIgnoreOfficialCancel) {
+      finalCode = null;
+    }
+
+    // 6. Notas
+    const hasNotes = typeof ov.customNotes === "string" && ov.customNotes.trim() !== "";
+
+    const hasChanges =
+      effectiveUserCancelled ||
+      effectiveIgnoreOfficialCancel ||
+      Boolean(activeSwap) ||
+      hasNotes ||
+      hasPositionalChange;
 
     if (!hasChanges) return lesson;
 
@@ -1106,19 +1207,19 @@ function applyLessonOverrides(lessons = [], overrides = {}) {
       ...lesson,
       lessonKey: key,
       isOverridden: true,
-      date: ov.customDate !== undefined ? toDateNumber(ov.customDate) : toDateNumber(lesson.date),
-      rawDate: toDateNumber(lesson.date),
-      rawStartTime: lesson.startTime,
-      rawEndTime: lesson.endTime,
-      rawRooms: lesson.rooms,
-      rawCode: lesson.code,
-      startTime: ov.customStartTime !== undefined ? ov.customStartTime : lesson.startTime,
-      endTime: ov.customEndTime !== undefined ? ov.customEndTime : lesson.endTime,
-      rooms: ov.customRooms !== undefined ? ov.customRooms : lesson.rooms,
-      notes: ov.customNotes !== undefined ? ov.customNotes : (lesson.notes || ""),
-      isUserCancelled,
-      code: isUserCancelled ? "cancelled" : lesson.code,
-      swappedWith: ov.swappedWith || null,
+      date: finalDate,
+      rawDate: officialDate,
+      rawStartTime: officialStart,
+      rawEndTime: officialEnd,
+      rawRooms: officialRooms,
+      rawCode: officialCode,
+      startTime: finalStart,
+      endTime: finalEnd,
+      rooms: finalRooms,
+      notes: hasNotes ? ov.customNotes : (lesson.notes || ""),
+      isUserCancelled: effectiveUserCancelled,
+      code: finalCode,
+      swappedWith: activeSwap,
     };
   });
 }

@@ -7,6 +7,8 @@ const {
   getLessonKey,
   getStoredLessonOverrides,
   saveStoredLessonOverrides,
+  reconcileOverrideWithLesson,
+  reconcileLessonOverrides,
   checkRemoteDrift,
   applyLessonOverrides,
   setLessonOverride,
@@ -168,8 +170,8 @@ describe('lessonOverrides utility suite', () => {
     });
   });
 
-  describe('Drift detection and resolution', () => {
-    test('checkRemoteDrift detects time change in fresh WebUntis lesson', () => {
+  describe('Drift detection and resolution (3-way conflicts)', () => {
+    test('checkRemoteDrift detects conflict when both user and WebUntis change time to different values', () => {
       const freshLesson = {
         id: 400,
         date: 20261109,
@@ -179,6 +181,8 @@ describe('lessonOverrides utility suite', () => {
         code: null,
       };
       const override = {
+        customStartTime: 930,
+        customEndTime: 1130,
         originalSnapshot: {
           id: 400,
           date: 20261109,
@@ -195,9 +199,10 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(drift[0].field, 'time');
       assert.equal(drift[0].before, '09:00–11:00');
       assert.equal(drift[0].after, '10:00–12:00');
+      assert.equal(drift[0].userValue, '09:30–11:30');
     });
 
-    test('checkRemoteDrift detects room change and official cancellation', () => {
+    test('checkRemoteDrift detects room conflict and official cancellation conflict on edited class', () => {
       const freshLesson = {
         id: 500,
         date: 20261109,
@@ -207,6 +212,7 @@ describe('lessonOverrides utility suite', () => {
         code: 'cancelled',   // university cancelled officially
       };
       const override = {
+        customRooms: ['P3G2A'], // user also edited room to a different room
         originalSnapshot: {
           id: 500,
           date: 20261109,
@@ -223,6 +229,30 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(drift[0].field, 'room');
       assert.equal(drift[1].field, 'code');
       assert.equal(drift[1].after, 'Cancelada por la universidad');
+    });
+
+    test('checkRemoteDrift returns null when WebUntis updates fields the user did not modify', () => {
+      const freshLesson = {
+        id: 501,
+        date: 20261109,
+        startTime: 1000,
+        endTime: 1200,
+        rooms: ['P3 G2A'],
+        code: null,
+      };
+      const override = {
+        customNotes: 'Llevar calculadora',
+        originalSnapshot: {
+          id: 501,
+          date: 20261109,
+          startTime: 900,
+          endTime: 1100,
+          rooms: ['Aula 1.1'],
+          code: null,
+        },
+      };
+
+      assert.equal(checkRemoteDrift(freshLesson, override), null);
     });
 
     test('checkRemoteDrift returns null when WebUntis data matches original snapshot', () => {
@@ -346,7 +376,7 @@ describe('lessonOverrides utility suite', () => {
       // 2. Reactivar clase pero conservando la nota
       const step2 = setLessonOverride(step1, lesson, { userCancelled: false });
       assert.ok(step2['20261109_860'], 'El override debe mantenerse porque aún tiene notas personalizadas');
-      assert.equal(step2['20261109_860'].userCancelled, false);
+      assert.equal(Boolean(step2['20261109_860'].userCancelled), false);
       assert.equal(step2['20261109_860'].customNotes, 'Examen pospuesto');
 
       // 3. Quitar la nota (dejándola vacía)
@@ -509,19 +539,25 @@ describe('lessonOverrides utility suite', () => {
       assert.ok(ovA);
       assert.ok(ovB);
 
-      // Lesson A gets Lesson B's times, pero mantiene Aula A
+      // Lesson A gets Lesson B's times, y NO congela customRooms ni customDate (mantiene aula oficial)
       assert.equal(ovA.customStartTime, 1100);
       assert.equal(ovA.customEndTime, 1300);
-      assert.deepEqual(ovA.customRooms, ['Aula A']);
+      assert.equal(ovA.customRooms, undefined);
+      assert.equal(ovA.customDate, undefined);
       assert.equal(ovA.swappedWith.lessonKey, '20261109_1002');
       assert.equal(ovA.swappedWith.subjectName, 'Química');
 
-      // Lesson B gets Lesson A's times, pero mantiene Aula B
+      // Lesson B gets Lesson A's times, y NO congela customRooms ni customDate (mantiene aula oficial)
       assert.equal(ovB.customStartTime, 830);
       assert.equal(ovB.customEndTime, 1030);
-      assert.deepEqual(ovB.customRooms, ['Aula B']);
+      assert.equal(ovB.customRooms, undefined);
+      assert.equal(ovB.customDate, undefined);
       assert.equal(ovB.swappedWith.lessonKey, '20261109_1001');
       assert.equal(ovB.swappedWith.subjectName, 'Física');
+
+      const [appliedA, appliedB] = applyLessonOverrides([lessonA, lessonB], overrides);
+      assert.deepEqual(appliedA.rooms, ['Aula A']);
+      assert.deepEqual(appliedB.rooms, ['Aula B']);
 
       // Con swapRooms: true -> intercambian también las aulas
       const overridesSwappedRooms = swapLessons({}, lessonA, lessonB, { swapRooms: true });
@@ -554,11 +590,11 @@ describe('lessonOverrides utility suite', () => {
 
       assert.equal(ov2h.customStartTime, 1100);
       assert.equal(ov2h.customEndTime, 1300); // 11:00 + 120m = 13:00 (keeps 2h!)
-      assert.deepEqual(ov2h.customRooms, ['Aula 2H']); // maintains its room by default
+      assert.equal(ov2h.customRooms, undefined); // no congela aula oficial
 
       assert.equal(ov1h.customStartTime, 830);
       assert.equal(ov1h.customEndTime, 930); // 08:30 + 60m = 09:30 (keeps 1h!)
-      assert.deepEqual(ov1h.customRooms, ['Aula 1H']); // maintains its room by default
+      assert.equal(ov1h.customRooms, undefined); // no congela aula oficial
 
       // Explicit keepDuration: false -> snaps to existing slot bounds
       const swappedSnap = swapLessons({}, lesson2h, lesson1h, { keepDuration: false });
@@ -757,6 +793,356 @@ describe('lessonOverrides utility suite', () => {
 
       const cleaned = cleanObsoleteLessonOverrides(overrides, [updatedOfficialLesson]);
       assert.ok(cleaned['20261109_991'], 'El override se conserva porque contiene notas personales');
+    });
+  });
+
+  describe('3-way Reconciliation Engine (reconcileLessonOverrides & applyLessonOverrides)', () => {
+    const baseOfficial = {
+      id: 7001,
+      date: 20261109,
+      startTime: 830,
+      endTime: 1030,
+      rooms: ['P3 G2A'],
+      teachers: ['Prof A'],
+      code: null,
+      subjects: ['Algoritmos'],
+    };
+
+    test('sparse overrides: adding only a note omits untouched date/time/room fields', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customDate: 20261109,
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P3G2A'],
+        customNotes: 'Llevar portátil',
+      });
+      const ov = overrides['20261109_7001'];
+      assert.ok(ov);
+      assert.equal(ov.customNotes, 'Llevar portátil');
+      assert.equal(ov.customDate, undefined);
+      assert.equal(ov.customStartTime, undefined);
+      assert.equal(ov.customEndTime, undefined);
+      assert.equal(ov.customRooms, undefined);
+    });
+
+    test('orthogonal change: user adds note and WebUntis changes room -> applies room silently without conflict', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customDate: 20261109,
+        customStartTime: 830,
+        customEndTime: 1030,
+        customRooms: ['P3G2A'],
+        customNotes: 'Entregar práctica',
+      });
+
+      const updatedOfficial = { ...baseOfficial, rooms: ['P1 I2S'] };
+
+      // In-memory application on frame 0
+      const [applied] = applyLessonOverrides([updatedOfficial], overrides);
+      assert.equal(applied.isOverridden, true);
+      assert.equal(applied.hasRemoteDrift, false);
+      assert.equal(applied.driftChanges, null);
+      assert.deepEqual(applied.rooms, ['P1 I2S']);
+      assert.equal(applied.notes, 'Entregar práctica');
+
+      // Persisted reconciliation advances snapshot and is idempotent
+      const reconciled = reconcileLessonOverrides(overrides, [updatedOfficial]);
+      assert.notEqual(reconciled, overrides);
+      assert.deepEqual(reconciled['20261109_7001'].originalSnapshot.rooms, ['P1 I2S']);
+      assert.equal(reconciled['20261109_7001'].customRooms, undefined);
+      assert.equal(reconciled['20261109_7001'].customNotes, 'Entregar práctica');
+      assert.equal(reconcileLessonOverrides(reconciled, [updatedOfficial]), reconciled);
+    });
+
+    test('orthogonal change: user changes time/date and WebUntis changes room -> merges both without conflict', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customDate: 20261110,
+        customStartTime: 1100,
+        customEndTime: 1300,
+        customRooms: ['P3G2A'],
+        customNotes: '',
+      });
+
+      const updatedOfficial = { ...baseOfficial, rooms: ['Lab 4'] };
+      const [applied] = applyLessonOverrides([updatedOfficial], overrides);
+
+      assert.equal(applied.isOverridden, true);
+      assert.equal(applied.hasRemoteDrift, false);
+      assert.equal(applied.date, 20261110);
+      assert.equal(applied.startTime, 1100);
+      assert.equal(applied.endTime, 1300);
+      assert.deepEqual(applied.rooms, ['Lab 4']);
+    });
+
+    test('orthogonal change: legacy dense override (with frozen untouched fields) still lets official changes apply', () => {
+      const legacyOverrides = {
+        '20261109_7001': {
+          lessonKey: '20261109_7001',
+          lessonId: 7001,
+          date: 20261109,
+          customDate: 20261109,
+          customStartTime: 830,
+          customEndTime: 1030,
+          customRooms: ['P3G2A'], // frozen old room with different spacing
+          customNotes: 'Nota heredada',
+          originalSnapshot: {
+            id: 7001,
+            date: 20261109,
+            startTime: 830,
+            endTime: 1030,
+            rooms: ['P3 G2A'],
+            teachers: ['Prof A'],
+            code: null,
+          },
+        },
+      };
+
+      const updatedOfficial = { ...baseOfficial, startTime: 900, endTime: 1100, rooms: ['Aula 2.2'] };
+      const [applied] = applyLessonOverrides([updatedOfficial], legacyOverrides);
+      assert.equal(applied.hasRemoteDrift, false);
+      assert.equal(applied.startTime, 900);
+      assert.equal(applied.endTime, 1100);
+      assert.deepEqual(applied.rooms, ['Aula 2.2']);
+      assert.equal(applied.notes, 'Nota heredada');
+
+      const reconciled = reconcileLessonOverrides(legacyOverrides, [updatedOfficial]);
+      assert.equal(reconciled['20261109_7001'].customRooms, undefined);
+      assert.equal(reconciled['20261109_7001'].customStartTime, undefined);
+      assert.equal(reconciled['20261109_7001'].customDate, undefined);
+      assert.equal(reconciled['20261109_7001'].customNotes, 'Nota heredada');
+      assert.equal(reconcileLessonOverrides(reconciled, [updatedOfficial]), reconciled);
+    });
+
+    test('partial convergence: user edits room + note, WebUntis updates room to equivalent with spaces -> clears customRooms, keeps note, NO conflict', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customRooms: ['P2G3B'],
+        customNotes: 'Examen tema 2',
+      });
+
+      const updatedOfficial = { ...baseOfficial, rooms: ['P2 G3B'] };
+      const [applied] = applyLessonOverrides([updatedOfficial], overrides);
+      assert.equal(applied.isOverridden, true);
+      assert.equal(applied.hasRemoteDrift, false);
+      assert.equal(applied.driftChanges, null);
+      assert.equal(applied.notes, 'Examen tema 2');
+
+      const reconciled = reconcileLessonOverrides(overrides, [updatedOfficial]);
+      assert.ok(reconciled['20261109_7001']);
+      assert.equal(reconciled['20261109_7001'].customRooms, undefined);
+      assert.deepEqual(reconciled['20261109_7001'].originalSnapshot.rooms, ['P2 G3B']);
+      assert.equal(reconciled['20261109_7001'].customNotes, 'Examen tema 2');
+      assert.equal(reconcileLessonOverrides(reconciled, [updatedOfficial]), reconciled);
+    });
+
+    test('room equivalence handles spaces, dots, accents, suffixes and comma-separated lists', () => {
+      assert.equal(areRoomsEqual(['P3 G2A'], ['P3G2A']), true);
+      assert.equal(areRoomsEqual(['A 1.2'], ['A1.2']), true);
+      assert.equal(areRoomsEqual(['Aula 1.4'], ['Aula1.4']), true);
+      assert.equal(areRoomsEqual(['Lab Física'], ['Lab Fisica']), true);
+      assert.equal(areRoomsEqual(['P3 G2A_14838'], ['P3G2A']), true);
+      assert.equal(areRoomsEqual(['P3 G2A, P2 G3B'], ['P2G3B', 'P3G2A']), true);
+      assert.equal(areRoomsEqual(['Aula 1.4'], ['Aula 14']), false);
+    });
+
+    test('convergence on user cancellation: WebUntis cancels officially -> unmarks edited when no notes, keeps notes otherwise', () => {
+      const onlyCancel = setLessonOverride({}, baseOfficial, { userCancelled: true });
+      const cancelWithNote = setLessonOverride({}, baseOfficial, { userCancelled: true, customNotes: 'Repasar en casa' });
+      const cancelledOfficial = { ...baseOfficial, code: 'cancelled' };
+
+      const [applied1] = applyLessonOverrides([cancelledOfficial], onlyCancel);
+      assert.equal(applied1.isOverridden, false);
+      assert.equal(applied1.hasRemoteDrift, false);
+      assert.equal(applied1.code, 'cancelled');
+      assert.equal(reconcileLessonOverrides(onlyCancel, [cancelledOfficial])['20261109_7001'], undefined);
+
+      const [applied2] = applyLessonOverrides([cancelledOfficial], cancelWithNote);
+      assert.equal(applied2.isOverridden, true);
+      assert.equal(applied2.isUserCancelled, false);
+      assert.equal(applied2.hasRemoteDrift, false);
+      assert.equal(applied2.notes, 'Repasar en casa');
+
+      const rec2 = reconcileLessonOverrides(cancelWithNote, [cancelledOfficial]);
+      assert.equal(rec2['20261109_7001'].userCancelled, undefined);
+      assert.equal(rec2['20261109_7001'].customNotes, 'Repasar en casa');
+      assert.equal(reconcileLessonOverrides(rec2, [cancelledOfficial]), rec2);
+    });
+
+    test('convergence on swapped classes: WebUntis applies the official swap -> clears swappedWith and unmarks edited', () => {
+      const lessonA = { id: 8001, date: 20261109, startTime: 830, endTime: 1030, rooms: ['Aula 1'], subjects: ['Física'], code: null };
+      const lessonB = { id: 8002, date: 20261109, startTime: 1100, endTime: 1300, rooms: ['Aula 2'], subjects: ['Química'], code: null };
+
+      const swapped = swapLessons({}, lessonA, lessonB);
+      const updatedA = { ...lessonA, startTime: 1100, endTime: 1300 };
+      const updatedB = { ...lessonB, startTime: 830, endTime: 1030 };
+
+      const applied = applyLessonOverrides([updatedA, updatedB], swapped);
+      assert.equal(applied[0].isOverridden, false);
+      assert.equal(applied[0].hasRemoteDrift, false);
+      assert.equal(applied[1].isOverridden, false);
+      assert.equal(applied[1].hasRemoteDrift, false);
+
+      const reconciled = reconcileLessonOverrides(swapped, [updatedA, updatedB]);
+      assert.equal(Object.keys(reconciled).length, 0);
+    });
+
+    test('real conflict ONLY on conflicting field while non-conflicting official change applies silently', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customRooms: ['Lab 2'],
+        customNotes: 'Traer bata',
+      });
+
+      // WebUntis changes BOTH time (user didn't touch) and room (user changed to Lab 2, WebUntis changed to Aula 5)
+      const updatedOfficial = { ...baseOfficial, startTime: 1000, endTime: 1200, rooms: ['Aula 5'] };
+      const [applied] = applyLessonOverrides([updatedOfficial], overrides);
+
+      assert.equal(applied.isOverridden, true);
+      assert.equal(applied.hasRemoteDrift, true);
+      assert.equal(applied.driftChanges.length, 1);
+      assert.equal(applied.driftChanges[0].field, 'room');
+      assert.equal(applied.driftChanges[0].userValue, 'Lab 2');
+      // Time updated silently, room stayed user's until resolved, note preserved
+      assert.equal(applied.startTime, 1000);
+      assert.equal(applied.endTime, 1200);
+      assert.deepEqual(applied.rooms, ['Lab 2']);
+      assert.equal(applied.notes, 'Traer bata');
+
+      // adopt_remote adopts ONLY the conflicting room, preserving the personal note!
+      const adopted = resolveDrift(overrides, applied, 'adopt_remote');
+      assert.ok(adopted['20261109_7001'], 'Debe conservar el override por la nota personal');
+      assert.equal(adopted['20261109_7001'].customRooms, undefined);
+      assert.equal(adopted['20261109_7001'].customNotes, 'Traer bata');
+      assert.deepEqual(adopted['20261109_7001'].originalSnapshot.rooms, ['Aula 5']);
+
+      const [afterAdopt] = applyLessonOverrides([updatedOfficial], adopted);
+      assert.equal(afterAdopt.hasRemoteDrift, false);
+      assert.deepEqual(afterAdopt.rooms, ['Aula 5']);
+      assert.equal(afterAdopt.notes, 'Traer bata');
+    });
+
+    test('atomic time conflict prevents invalid startTime >= endTime when user only edited endTime', () => {
+      const overrides = {
+        '20261109_7001': {
+          lessonKey: '20261109_7001',
+          lessonId: 7001,
+          customEndTime: 1000, // user shortened 08:30-10:30 to 08:30-10:00
+          originalSnapshot: {
+            id: 7001,
+            date: 20261109,
+            startTime: 830,
+            endTime: 1030,
+            rooms: ['P3 G2A'],
+            code: null,
+          },
+        },
+      };
+
+      // WebUntis moves class to 11:00-13:00
+      const updatedOfficial = { ...baseOfficial, startTime: 1100, endTime: 1300 };
+      const [applied] = applyLessonOverrides([updatedOfficial], overrides);
+
+      assert.equal(applied.hasRemoteDrift, true);
+      assert.equal(applied.driftChanges[0].field, 'time');
+      assert.equal(applied.startTime, 830);
+      assert.equal(applied.endTime, 1000);
+      assert.ok(applied.endTime > applied.startTime);
+    });
+
+    test('official cancellation of moved/edited class triggers conflict, keep_local keeps it active, adopt_remote preserves notes', () => {
+      const overrides = setLessonOverride({}, baseOfficial, {
+        customDate: 20261112,
+        customStartTime: 1100,
+        customEndTime: 1300,
+        customNotes: 'Profe la movió al jueves',
+      });
+
+      const cancelledOfficial = { ...baseOfficial, code: 'cancelled' };
+      const [pending] = applyLessonOverrides([cancelledOfficial], overrides);
+
+      assert.equal(pending.hasRemoteDrift, true);
+      assert.equal(pending.driftChanges.length, 1);
+      assert.equal(pending.driftChanges[0].field, 'code');
+      assert.equal(pending.code, null, 'Mientras el conflicto está pendiente, se mantiene activa la versión movida');
+      assert.equal(pending.date, 20261112);
+
+      // Option 1: keep_local -> ignoreOfficialCancellation: true, stays active, drift cleared
+      const kept = resolveDrift(overrides, pending, 'keep_local');
+      assert.equal(kept['20261109_7001'].ignoreOfficialCancellation, true);
+      const [afterKeep] = applyLessonOverrides([cancelledOfficial], kept);
+      assert.equal(afterKeep.hasRemoteDrift, false);
+      assert.equal(afterKeep.code, null);
+      assert.equal(afterKeep.date, 20261112);
+      assert.equal(afterKeep.ignoresOfficialCancellation, true);
+
+      // If WebUntis later uncancels it, ignoreOfficialCancellation auto-clears
+      const uncancelledOfficial = { ...baseOfficial, code: null };
+      const afterUncancel = reconcileLessonOverrides(kept, [uncancelledOfficial]);
+      assert.equal(afterUncancel['20261109_7001'].ignoreOfficialCancellation, undefined);
+      assert.equal(afterUncancel['20261109_7001'].customDate, 20261112);
+
+      // Option 2: adopt_remote -> adopts cancellation, discards move, preserves note
+      const adopted = resolveDrift(overrides, pending, 'adopt_remote');
+      const ovAdopted = adopted['20261109_7001'];
+      assert.ok(ovAdopted);
+      assert.equal(ovAdopted.customDate, undefined);
+      assert.equal(ovAdopted.customStartTime, undefined);
+      assert.equal(ovAdopted.customNotes, 'Profe la movió al jueves');
+
+      const [afterAdopt] = applyLessonOverrides([cancelledOfficial], adopted);
+      assert.equal(afterAdopt.hasRemoteDrift, false);
+      assert.equal(afterAdopt.code, 'cancelled');
+      assert.equal(afterAdopt.date, 20261109);
+      assert.equal(afterAdopt.notes, 'Profe la movió al jueves');
+    });
+
+    test('official cancellation when user ONLY added a note applies silently without conflict', () => {
+      const overrides = setLessonOverride({}, baseOfficial, { customNotes: 'Solo una nota' });
+      const cancelledOfficial = { ...baseOfficial, code: 'cancelled' };
+
+      const [applied] = applyLessonOverrides([cancelledOfficial], overrides);
+      assert.equal(applied.hasRemoteDrift, false);
+      assert.equal(applied.code, 'cancelled');
+      assert.equal(applied.notes, 'Solo una nota');
+    });
+
+    test('official date change migrates key cleanly when orthogonal and resolves conflict via lessonId when conflicting', () => {
+      // Orthogonal: user only edited room, WebUntis moved date from 20261109 -> 20261110
+      const roomOv = setLessonOverride({}, baseOfficial, { customRooms: ['Lab 9'] });
+      const movedOfficial = { ...baseOfficial, date: 20261110 };
+
+      const [appliedOrth] = applyLessonOverrides([movedOfficial], roomOv);
+      assert.equal(appliedOrth.hasRemoteDrift, false);
+      assert.equal(appliedOrth.date, 20261110);
+      assert.deepEqual(appliedOrth.rooms, ['Lab 9']);
+
+      const migrated = reconcileLessonOverrides(roomOv, [movedOfficial]);
+      assert.equal(migrated['20261109_7001'], undefined);
+      assert.ok(migrated['20261110_7001']);
+      assert.deepEqual(migrated['20261110_7001'].customRooms, ['Lab 9']);
+      assert.equal(reconcileLessonOverrides(migrated, [movedOfficial]), migrated);
+
+      // Conflicting: user moved date to 20261112, WebUntis moved date to 20261110
+      const dateOv = setLessonOverride({}, baseOfficial, { customDate: 20261112 });
+      const [appliedConflict] = applyLessonOverrides([movedOfficial], dateOv);
+      assert.equal(appliedConflict.hasRemoteDrift, true);
+      assert.equal(appliedConflict.driftChanges[0].field, 'date');
+      assert.equal(appliedConflict.driftChanges[0].before, '09/11/2026');
+      assert.equal(appliedConflict.driftChanges[0].after, '10/11/2026');
+
+      // resolveDrift finds old key via lessonId and migrates on keep_local / deletes on adopt_remote
+      const keptDate = resolveDrift(dateOv, appliedConflict, 'keep_local');
+      assert.equal(keptDate['20261109_7001'], undefined);
+      assert.ok(keptDate['20261110_7001']);
+      assert.equal(keptDate['20261110_7001'].customDate, 20261112);
+
+      const adoptedDate = resolveDrift(dateOv, appliedConflict, 'adopt_remote');
+      assert.equal(Object.keys(adoptedDate).length, 0);
+    });
+
+    test('reconcileLessonOverrides is strictly idempotent across conflicting and non-conflicting overrides', () => {
+      const ovConflict = setLessonOverride({}, baseOfficial, { customRooms: ['Lab X'] });
+      const updated = { ...baseOfficial, rooms: ['Lab Y'] };
+      const pass1 = reconcileLessonOverrides(ovConflict, [updated]);
+      const pass2 = reconcileLessonOverrides(pass1, [updated]);
+      assert.equal(pass2, pass1);
     });
   });
 

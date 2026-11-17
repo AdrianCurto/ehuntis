@@ -5,6 +5,7 @@ import com.ehuntis.widget.data.CustomEventRecurrenceDto
 import com.ehuntis.widget.data.CustomEventsLogic
 import com.ehuntis.widget.data.DayLogic
 import com.ehuntis.widget.data.LessonOverrideDto
+import com.ehuntis.widget.data.LessonSnapshotDto
 import com.ehuntis.widget.data.SwappedWithDto
 import com.ehuntis.widget.data.TimetableLesson
 import org.junit.Assert.assertEquals
@@ -170,6 +171,104 @@ class ExtendedCustomEventsLogicTest {
         assertEquals("20261109_99_1530_ga2", key)
     }
 
+    @Test
+    fun testApplyLessonOverrides_RoomConvergenceAndOrthogonalOfficialChanges() {
+        assertTrue(CustomEventsLogic.areRoomsEqual(listOf("P3 G2A"), listOf("P3G2A")))
+        assertTrue(CustomEventsLogic.areRoomsEqual(listOf("P2G3A_14838"), listOf("P2 G3A")))
+        assertTrue(CustomEventsLogic.areRoomsEqual(listOf("Lab Física"), listOf("Lab Fisica")))
+        assertFalse(CustomEventsLogic.areRoomsEqual(listOf("P3 G2A"), listOf("P3 G2B")))
+
+        // 1. Full convergence on room (P3G2A vs P3 G2A) -> unmarked as overridden
+        val convergedLesson = TimetableLesson(
+            id = 501L,
+            date = 20261109,
+            startTime = 830,
+            endTime = 1030,
+            rooms = listOf("P3 G2A")
+        )
+        val ovConverged = mapOf(
+            "20261109_501" to LessonOverrideDto(
+                lessonKey = "20261109_501",
+                lessonId = 501L,
+                customRooms = listOf("P3G2A"),
+                originalSnapshot = LessonSnapshotDto(
+                    id = 501L,
+                    date = 20261109,
+                    startTime = 830,
+                    endTime = 1030,
+                    rooms = listOf("Aula 1.1"),
+                    code = null
+                )
+            )
+        )
+        val resConverged = CustomEventsLogic.applyLessonOverrides(listOf(convergedLesson), ovConverged)[0]
+        assertFalse(resConverged.isOverridden)
+        assertEquals(listOf("P3 G2A"), resConverged.rooms)
+
+        // 2. Legacy dense override with only a note -> official room and time changes pass through
+        val updatedOfficial = TimetableLesson(
+            id = 502L,
+            date = 20261109,
+            startTime = 930,
+            endTime = 1130,
+            rooms = listOf("P1 I2S")
+        )
+        val ovLegacyDense = mapOf(
+            "20261109_502" to LessonOverrideDto(
+                lessonKey = "20261109_502",
+                lessonId = 502L,
+                customDate = 20261109,
+                customStartTime = 830,
+                customEndTime = 1030,
+                customRooms = listOf("P3G2A"),
+                customNotes = "Llevar portátil",
+                originalSnapshot = LessonSnapshotDto(
+                    id = 502L,
+                    date = 20261109,
+                    startTime = 830,
+                    endTime = 1030,
+                    rooms = listOf("P3 G2A"),
+                    code = null
+                )
+            )
+        )
+        val resDense = CustomEventsLogic.applyLessonOverrides(listOf(updatedOfficial), ovLegacyDense)[0]
+        assertTrue(resDense.isOverridden)
+        assertEquals(930, resDense.startTime)
+        assertEquals(1130, resDense.endTime)
+        assertEquals(listOf("P1 I2S"), resDense.rooms)
+        assertEquals("Llevar portátil", resDense.notes)
+
+        // 3. Official cancellation of a moved class keeps moved class active
+        val cancelledOfficial = TimetableLesson(
+            id = 503L,
+            date = 20261109,
+            startTime = 830,
+            endTime = 1030,
+            rooms = listOf("Aula 1"),
+            code = "cancelled"
+        )
+        val ovMoved = mapOf(
+            "20261109_503" to LessonOverrideDto(
+                lessonKey = "20261109_503",
+                lessonId = 503L,
+                customDate = 20261112,
+                originalSnapshot = LessonSnapshotDto(
+                    id = 503L,
+                    date = 20261109,
+                    startTime = 830,
+                    endTime = 1030,
+                    rooms = listOf("Aula 1"),
+                    code = null
+                )
+            )
+        )
+        val resMoved = CustomEventsLogic.applyLessonOverrides(listOf(cancelledOfficial), ovMoved)[0]
+        assertTrue(resMoved.isOverridden)
+        assertEquals(20261112, resMoved.date)
+        assertNull(resMoved.code)
+    }
+
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
@@ -184,6 +283,8 @@ class ExtendedCustomEventsLogicTest {
             println("✓ testApplyLessonOverrides_SwappedWithBidirectional passed")
             test.testLessonOverrideKeyCompositeFallback()
             println("✓ testLessonOverrideKeyCompositeFallback passed")
+            test.testApplyLessonOverrides_RoomConvergenceAndOrthogonalOfficialChanges()
+            println("✓ testApplyLessonOverrides_RoomConvergenceAndOrthogonalOfficialChanges passed")
             println("\n=== ALL EXTENDED ANDROID TESTS PASSED SUCCESSFULLY! ===")
         }
     }

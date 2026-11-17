@@ -1,9 +1,41 @@
 package com.ehuntis.widget.data
 
+import java.text.Normalizer
 import java.time.DayOfWeek
 import java.time.LocalDate
 
 object CustomEventsLogic {
+
+    private val ROOM_SUFFIX_REGEX = Regex("_\\d+$")
+    private val DIACRITICS_REGEX = Regex("\\p{InCombiningDiacriticalMarks}+")
+    private val WHITESPACE_REGEX = Regex("\\s+")
+
+    /**
+     * Normaliza una lista de aulas para comparación fiable (sin espacios, sin sufijos _id,
+     * sin tildes, minúsculas, deduplicadas y ordenadas). Ej.: "P3 G2A" == "P3G2A".
+     */
+    fun normalizeRooms(rooms: List<String>?): List<String> {
+        if (rooms.isNullOrEmpty()) return emptyList()
+        val seen = LinkedHashSet<String>()
+        for (entry in rooms) {
+            for (part in entry.split(",")) {
+                val cleaned = part.trim().replace(ROOM_SUFFIX_REGEX, "")
+                if (cleaned.isEmpty()) continue
+                val nfd = Normalizer.normalize(cleaned, Normalizer.Form.NFD)
+                val token = DIACRITICS_REGEX.replace(nfd, "")
+                    .replace(WHITESPACE_REGEX, "")
+                    .lowercase()
+                if (token.isNotEmpty()) {
+                    seen.add(token)
+                }
+            }
+        }
+        return seen.sorted()
+    }
+
+    fun areRoomsEqual(roomsA: List<String>?, roomsB: List<String>?): Boolean {
+        return normalizeRooms(roomsA) == normalizeRooms(roomsB)
+    }
 
     /**
      * Genera la clave compuesta determinista para identificar una clase de WebUntis en overrides.
@@ -22,8 +54,10 @@ object CustomEventsLogic {
     }
 
     /**
-     * Aplica los overrides sobre la lista de clases oficiales de WebUntis.
-     * Modifica horarios, aula, notas, estado de cancelación visual (userCancelled) o swaps.
+     * Aplica los overrides sobre la lista de clases oficiales de WebUntis con reconciliación 3-way:
+     * - Si WebUntis cambia un campo que el usuario no modificó (según originalSnapshot), aplica el cambio oficial.
+     * - Si el cambio oficial converge al valor del usuario (p. ej. "P3 G2A" == "P3G2A"), descarta ese override.
+     * - Si no queda ningún cambio real respecto a la clase oficial, la devuelve sin marcarla como editada.
      */
     fun applyLessonOverrides(
         lessons: List<TimetableLesson>,
@@ -42,27 +76,83 @@ object CustomEventsLogic {
             if (ov == null) {
                 lesson
             } else {
-                val isUserCancelled = ov.userCancelled == true
+                val snap = ov.originalSnapshot
+                val officialDate = lesson.date
+                val officialStart = lesson.startTime
+                val officialEnd = lesson.endTime
+                val officialRooms = lesson.rooms
+                val officialCode = lesson.code
+                val isOfficialCancelled = officialCode == "cancelled"
+
+                // 1. Fecha
+                val baseDate = snap?.date ?: officialDate
+                val customDate = ov.customDate
+                val userModifiedDate = customDate != null && customDate != baseDate
+                val effectiveDateChange = userModifiedDate && customDate != officialDate
+                val finalDate = if (effectiveDateChange) customDate else officialDate
+
+                // 2. Horario (atómico startTime + endTime)
+                val baseStart = snap?.startTime ?: officialStart
+                val baseEnd = snap?.endTime ?: officialEnd
+                val userStart = ov.customStartTime ?: baseStart
+                val userEnd = ov.customEndTime ?: baseEnd
+                val userModifiedTime =
+                    (ov.customStartTime != null && ov.customStartTime != baseStart) ||
+                    (ov.customEndTime != null && ov.customEndTime != baseEnd)
+                val effectiveTimeChange = userModifiedTime && (userStart != officialStart || userEnd != officialEnd)
+                val finalStart = if (effectiveTimeChange) userStart else officialStart
+                val finalEnd = if (effectiveTimeChange) userEnd else officialEnd
+
+                // 3. Aulas
+                val baseRooms = snap?.rooms ?: officialRooms
+                val customRooms = ov.customRooms
+                val userModifiedRoom = customRooms != null && !areRoomsEqual(customRooms, baseRooms)
+                val effectiveRoomsChange = userModifiedRoom && !areRoomsEqual(customRooms, officialRooms)
+                val finalRooms = if (effectiveRoomsChange) customRooms else officialRooms
+
+                // 4. Swap (solo sigue activo si aún difiere algún campo posicional)
+                val hasPositionalChange = effectiveDateChange || effectiveTimeChange || effectiveRoomsChange
+                val activeSwap = if (ov.swappedWith != null && hasPositionalChange) ov.swappedWith else null
+
+                // 5. Cancelación
+                val rawUserCancelled = ov.userCancelled == true
+                val effectiveUserCancelled = rawUserCancelled && !isOfficialCancelled
+                val wasOfficialCancelled = snap?.code == "cancelled"
+                val pendingCancelConflict =
+                    snap != null && !wasOfficialCancelled && isOfficialCancelled && !rawUserCancelled &&
+                    ov.ignoreOfficialCancellation != true && (hasPositionalChange || activeSwap != null)
+                val effectiveIgnoreOfficialCancel =
+                    (ov.ignoreOfficialCancellation == true || pendingCancelConflict) && isOfficialCancelled
+
+                val finalCode = when {
+                    effectiveUserCancelled -> "cancelled"
+                    effectiveIgnoreOfficialCancel -> null
+                    else -> officialCode
+                }
+
+                // 6. Notas
                 val hasNotes = !ov.customNotes.isNullOrBlank()
-                val hasDateChange = ov.customDate != null && ov.customDate != lesson.date
-                val hasStartChange = ov.customStartTime != null && ov.customStartTime != lesson.startTime
-                val hasEndChange = ov.customEndTime != null && ov.customEndTime != lesson.endTime
-                val hasRoomsChange = ov.customRooms != null && ov.customRooms != lesson.rooms
-                val hasChanges = isUserCancelled || ov.swappedWith != null || hasNotes || hasDateChange || hasStartChange || hasEndChange || hasRoomsChange
+
+                val hasChanges =
+                    effectiveUserCancelled ||
+                    effectiveIgnoreOfficialCancel ||
+                    activeSwap != null ||
+                    hasNotes ||
+                    hasPositionalChange
 
                 if (!hasChanges) {
                     lesson
                 } else {
                     lesson.copy(
-                        date = ov.customDate ?: lesson.date,
-                        startTime = ov.customStartTime ?: lesson.startTime,
-                        endTime = ov.customEndTime ?: lesson.endTime,
-                        rooms = ov.customRooms ?: lesson.rooms,
-                        notes = ov.customNotes ?: lesson.notes,
-                        isUserCancelled = isUserCancelled,
-                        code = if (isUserCancelled) "cancelled" else lesson.code,
+                        date = finalDate,
+                        startTime = finalStart,
+                        endTime = finalEnd,
+                        rooms = finalRooms,
+                        notes = if (hasNotes) ov.customNotes else lesson.notes,
+                        isUserCancelled = effectiveUserCancelled,
+                        code = finalCode,
                         isOverridden = true,
-                        swappedWith = ov.swappedWith
+                        swappedWith = activeSwap
                     )
                 }
             }
