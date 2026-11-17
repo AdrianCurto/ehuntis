@@ -3,7 +3,7 @@ import { cva } from 'class-variance-authority';
 import { cn } from '@/app/utils/cn';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center font-medium transition-all duration-150 select-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2',
+  'inline-flex items-center justify-center font-medium transition-all duration-150 select-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50',
   {
     variants: {
       variant: {

@@ -86,7 +86,8 @@ export default function CustomEventDetailModal({
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-md p-6 overflow-hidden"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
           style={{ background: color.bg }}
         >
           {viewMode === 'scope-delete' ? (
@@ -163,53 +164,53 @@ export default function CustomEventDetailModal({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Cabecera con fecha y hora (pr-8 para dejar espacio al botón de cierre X en escritorio) */}
-              <div className="flex items-start justify-between gap-3 pr-8">
-                <div>
-                  <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
-                    {dayName} {dateStr}
-                  </div>
-                  <div className="text-lg font-bold" style={{ color: color.text }}>
-                    {timeStr}
-                  </div>
+              {/* Cabecera con fecha y hora */}
+              <div className="flex flex-col items-center text-center px-6">
+                <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
+                  {dayName} {dateStr}
+                </div>
+                <div className="text-lg font-bold tabular-nums" style={{ color: color.text }}>
+                  {timeStr}
                 </div>
               </div>
 
               {/* Categoría si existe */}
               {category && (
-                <div
-                  className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style={{
-                    color: color.text,
-                    background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)',
-                  }}
-                >
-                  {category}
+                <div className="flex justify-center">
+                  <div
+                    className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    style={{
+                      color: color.text,
+                      background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)',
+                    }}
+                  >
+                    {category}
+                  </div>
                 </div>
               )}
 
               {/* Título del evento */}
-              <div className="text-xl font-bold leading-snug" style={{ color: color.text }}>
+              <div className="text-xl font-bold leading-snug text-center text-balance" style={{ color: color.text }}>
                 {title}
               </div>
 
               {/* Detalles adicionales */}
-              <div className="space-y-2 text-sm pt-1" style={{ color: color.text }}>
+              <div className="space-y-2 text-sm pt-1 flex flex-col items-center text-center" style={{ color: color.text }}>
                 {location && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-2">
                     <MapPin className="w-4 h-4 opacity-75 shrink-0" />
                     <span>{location}</span>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-xs opacity-85">
+                <div className="flex items-center justify-center gap-2 text-xs opacity-85">
                   <Calendar className="w-3.5 h-3.5 opacity-75 shrink-0" />
                   <span>{recurrenceDescription}</span>
                 </div>
 
                 {notes && (
                   <div
-                    className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-3"
+                    className="w-full p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-3 text-center text-pretty"
                     style={{
                       background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                     }}
@@ -222,26 +223,29 @@ export default function CustomEventDetailModal({
               {/* Pie con botones de acción */}
               <div className="pt-4 flex items-center justify-between border-t border-black/10 dark:border-white/10">
                 <Button
-                  variant="destructiveOutline"
+                  variant="ghost"
                   size="sm"
                   onClick={handleDeleteClick}
+                  className="font-semibold bg-rose-500/15 hover:bg-rose-500/25 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 border border-rose-500/30 dark:border-rose-400/35 transition-all duration-150"
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5 text-rose-600 dark:text-rose-400" />
                   <span>Eliminar</span>
                 </Button>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     onClick={onEdit}
+                    className="font-semibold bg-indigo-500/14 hover:bg-indigo-500/24 dark:bg-indigo-500/18 dark:hover:bg-indigo-500/28 text-indigo-800 dark:text-indigo-200 border border-indigo-500/25 dark:border-indigo-400/30 transition-all duration-150"
                   >
-                    <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                    <Pencil className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400" />
                     <span>Editar</span>
                   </Button>
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     onClick={onClose}
+                    className="font-medium bg-black/8 hover:bg-black/14 dark:bg-white/10 dark:hover:bg-white/18 text-black/80 dark:text-white/85 border border-black/12 dark:border-white/15 transition-all duration-150"
                   >
                     Cerrar
                   </Button>

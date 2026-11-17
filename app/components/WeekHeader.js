@@ -1,7 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarView } from './ui/date-picker';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 
 const DAYS_SHORT = ['LU', 'MA', 'MI', 'JU', 'VI', 'SÁ', 'DO'];
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -27,13 +30,6 @@ function toInputDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-function fromInputDate(value) {
-  if (!value) return null;
-  const [y, m, d] = value.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
 export default function WeekHeader({
   weekDates,
   selectedDay,
@@ -49,7 +45,17 @@ export default function WeekHeader({
   prevWeekDates: prevWeekDatesProp = null,
   nextWeekDates: nextWeekDatesProp = null,
 }) {
-  const dateInputRef = useRef(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 641px)');
+    setIsDesktop(media.matches);
+    const handler = (e) => setIsDesktop(e.matches);
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, []);
+
   const today = new Date();
   const firstDay = weekDates?.[0] || new Date();
   const lastDay = weekDates?.[weekDates.length - 1] || firstDay;
@@ -71,36 +77,70 @@ export default function WeekHeader({
     return n;
   });
 
+  const monthBoxButton = (
+    <button
+      type="button"
+      className="week-nav-month-box cursor-pointer hover:opacity-80 transition-opacity"
+      aria-label="Elegir fecha del curso"
+    >
+      <div className="week-nav-month" aria-hidden="true">
+        <span>{m1}</span>
+        <span className={m1 === m2 ? 'week-nav-month-placeholder' : ''}>{m2}</span>
+      </div>
+    </button>
+  );
+
   return (
     <div className="week-nav">
       {/* Month + Arrows */}
       <div className="week-nav-range">
-        <div className="week-nav-month-box">
-          <div className="week-nav-month" aria-hidden="true">
-            <span>{m1}</span>
-            <span className={m1 === m2 ? 'week-nav-month-placeholder' : ''}>{m2}</span>
-          </div>
-          <input
-            ref={dateInputRef}
-            className="week-nav-date-input"
-            type="date"
-            value={toInputDate(pickerDate)}
-            onChange={(e) => {
-              const picked = fromInputDate(e.target.value);
-              if (picked) onPickDate?.(picked);
-            }}
-            onClick={(e) => {
-              if (typeof e.target.showPicker === 'function') {
-                try {
-                  e.target.showPicker();
-                } catch {
-                  // Fallback for browsers that don't allow showPicker or already show it
-                }
-              }
-            }}
-            aria-label="Elegir fecha"
-          />
-        </div>
+        {isDesktop ? (
+          <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
+            <PopoverTrigger asChild>
+              {monthBoxButton}
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" align="start">
+              <CalendarView
+                value={pickerDate}
+                onSelect={(str, num, jsDate) => {
+                  if (jsDate) onPickDate?.(jsDate);
+                  setIsPickerOpen(false);
+                }}
+                ariaLabel="Ir a fecha del curso"
+              />
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setIsPickerOpen(true)}
+              className="week-nav-month-box cursor-pointer active:opacity-75 transition-opacity"
+              aria-label="Elegir fecha del curso"
+            >
+              <div className="week-nav-month" aria-hidden="true">
+                <span>{m1}</span>
+                <span className={m1 === m2 ? 'week-nav-month-placeholder' : ''}>{m2}</span>
+              </div>
+            </button>
+            <Sheet open={isPickerOpen} onOpenChange={setIsPickerOpen}>
+              <SheetContent className="p-4 pb-8 flex flex-col items-center">
+                <SheetHeader className="mb-2 w-full">
+                  <SheetTitle className="text-base text-center">Ir a fecha</SheetTitle>
+                </SheetHeader>
+                <CalendarView
+                  value={pickerDate}
+                  onSelect={(str, num, jsDate) => {
+                    if (jsDate) onPickDate?.(jsDate);
+                    setIsPickerOpen(false);
+                  }}
+                  ariaLabel="Ir a fecha del curso"
+                />
+              </SheetContent>
+            </Sheet>
+          </>
+        )}
+
         <div className="week-nav-arrows">
           <button className="week-nav-arrow-mini" onClick={prevHandler} aria-label={isDayView ? "Día anterior" : "Semana anterior"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronLeft size={16} strokeWidth={2.5} /></button>
           <button className="week-nav-arrow-mini" onClick={nextHandler} aria-label={isDayView ? "Día siguiente" : "Semana siguiente"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={16} strokeWidth={2.5} /></button>

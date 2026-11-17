@@ -23,13 +23,14 @@ export const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => 
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 export const DialogContent = React.forwardRef(
-  ({ className, children, showCloseButton = true, ...props }, ref) => (
+  ({ className, children, showCloseButton = true, onOpenAutoFocus, ...props }, ref) => (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
+        onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl transition-all duration-200 outline-none max-h-[90vh] overflow-hidden',
+          'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl transition-all duration-200 outline-none max-h-[90vh] overflow-y-auto overscroll-contain animate-[fadeIn_0.15s_ease]',
           className
         )}
         {...props}
@@ -37,7 +38,7 @@ export const DialogContent = React.forwardRef(
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
-            className="absolute right-4 top-4 rounded-full p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+            className="absolute right-4 top-4 rounded-full p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 cursor-pointer"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4" />

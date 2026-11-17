@@ -439,6 +439,44 @@ describe('lessonOverrides utility suite', () => {
       });
       assert.equal(step2['20261109_890'], undefined, 'Al quitar la nota personal, el override debe eliminarse');
     });
+
+    test('updates customDate and maintains key stability across repeated edits', () => {
+      const lesson = {
+        id: 999,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        rooms: ['Aula 101'],
+        code: null,
+      };
+
+      // 1. Mover la clase de lunes a miércoles
+      const step1 = setLessonOverride({}, lesson, {
+        customDate: 20261111,
+      });
+      assert.ok(step1['20261109_999'], 'La clave se basa en la fecha original WebUntis');
+      assert.equal(step1['20261109_999'].customDate, 20261111);
+
+      // 2. Aplicar overrides
+      const applied = applyLessonOverrides([lesson], step1);
+      assert.equal(applied[0].date, 20261111);
+      assert.equal(applied[0].rawDate, 20261109);
+      assert.equal(applied[0].isOverridden, true);
+
+      // 3. Volver a editar desde la clase enriquecida (que tiene date: 20261111 pero rawDate: 20261109)
+      const step2 = setLessonOverride(step1, applied[0], {
+        customDate: 20261112,
+      });
+      assert.ok(step2['20261109_999'], 'La clave no se desincroniza al editar una clase ya desplazada');
+      assert.equal(step2['20261109_999'].customDate, 20261112);
+      assert.equal(Object.keys(step2).length, 1);
+
+      // 4. Restaurar a la fecha original
+      const step3 = setLessonOverride(step2, applied[0], {
+        customDate: 20261109,
+      });
+      assert.equal(step3['20261109_999'], undefined, 'El override se elimina si la fecha vuelve a coincidir con la oficial');
+    });
   });
 
   describe('swapLessons atomic operation', () => {

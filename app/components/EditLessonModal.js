@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Clock, MapPin, AlignLeft, AlertCircle } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, AlignLeft, AlertCircle } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -13,6 +13,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { TimePicker } from './ui/time-picker';
+import { DatePicker } from './ui/date-picker';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
 import { cn } from '../utils/cn';
@@ -30,6 +31,23 @@ function timeStringToNumber(s) {
   return (parts[0] || 0) * 100 + (parts[1] || 0);
 }
 
+function dateNumberToString(dateNum) {
+  if (!dateNum || typeof dateNum !== 'number') return '';
+  const y = Math.floor(dateNum / 10000);
+  const m = String(Math.floor((dateNum % 10000) / 100)).padStart(2, '0');
+  const d = String(dateNum % 100).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function dateStringToNumber(str) {
+  if (!str || typeof str !== 'string') return null;
+  const parts = str.split('-').map(Number);
+  if (parts.length === 3 && !parts.some(isNaN)) {
+    return parts[0] * 10000 + parts[1] * 100 + parts[2];
+  }
+  return null;
+}
+
 function parseDate(dateNum) {
   const y = Math.floor(dateNum / 10000);
   const m = Math.floor((dateNum % 10000) / 100) - 1;
@@ -40,6 +58,7 @@ function parseDate(dateNum) {
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export default function EditLessonModal({ lesson, onSave, onClose, isDark = false }) {
+  const [dateStr, setDateStr] = useState(() => dateNumberToString(lesson?.date));
   const [startTimeStr, setStartTimeStr] = useState(() => timeNumberToString(lesson?.startTime));
   const [endTimeStr, setEndTimeStr] = useState(() => timeNumberToString(lesson?.endTime));
   const [roomsStr, setRoomsStr] = useState(() => formatRooms(lesson?.rooms));
@@ -48,7 +67,8 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
 
   if (!lesson) return null;
 
-  const date = parseDate(lesson.date);
+  const selectedDateNum = dateStringToNumber(dateStr) || lesson.date;
+  const date = parseDate(selectedDateNum);
   const dayName = DAYS_LONG[date.getDay()];
   const dateFormatted = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
@@ -76,12 +96,19 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
       return;
     }
 
+    const newDateNum = dateStringToNumber(dateStr);
+    if (!newDateNum) {
+      setError('Por favor, selecciona una fecha válida.');
+      return;
+    }
+
     const roomsArr = roomsStr
       .split(',')
       .map((r) => formatRoom(r.trim()))
       .filter(Boolean);
 
     onSave(lesson, {
+      customDate: newDateNum,
       customStartTime: startNum,
       customEndTime: endNum,
       customRooms: roomsArr,
@@ -93,7 +120,8 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        className="max-w-md p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
       >
         {/* Barra interior de acento de color */}
         <div
@@ -124,6 +152,21 @@ export default function EditLessonModal({ lesson, onSave, onClose, isDark = fals
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {/* Fecha de la clase */}
+          <div className="space-y-1.5">
+            <label className="flex items-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              <Calendar className="w-3.5 h-3.5 mr-1 text-[var(--text-muted)]" /> Fecha
+            </label>
+            <DatePicker
+              value={dateStr}
+              onChange={(newDate) => {
+                setDateStr(newDate);
+                setError('');
+              }}
+              ariaLabel="Fecha de la clase"
+            />
+          </div>
+
           {/* Horas de Inicio y Fin con saltos de 30 minutos lectivos */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

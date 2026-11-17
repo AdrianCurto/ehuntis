@@ -82,20 +82,19 @@ export default function LessonModal({
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose?.(); }}>
         <ResponsiveModalContent
-          className="max-w-md p-6 overflow-hidden max-h-[90vh] overflow-y-auto"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
           style={{
             background: color.bg,
           }}
         >
           {/* Cabecera */}
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div>
-              <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
-                {dayName} {dateStr}
-              </div>
-              <div className="text-lg font-bold" style={{ color: color.text }}>
-                {timeStr}
-              </div>
+          <div className="flex flex-col items-center text-center px-6 mb-2">
+            <div className="text-sm font-semibold" style={{ color: color.text, opacity: 0.85 }}>
+              {dayName} {dateStr}
+            </div>
+            <div className="text-lg font-bold tabular-nums" style={{ color: color.text }}>
+              {timeStr}
             </div>
           </div>
 
@@ -138,25 +137,25 @@ export default function LessonModal({
 
           {/* Subgrupo */}
           {subgroupStr && (
-            <div className="text-xs font-semibold opacity-75 uppercase tracking-wider mb-1" style={{ color: color.text }}>
+            <div className="text-xs font-semibold opacity-75 uppercase tracking-wider mb-1 text-center" style={{ color: color.text }}>
               {subgroupStr}
             </div>
           )}
 
           {/* Nombre Asignatura */}
-          <div className="text-xl font-bold leading-snug mb-1" style={{ color: color.text }}>
+          <div className="text-xl font-bold leading-snug mb-1 text-center text-balance" style={{ color: color.text }}>
             {subjectName}
           </div>
 
           {/* Tipo de clase */}
           {lesson.type && (
-            <div className="text-xs opacity-85 mb-3" style={{ color: color.text }}>
+            <div className="text-xs opacity-85 mb-3 text-center" style={{ color: color.text }}>
               {lesson.type}
             </div>
           )}
 
           {/* Badges de estado / Swap */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
             {isUserCancelled && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
                 <Ban className="w-3.5 h-3.5" /> Cancelada por ti
@@ -189,7 +188,7 @@ export default function LessonModal({
           </div>
 
           {/* Detalles: Profesor y Aula */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
             {teacher && (
               <div
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[var(--radius-md)] text-xs font-medium"
@@ -219,17 +218,17 @@ export default function LessonModal({
           {/* Notas personales */}
           {lesson.notes && (
             <div
-              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words"
+              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words text-center"
               style={{
                 background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                 color: color.text,
               }}
             >
-              <div className="flex items-center gap-1 font-bold opacity-75 mb-1">
+              <div className="flex items-center justify-center gap-1 font-bold opacity-75 mb-1">
                 <FileText className="w-3.5 h-3.5" />
                 <span>Notas personales:</span>
               </div>
-              <div>{lesson.notes}</div>
+              <div className="text-pretty">{lesson.notes}</div>
             </div>
           )}
 
@@ -237,56 +236,58 @@ export default function LessonModal({
           <div className="space-y-2 pt-3 border-t border-black/10 dark:border-white/10">
             <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
               <Button
-                variant={isUserCancelled ? 'default' : 'secondary'}
+                variant="ghost"
                 size="md"
                 onClick={() => onToggleCancelled?.(lesson)}
                 className={cn(
-                  'w-full',
-                  isUserCancelled && 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  'w-full font-semibold transition-all duration-150',
+                  isUserCancelled
+                    ? 'bg-emerald-500/18 hover:bg-emerald-500/28 dark:bg-emerald-500/22 dark:hover:bg-emerald-500/32 text-emerald-800 dark:text-emerald-200 border border-emerald-600/30 dark:border-emerald-400/35'
+                    : 'bg-rose-500/15 hover:bg-rose-500/25 dark:bg-rose-500/20 dark:hover:bg-rose-500/30 text-rose-700 dark:text-rose-300 border border-rose-500/30 dark:border-rose-400/35'
                 )}
               >
                 {isUserCancelled ? (
                   <>
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Reactivar clase</span>
                   </>
                 ) : (
                   <>
-                    <Ban className="w-4 h-4 mr-1.5 text-rose-500" />
+                    <Ban className="w-4 h-4 mr-1.5 text-rose-600 dark:text-rose-400" />
                     <span>Cancelar clase</span>
                   </>
                 )}
               </Button>
 
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="md"
-                className="w-full"
+                className="w-full font-semibold bg-indigo-500/14 hover:bg-indigo-500/24 dark:bg-indigo-500/18 dark:hover:bg-indigo-500/28 text-indigo-800 dark:text-indigo-200 border border-indigo-500/25 dark:border-indigo-400/30 transition-all duration-150"
                 onClick={() => onOpenEdit?.(lesson)}
               >
-                <Pencil className="w-4 h-4 mr-1.5" />
+                <Pencil className="w-4 h-4 mr-1.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Editar clase</span>
               </Button>
             </div>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="md"
-              className="w-full"
+              className="w-full font-semibold bg-sky-500/14 hover:bg-sky-500/24 dark:bg-sky-500/18 dark:hover:bg-sky-500/28 text-sky-800 dark:text-sky-200 border border-sky-500/25 dark:border-sky-400/30 transition-all duration-150"
               onClick={() => onOpenSwap?.(lesson)}
             >
-              <ArrowUpDown className="w-4 h-4 mr-1.5" />
+              <ArrowUpDown className="w-4 h-4 mr-1.5 text-sky-600 dark:text-sky-400" />
               <span>Intercambiar horario</span>
             </Button>
 
             {isOverridden && (
               <Button
-                variant="destructiveOutline"
+                variant="ghost"
                 size="md"
-                className="w-full"
+                className="w-full font-semibold bg-amber-500/12 hover:bg-amber-500/22 dark:bg-amber-500/16 dark:hover:bg-amber-500/26 text-amber-800 dark:text-amber-300 border border-amber-500/25 dark:border-amber-400/30 transition-all duration-150"
                 onClick={() => setShowResetConfirm(true)}
               >
-                <RotateCcw className="w-4 h-4 mr-1.5" />
+                <RotateCcw className="w-4 h-4 mr-1.5 text-amber-600 dark:text-amber-400" />
                 <span>Restablecer a versión original</span>
               </Button>
             )}

@@ -32,7 +32,7 @@ function getLessonKey(lesson) {
   if (!lesson) return '';
   if (lesson.lessonKey) return lesson.lessonKey;
 
-  const date = lesson.date || '';
+  const date = lesson.rawDate !== undefined ? lesson.rawDate : (lesson.date || '');
   if (lesson.id !== undefined && lesson.id !== null) {
     return `${date}_${lesson.id}`;
   }

@@ -52,7 +52,7 @@ export function ResponsiveModal({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} shouldScaleBackground={false} {...props}>
+    <Sheet open={open} onOpenChange={onOpenChange} {...props}>
       {children}
     </Sheet>
   );

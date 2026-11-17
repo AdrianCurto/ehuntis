@@ -341,15 +341,24 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
 
+  // Espacio reservado si la clase tiene iconos de estado adicionales (editada, drift) junto al badge
+  const numIcons = (isCancelled ? 0 : (lesson.isOverridden ? 1 : 0)) + (lesson.hasRemoteDrift ? 1 : 0);
+  const iconReserveWidth = numIcons > 0 ? numIcons * 15 : 0;
+  const badgeAvailWidth = Math.max(0, availWidth - iconReserveWidth);
+
   if (isCancelled) {
     const cancelTexts = ['Cancelada', 'Canc.'];
     for (const text of cancelTexts) {
       for (const style of BADGE_STYLES) {
-        if (measureText(text, style.font, '800') + style.padX * 2 <= availWidth) {
+        // Reserva para icono (8px) + gap (2.5px) + padding (padX * 2) + border (2px) + margen (2px) = padX * 2 + 14.5px
+        const totalBadgeWidth = measureText(text, style.font, '800') + style.padX * 2 + 14.5;
+        if (totalBadgeWidth <= badgeAvailWidth) {
           const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
           badgeCandidates.push({
             hide: false,
             text,
+            isCancelledBadge: true,
+            iconOnly: false,
             font: style.font,
             padding: `${style.padY}px ${style.padX}px`,
             lineHeight: 1.1,
@@ -359,11 +368,25 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
         }
       }
     }
+
+    // Si ni 'Cancelada' ni 'Canc.' caben en el ancho disponible, pero hay al menos espacio para el icono (>= 13px)
+    if (badgeAvailWidth >= 13) {
+      badgeCandidates.push({
+        hide: false,
+        text: '',
+        isCancelledBadge: true,
+        iconOnly: true,
+        font: 8,
+        padding: '0px',
+        lineHeight: 1.1,
+        height: 14,
+      });
+    }
   } else if (lesson.isCustomEvent) {
     if (lesson.category) {
       const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
       for (const style of BADGE_STYLES) {
-        if (measureText(catText, style.font, '800') + style.padX * 2 <= availWidth) {
+        if (measureText(catText, style.font, '800') + style.padX * 2 <= badgeAvailWidth) {
           const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
           badgeCandidates.push({
             hide: false,
@@ -420,7 +443,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     const uniqueTexts = Array.from(new Set(texts));
     for (const text of uniqueTexts) {
       for (const style of BADGE_STYLES) {
-        if (measureText(text, style.font, '800') + style.padX * 2 <= availWidth) {
+        if (measureText(text, style.font, '800') + style.padX * 2 <= badgeAvailWidth) {
           const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
           badgeCandidates.push({
             hide: false,
@@ -510,10 +533,10 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   // Control de visibilidad física para asegurar legibilidad
   const canTeacher = Boolean(validTeacherCandidates.length > 0 && blockHeight >= 44);
   const canRoom = validRoomCandidates.length > 0 && blockHeight >= (isDayView ? 24 : 20);
-  const canBadge = Boolean(bestBadge && blockHeight >= (isMagistral ? (isDayView ? 55 : 45) : 18));
+  const canBadge = Boolean(bestBadge && blockHeight >= (isCancelled ? 14 : (isMagistral ? (isDayView ? 55 : 45) : 18)));
 
   const attempts = [];
-  if (isMagistral) {
+  if (isMagistral && !isCancelled) {
     // CLASES MAGISTRALES / GA: El Aula tiene PRIORIDAD ABSOLUTA frente a la insignia
     // 1. Todo completo (si cabe de sobra)
     if (canBadge && canRoom && canTeacher) {
@@ -650,7 +673,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     ? validRoomCandidates[validRoomCandidates.length - 1] 
     : null;
 
-  if (isMagistral) {
+  if (isMagistral && !isCancelled) {
     if (canRoom && mostCompactRoom && blockHeight >= 22) {
       fallbackRoom = mostCompactRoom;
     } else if (canBadge && bestBadge) {
@@ -878,7 +901,10 @@ export function computeBlockLayoutMemo(lesson, blockWidth, blockHeight, isDayVie
   if (!lesson) return DEFAULT_FIT;
   const roundedW = Math.round(blockWidth || 60);
   const roundedH = Math.round(blockHeight || 80);
-  const key = `${lesson.id || 0}_${roundedW}_${roundedH}_${isDayView ? 1 : 0}_${lesson.type || ''}_${lesson.rooms?.[0] || ''}`;
+  const isCanc = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled) ? 1 : 0;
+  const isOv = lesson.isOverridden ? 1 : 0;
+  const hasDrift = lesson.hasRemoteDrift ? 1 : 0;
+  const key = `${lesson.id || 0}_${roundedW}_${roundedH}_${isDayView ? 1 : 0}_${isCanc}_${isOv}_${hasDrift}_${lesson.type || ''}_${lesson.rooms?.[0] || ''}`;
   if (layoutCache.has(key)) {
     return layoutCache.get(key);
   }
@@ -1899,179 +1925,204 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
-                  {/* Remote drift alert badge */}
-                  {lesson.hasRemoteDrift && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 2,
-                        right: 3,
-                        background: '#f59e0b',
-                        color: '#ffffff',
-                        borderRadius: '50%',
-                        width: 12,
-                        height: 12,
-                        fontSize: 8,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 900,
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                        zIndex: 5,
-                      }}
-                      title="WebUntis ha actualizado esta clase"
-                    >
-                      !
-                    </div>
-                  )}
-
-                  {/* Status Indicator Icons (Top-Right): Cancelled, Swapped, Edited */}
+                  {/* Cabecera de estado y badges en flujo natural (NUNCA position: absolute ni superpuesto con texto o tag) */}
                   {(() => {
-                    const showCancelledIcon = isCancelledLesson;
-                    // Solo mostrar icono de editada/intercambiada si NO está cancelada (evita doble badge)
-                    const showEditedIcon = !isCancelledLesson && lesson.isOverridden && !lesson.hasRemoteDrift;
-                    const showCompactOriginIcon = isSwapOrigin && (height < 34 && fit.badge?.hide);
+                    const hasDrift = Boolean(lesson.hasRemoteDrift);
+                    const showEditedIcon = !isCancelledLesson && lesson.isOverridden && !hasDrift;
+                    const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
+                    const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
+                    const isCompactBlock = height < 34;
+                    const renderInHeader = !isCompactBlock || hasTextBadge || isIconOnlyCancelledBadge || isSwapOrigin;
 
-                    if (!showCancelledIcon && !showEditedIcon && !showCompactOriginIcon) return null;
-
-                    return (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 2,
-                          right: 3,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 2,
-                          zIndex: 4,
-                        }}
-                      >
-                        {showCancelledIcon && (
+                    const badgeContent = (() => {
+                      if (isSwapOrigin) {
+                        if (!isCompactBlock || hasTextBadge) {
+                          return (
+                            <div
+                              className="swap-origin-badge"
+                              style={{
+                                fontSize: fit.badge?.font || 8,
+                                fontWeight: 800,
+                                background: 'var(--accent)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255, 255, 255, 0.45)',
+                                padding: '1px 5px',
+                                borderRadius: 3,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                lineHeight: fit.badge?.lineHeight || 1.1,
+                                flexShrink: 0,
+                                maxWidth: '100%',
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.4px',
+                              }}
+                            >
+                              <ArrowUpDown size={8} strokeWidth={2.8} />
+                              <span>Origen</span>
+                            </div>
+                          );
+                        }
+                        return (
                           <div
                             style={{
-                              width: 14,
-                              height: 14,
+                              width: 13,
+                              height: 13,
+                              borderRadius: 3,
+                              background: 'var(--accent)',
+                              color: '#ffffff',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                            title="Clase de origen para intercambio"
+                          >
+                            <ArrowUpDown size={8} strokeWidth={2.8} />
+                          </div>
+                        );
+                      }
+
+                      if (hasTextBadge) {
+                        return (
+                          <div
+                            style={{
+                              fontSize: fit.badge?.font || 8,
+                              fontWeight: 800,
+                              background: isCancelledLesson
+                                ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
+                                : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
+                              color: isCancelledLesson
+                                ? (isDark ? '#fca5a5' : '#b91c1c')
+                                : (isDark ? '#FFFFFF' : 'inherit'),
+                              border: isCancelledLesson
+                                ? '1px solid rgba(239, 68, 68, 0.35)'
+                                : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
+                              padding: isCancelledLesson ? (fit.badge?.padding || '1px 3px') : (fit.badge?.padding || '0px 2px'),
+                              borderRadius: 3,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: isCancelledLesson ? 2.5 : 0,
+                              lineHeight: fit.badge?.lineHeight || 1.1,
+                              flexShrink: 0,
+                              maxWidth: '100%',
+                              textAlign: 'center',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {isCancelledLesson && <Ban size={8} strokeWidth={2.8} className="shrink-0" />}
+                            <span>{fit.badge?.text}</span>
+                          </div>
+                        );
+                      }
+
+                      if (isCancelledLesson && (isIconOnlyCancelledBadge || renderInHeader)) {
+                        return (
+                          <div
+                            style={{
+                              width: 13,
+                              height: 13,
                               borderRadius: 3,
                               background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
                               color: isDark ? '#fca5a5' : '#b91c1c',
-                              display: 'flex',
+                              border: isDark ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(239, 68, 68, 0.25)',
+                              display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              flexShrink: 0,
+                              textDecoration: 'none',
                             }}
                             title="Clase cancelada"
                           >
-                            <Ban size={9} strokeWidth={2.8} />
+                            <Ban size={8} strokeWidth={2.8} />
                           </div>
-                        )}
+                        );
+                      }
 
+                      return null;
+                    })();
+
+                    const statusIcons = (
+                      <>
                         {showEditedIcon && (
                           <div
                             style={{
-                              width: 14,
-                              height: 14,
+                              width: 13,
+                              height: 13,
                               borderRadius: 3,
                               background: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)',
                               color: color.text,
                               opacity: 0.85,
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              flexShrink: 0,
                             }}
                             title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'}
                           >
-                            {lesson.swappedWith ? <ArrowUpDown size={9} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
+                            {lesson.swappedWith ? <ArrowUpDown size={8} strokeWidth={2.4} /> : <Pencil size={8} strokeWidth={2.4} />}
                           </div>
                         )}
 
-                        {showCompactOriginIcon && (
+                        {hasDrift && (
                           <div
                             style={{
-                              width: 14,
-                              height: 14,
-                              borderRadius: 3,
-                              background: 'var(--accent)',
+                              background: '#f59e0b',
                               color: '#ffffff',
-                              display: 'flex',
+                              borderRadius: '50%',
+                              width: 12,
+                              height: 12,
+                              fontSize: 8,
+                              display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              fontWeight: 900,
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                              flexShrink: 0,
                             }}
-                            title="Clase de origen para intercambio"
+                            title="WebUntis ha actualizado esta clase"
                           >
-                            <ArrowUpDown size={9} strokeWidth={2.8} />
+                            !
                           </div>
                         )}
+                      </>
+                    );
+
+                    if (!renderInHeader && !badgeContent) {
+                      return null;
+                    }
+
+                    if (!badgeContent && !showEditedIcon && !hasDrift) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        className="lesson-block-header"
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 3,
+                          marginBottom: 1,
+                          flexShrink: 0,
+                          minHeight: 0,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {badgeContent}
+                        {renderInHeader && statusIcons}
                       </div>
                     );
                   })()}
-
-                  {/* Subgroup / Cancelled / Swap Origin Badge (en flujo natural, nunca superpuesto) */}
-                  {isSwapOrigin ? (
-                    (height >= 34 || !fit.badge?.hide) && (
-                      <div
-                        className="swap-origin-badge"
-                        style={{
-                          fontSize: fit.badge?.font || 8,
-                          fontWeight: 800,
-                          background: 'var(--accent)',
-                          color: '#ffffff',
-                          border: '1px solid rgba(255, 255, 255, 0.45)',
-                          padding: '1px 5px',
-                          borderRadius: 3,
-                          marginBottom: 1,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          lineHeight: fit.badge?.lineHeight || 1.1,
-                          flexShrink: 0,
-                          maxWidth: '100%',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          alignSelf: 'center',
-                          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.4px',
-                        }}
-                      >
-                        <ArrowUpDown size={8} strokeWidth={2.8} />
-                        <span>Origen</span>
-                      </div>
-                    )
-                  ) : (
-                    !fit.badge?.hide && (
-                      <div
-                        style={{
-                          fontSize: fit.badge?.font || 8,
-                          fontWeight: 800,
-                          background: isCancelledLesson
-                            ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
-                            : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
-                          color: isCancelledLesson
-                            ? (isDark ? '#fca5a5' : '#b91c1c')
-                            : (isDark ? '#FFFFFF' : 'inherit'),
-                          border: isCancelledLesson
-                            ? '1px solid rgba(239, 68, 68, 0.35)'
-                            : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
-                          padding: isCancelledLesson ? '1px 4px' : (fit.badge?.padding || '0px 2px'),
-                          borderRadius: 3,
-                          marginBottom: 1,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          lineHeight: fit.badge?.lineHeight || 1.1,
-                          flexShrink: 0,
-                          maxWidth: '100%',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          alignSelf: 'center',
-                          boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        <span>{fit.badge?.text}</span>
-                      </div>
-                    )
-                  )}
 
                   {/* Center Area: Vertically centered Subject Name */}
                   {fit.subject?.mode === 'lines' && Array.isArray(fit.subject?.lines) && (
@@ -2086,7 +2137,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         width: '100%',
                         minHeight: 0,
                         overflow: 'hidden',
-                        paddingTop: fit.badge?.hide ? '0px' : '1px',
+                        paddingTop: (fit.badge?.hide && (height >= 34 || (!lesson.isOverridden && !lesson.hasRemoteDrift && lesson.code !== 'cancelled' && !lesson.isUserCancelled))) ? '0px' : '1px',
                         paddingBottom: (fit.room?.show || (isDayView && fit.teacher?.show)) ? '1px' : '0px',
                       }}
                     >
@@ -2106,22 +2157,43 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                           overflow: 'hidden',
                         }}
                       >
-                        {fit.subject.lines.map((line, lineIdx) => (
-                          <span
-                            key={lineIdx}
-                            style={{
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'clip',
-                              textDecoration: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? 'line-through' : 'none',
-                              lineHeight: fit.subject?.lineHeight || 1.1,
-                              textAlign: 'center',
-                            }}
-                          >
-                            {line}
-                          </span>
-                        ))}
+                        {fit.subject.lines.map((line, lineIdx) => {
+                          const showCompactInlineIcons = height < 34 && fit.badge?.hide && !isSwapOrigin && lineIdx === 0;
+                          const showCancelled = showCompactInlineIcons && isCancelledLesson;
+                          const showEdited = showCompactInlineIcons && !isCancelledLesson && lesson.isOverridden && !lesson.hasRemoteDrift;
+                          const showDrift = showCompactInlineIcons && lesson.hasRemoteDrift;
+
+                          return (
+                            <span
+                              key={lineIdx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 2.5,
+                                maxWidth: '100%',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'clip',
+                                textDecoration: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? 'line-through' : 'none',
+                                lineHeight: fit.subject?.lineHeight || 1.1,
+                                textAlign: 'center',
+                              }}
+                            >
+                              {showCancelled && <Ban size={8} strokeWidth={2.8} className="shrink-0 text-rose-500" />}
+                              {showEdited && (lesson.swappedWith ? <ArrowUpDown size={8} strokeWidth={2.4} className="shrink-0 opacity-80" /> : <Pencil size={8} strokeWidth={2.4} className="shrink-0 opacity-80" />)}
+                              {showDrift && (
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full bg-amber-500 text-white text-[7px] font-black inline-flex items-center justify-center shrink-0"
+                                  title="WebUntis ha actualizado esta clase"
+                                >
+                                  !
+                                </span>
+                              )}
+                              <span>{line}</span>
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

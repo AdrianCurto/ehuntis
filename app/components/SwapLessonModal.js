@@ -112,7 +112,7 @@ export default function SwapLessonModal({
     return (
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-lg p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
+          className="max-w-lg p-5 sm:p-6 overflow-y-auto overscroll-contain"
         >
           {/* Barra interior de acento de color */}
           <div
@@ -275,7 +275,7 @@ export default function SwapLessonModal({
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        className="max-w-lg p-6 overflow-y-auto max-h-[90vh] overflow-hidden"
+        className="max-w-lg p-5 sm:p-6 overflow-y-auto overscroll-contain"
       >
         {/* Barra interior de acento de color */}
         <div
