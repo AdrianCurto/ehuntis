@@ -1206,24 +1206,24 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     } = getPanels();
 
     if (daysTrackEl) {
-      daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
     }
     if (currentTimeOverlayEl) {
       currentTimeOverlayEl.classList.add('is-moving');
-      currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
     }
 
     if (headerTrackEl && !isDayViewRef.current) {
-      headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
     }
 
     if (thumbEl && isDayViewRef.current) {
       const totalDays = fullWeekDates?.length || weekDates?.length || 5;
       if (targetDayIdx >= 0 && targetDayIdx < totalDays) {
-        thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+        thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
         thumbEl.style.transform = `translate3d(${targetDayIdx * 100}%, 0, 0)`;
       }
     }
@@ -1231,7 +1231,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     const timer = setTimeout(() => {
       isSlidingRef.current = false;
       onComplete?.();
-    }, 245);
+    }, 180);
 
     return () => {
       clearTimeout(timer);
@@ -1362,7 +1362,25 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       }
 
       // ── Single-finger drag ──
-      if (e.touches.length !== 1 || !swipeDragRef.current || pinchRef.current?.isPinching) return;
+      if (e.touches.length !== 1 || pinchRef.current?.isPinching) return;
+
+      // Si el arrastre no se inicio en touchstart porque la diapositiva anterior estaba completandose,
+      // engancharlo inmediatamente en cuanto termine el relevo
+      if (!swipeDragRef.current && !isSlidingRef.current) {
+        clearDragStyles();
+        const t = e.touches[0];
+        swipeDragRef.current = {
+          startX: t.clientX,
+          startY: t.clientY,
+          startTime: Date.now(),
+          lastX: t.clientX,
+          dragOffset: 0,
+          direction: 'none',
+        };
+        return;
+      }
+
+      if (!swipeDragRef.current) return;
 
       const drag = swipeDragRef.current;
       const t = e.touches[0];
@@ -1474,17 +1492,17 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           const targetX = isNext ? '-100%' : '100%';
 
           if (daysTrackEl) {
-            daysTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
           }
           if (currentTimeOverlayEl) {
             currentTimeOverlayEl.classList.add('is-moving');
-            currentTimeOverlayEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
           }
 
           if (headerTrackEl && !isDayViewRef.current) {
-            headerTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
           }
 
@@ -1492,7 +1510,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
             const currentIdx = selectedDayIndexRef.current;
             if (currentIdx >= 0) {
               const targetIdx = isNext ? currentIdx + 1 : currentIdx - 1;
-              thumbEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+              thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
               thumbEl.style.transform = `translate3d(${targetIdx * 100}%, 0, 0)`;
             }
           }
@@ -1500,30 +1518,30 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           setTimeout(() => {
             if (isNext) onSwipeLeftRef.current?.();
             else onSwipeRightRef.current?.();
-          }, 200);
+          }, 160);
           return;
         }
 
         // Cancel: Snap back smoothly to 0
         if (daysTrackEl) {
-          daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           daysTrackEl.style.transform = 'translate3d(0, 0, 0)';
         }
         if (currentTimeOverlayEl) {
           currentTimeOverlayEl.classList.add('is-moving');
-          currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           currentTimeOverlayEl.style.transform = 'translate3d(0, 0, 0)';
         }
 
         if (headerTrackEl && !isDayViewRef.current) {
-          headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           headerTrackEl.style.transform = 'translate3d(0, 0, 0)';
         }
 
         if (thumbEl && isDayViewRef.current) {
           const currentIdx = selectedDayIndexRef.current;
           if (currentIdx >= 0) {
-            thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+            thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             thumbEl.style.transform = `translate3d(${currentIdx * 100}%, 0, 0)`;
           }
         }

@@ -64,21 +64,14 @@ import {
   suggestEventColor,
 } from './utils/customEvents';
 
-import {
-  preloadLessonModal,
-  preloadEditLessonModal,
-  preloadSwapLessonModal,
-  preloadCustomEventModal,
-  preloadCustomEventDetailModal,
-} from './utils/modalPreload';
+import LessonModal from './components/LessonModal';
+import EditLessonModal from './components/EditLessonModal';
+import SwapLessonModal from './components/SwapLessonModal';
+import CustomEventModal from './components/CustomEventModal';
+import CustomEventDetailModal from './components/CustomEventDetailModal';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
-const LessonModal = dynamic(preloadLessonModal, { ssr: false });
-const EditLessonModal = dynamic(preloadEditLessonModal, { ssr: false });
-const SwapLessonModal = dynamic(preloadSwapLessonModal, { ssr: false });
-const CustomEventModal = dynamic(preloadCustomEventModal, { ssr: false });
-const CustomEventDetailModal = dynamic(preloadCustomEventDetailModal, { ssr: false });
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
@@ -2136,46 +2129,6 @@ export default function Home() {
   const handleSwipeLeft = useCallback(() => handleSwipeCommit('next'), [handleSwipeCommit]);
   const handleSwipeRight = useCallback(() => handleSwipeCommit('prev'), [handleSwipeCommit]);
 
-  // Precargar chunks de modales tras el arranque para eliminar lag en la primera apertura
-  useEffect(() => {
-    if (!initDone || typeof window === 'undefined') return;
-    let cancelled = false;
-    const warmModals = () => {
-      if (cancelled) return;
-      preloadLessonModal();
-      preloadCustomEventDetailModal();
-      preloadEditLessonModal();
-      preloadCustomEventModal();
-      preloadSwapLessonModal();
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      const idleId = window.requestIdleCallback(warmModals, { timeout: 250 });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback?.(idleId);
-      };
-    }
-    const timerId = window.setTimeout(warmModals, 150);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timerId);
-    };
-  }, [initDone]);
-
-  // Precarga por intencion de modales secundarios mientras el usuario visualiza los modales de detalle
-  useEffect(() => {
-    if (displayedActiveLesson) {
-      preloadEditLessonModal();
-      preloadSwapLessonModal();
-    }
-  }, [displayedActiveLesson]);
-
-  useEffect(() => {
-    if (selectedCustomEvent) {
-      preloadCustomEventModal();
-    }
-  }, [selectedCustomEvent]);
-
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
     return (
@@ -2321,8 +2274,6 @@ export default function Home() {
           {/* Floating Action Button (FAB) para crear eventos personales */}
           <button
             className="fab-add-event"
-            onPointerEnter={preloadCustomEventModal}
-            onTouchStart={preloadCustomEventModal}
             onClick={() => handleOpenNewEventModal()}
             aria-label="Añadir evento personal"
             title="Añadir evento personal"
