@@ -5,6 +5,7 @@ import { ArrowUpDown, Pencil, Ban } from 'lucide-react';
 import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
 import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
+import { resolveStatusIndicatorPlacement } from '../utils/statusBadgeLayout';
 
 import {
   PALETTE,
@@ -341,10 +342,11 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
 
-  // Espacio reservado si la clase tiene iconos de estado adicionales (editada, drift) junto al badge
-  const numIcons = (isCancelled ? 0 : (lesson.isOverridden ? 1 : 0)) + (lesson.hasRemoteDrift ? 1 : 0);
-  const iconReserveWidth = numIcons > 0 ? numIcons * 15 : 0;
-  const badgeAvailWidth = Math.max(0, availWidth - iconReserveWidth);
+  // El badge se mide siempre contra el ancho completo disponible para no abreviarlo
+  // ni descentrarlo al editar la clase; los iconos de estado se colocan después según espacio libre.
+  const badgeAvailWidth = availWidth;
+  const hasDrift = Boolean(lesson.hasRemoteDrift);
+  const showEditedIcon = !isCancelled && Boolean(lesson.isOverridden) && !hasDrift;
 
   if (isCancelled) {
     const cancelTexts = ['Cancelada', 'Canc.'];
@@ -363,6 +365,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
             padding: `${style.padY}px ${style.padX}px`,
             lineHeight: 1.1,
             height,
+            width: Math.ceil(totalBadgeWidth),
           });
           break;
         }
@@ -380,13 +383,15 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
         padding: '0px',
         lineHeight: 1.1,
         height: 14,
+        width: 13,
       });
     }
   } else if (lesson.isCustomEvent) {
     if (lesson.category) {
       const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
       for (const style of BADGE_STYLES) {
-        if (measureText(catText, style.font, '800') + style.padX * 2 <= badgeAvailWidth) {
+        const badgeWidth = measureText(catText, style.font, '800') + style.padX * 2 + 2;
+        if (badgeWidth <= badgeAvailWidth) {
           const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
           badgeCandidates.push({
             hide: false,
@@ -395,6 +400,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
             padding: `${style.padY}px ${style.padX}px`,
             lineHeight: 1.1,
             height,
+            width: Math.ceil(badgeWidth),
           });
           break;
         }
@@ -443,7 +449,8 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     const uniqueTexts = Array.from(new Set(texts));
     for (const text of uniqueTexts) {
       for (const style of BADGE_STYLES) {
-        if (measureText(text, style.font, '800') + style.padX * 2 <= badgeAvailWidth) {
+        const badgeWidth = measureText(text, style.font, '800') + style.padX * 2 + 2;
+        if (badgeWidth <= badgeAvailWidth) {
           const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
           badgeCandidates.push({
             hide: false,
@@ -452,6 +459,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
             padding: `${style.padY}px ${style.padX}px`,
             lineHeight: 1.1,
             height,
+            width: Math.ceil(badgeWidth),
           });
           break;
         }
@@ -460,7 +468,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   }
 
   const bestBadge = badgeCandidates[0] || null;
-  const hiddenBadge = { hide: true, height: 0, text: '', font: 0 };
+  const hiddenBadge = { hide: true, height: 0, width: 0, text: '', font: 0 };
 
   // 2. Room candidate options - genera opciones con distintos tamaños de fuente
   // para que si hay compresión vertical, el aula reduzca su fuente antes de desaparecer
@@ -649,13 +657,26 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
         const subjectHeight = lines.length * Math.round(font * lineHeight);
 
         if (subjectHeight <= remainingHeight + 1) {
+          const usedHeight = curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight;
+          const statusPlacement = resolveStatusIndicatorPlacement({
+            showEditedIcon,
+            hasDrift,
+            hasBadge: !curBadge.hide,
+            badgeWidth: curBadge.width || 0,
+            availWidth,
+            availHeight,
+            usedHeight,
+          });
           return {
             padding,
             badge: curBadge,
             room: roomCandidate,
             teacher: teacherCandidate,
             subject: { mode: 'lines', lines, font, lineHeight, tier: tier.name },
-            totalHeight: curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight,
+            totalHeight: usedHeight,
+            availWidth,
+            availHeight,
+            statusPlacement,
           };
         }
       }
@@ -687,6 +708,16 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     }
   }
 
+  const fallbackStatusPlacement = resolveStatusIndicatorPlacement({
+    showEditedIcon,
+    hasDrift,
+    hasBadge: !fallbackBadge.hide,
+    badgeWidth: fallbackBadge.width || 0,
+    availWidth,
+    availHeight,
+    usedHeight: availHeight,
+  });
+
   return {
     padding,
     badge: fallbackBadge,
@@ -700,6 +731,9 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
       tier: fallbackTier.name || 'fallback',
     },
     totalHeight: availHeight,
+    availWidth,
+    availHeight,
+    statusPlacement: fallbackStatusPlacement,
   };
 }
 
@@ -888,11 +922,14 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const DEFAULT_FIT = {
   padding: '2px 4px',
-  badge: { hide: true, height: 0, text: '', font: 8 },
+  badge: { hide: true, height: 0, width: 0, text: '', font: 8 },
   room: { show: false, text: '', font: 8 },
   teacher: { show: false, text: '', font: 8 },
   subject: { mode: 'lines', lines: [''], font: 10, lineHeight: 1.1 },
   totalHeight: 40,
+  availWidth: 0,
+  availHeight: 0,
+  statusPlacement: 'none',
 };
 
 const layoutCache = new Map();
@@ -1885,21 +1922,65 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - (isDayView ? 4 : 2));
               let fit = computeBlockLayoutMemo(lesson, blockWidth, height, isDayView) || DEFAULT_FIT;
 
-              // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge
-              if (activeSuppressedIds && activeSuppressedIds.has(lesson.id) && isMagistralType(lesson.type)) {
-                fit = { ...fit, badge: { ...(fit.badge || {}), hide: true } };
-              }
-
               const isSwapOrigin = Boolean(swapOriginLesson && (
                 (lesson.lessonKey && lesson.lessonKey === swapOriginLesson.lessonKey) ||
                 (lesson.id && swapOriginLesson.id && lesson.id === swapOriginLesson.id)
               ));
               const isSwapTargetCandidate = Boolean(swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent);
               const isCancelledLesson = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
+              const hasDrift = Boolean(lesson.hasRemoteDrift);
+              const showEditedIcon = !isSwapOrigin && !isCancelledLesson && Boolean(lesson.isOverridden) && !hasDrift;
+              const isCompactBlock = height < 34;
+
+              // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge
+              // y recalcular la colocación de iconos de estado con la altura liberada.
+              if (activeSuppressedIds && activeSuppressedIds.has(lesson.id) && isMagistralType(lesson.type)) {
+                const prevBadgeHeight = fit.badge?.hide ? 0 : (fit.badge?.height || 0);
+                const nextTotalHeight = Math.max(0, (fit.totalHeight || 0) - prevBadgeHeight);
+                fit = {
+                  ...fit,
+                  badge: { ...(fit.badge || {}), hide: true, width: 0, height: 0 },
+                  totalHeight: nextTotalHeight,
+                  statusPlacement: resolveStatusIndicatorPlacement({
+                    showEditedIcon,
+                    hasDrift,
+                    hasBadge: false,
+                    badgeWidth: 0,
+                    availWidth: fit.availWidth || blockWidth,
+                    availHeight: fit.availHeight || height,
+                    usedHeight: nextTotalHeight,
+                  }),
+                };
+              }
+
+              const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
+              const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
+              const hasVisibleHeaderBadge =
+                isSwapOrigin ||
+                hasTextBadge ||
+                (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock));
+
+              const effectiveStatusPlacement = isSwapOrigin
+                ? (hasDrift ? 'border' : 'none')
+                : (fit.statusPlacement || 'none');
+
+              const hasHeaderRow =
+                hasVisibleHeaderBadge ||
+                effectiveStatusPlacement === 'header-side' ||
+                effectiveStatusPlacement === 'header-below' ||
+                effectiveStatusPlacement === 'header-only';
+
+              const isBorderStatus = effectiveStatusPlacement === 'border' && (showEditedIcon || hasDrift);
+              const borderStatusTitle = isBorderStatus
+                ? (hasDrift
+                  ? 'WebUntis ha actualizado esta clase'
+                  : (lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada'))
+                : undefined;
 
               return (
                 <div
                   key={blockKey}
+                  title={borderStatusTitle}
                   className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${isCancelledLesson ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden && !isCancelledLesson ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}`}
                   style={{
                     top: `${top}px`,
@@ -1911,7 +1992,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     border: color.border ? `1px solid ${color.border}` : undefined,
                     outline: isSwapOrigin ? '2.5px solid var(--accent)' : undefined,
                     outlineOffset: isSwapOrigin ? '-1px' : undefined,
-                    boxShadow: isSwapOrigin ? '0 0 16px rgba(99, 102, 241, 0.45)' : undefined,
+                    boxShadow: isSwapOrigin
+                      ? '0 0 16px rgba(99, 102, 241, 0.45)'
+                      : (isBorderStatus && hasDrift ? 'inset 0 2px 0 #f59e0b' : undefined),
                     zIndex: isSwapOrigin ? 15 : undefined,
                     cursor: isSwapTargetCandidate ? 'pointer' : undefined,
                     position: 'absolute',
@@ -1925,15 +2008,26 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
-                  {/* Cabecera de estado y badges en flujo natural (NUNCA position: absolute ni superpuesto con texto o tag) */}
-                  {(() => {
-                    const hasDrift = Boolean(lesson.hasRemoteDrift);
-                    const showEditedIcon = !isCancelledLesson && lesson.isOverridden && !hasDrift;
-                    const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
-                    const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
-                    const isCompactBlock = height < 34;
-                    const renderInHeader = !isCompactBlock || hasTextBadge || isIconOnlyCancelledBadge || isSwapOrigin;
+                  {/* Fallback de esquina cuando el icono no cabe al lado del badge centrado ni en mini-fila */}
+                  {isBorderStatus && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 8,
+                        height: 8,
+                        clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
+                        background: hasDrift ? '#f59e0b' : color.text,
+                        opacity: hasDrift ? 1 : (isDark ? 0.55 : 0.45),
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
 
+                  {/* Cabecera de estado y badges en flujo natural (NUNCA superpuesto ni descentrando el badge) */}
+                  {hasHeaderRow && (() => {
                     const badgeContent = (() => {
                       if (isSwapOrigin) {
                         if (!isCompactBlock || hasTextBadge) {
@@ -1956,7 +2050,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                                 maxWidth: '100%',
                                 textAlign: 'center',
                                 whiteSpace: 'nowrap',
-                                overflow: 'hidden',
+                                overflow: 'clip',
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.4px',
@@ -2012,7 +2106,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                               maxWidth: '100%',
                               textAlign: 'center',
                               whiteSpace: 'nowrap',
-                              overflow: 'hidden',
+                              overflow: 'clip',
                               boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
                               textDecoration: 'none',
                             }}
@@ -2023,7 +2117,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         );
                       }
 
-                      if (isCancelledLesson && (isIconOnlyCancelledBadge || renderInHeader)) {
+                      if (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock)) {
                         return (
                           <div
                             style={{
@@ -2049,7 +2143,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                       return null;
                     })();
 
-                    const statusIcons = (
+                    const statusIcons = (showEditedIcon || hasDrift) ? (
                       <>
                         {showEditedIcon && (
                           <div
@@ -2093,13 +2187,80 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                           </div>
                         )}
                       </>
-                    );
+                    ) : null;
 
-                    if (!renderInHeader && !badgeContent) {
-                      return null;
+                    if (effectiveStatusPlacement === 'header-side' && badgeContent && statusIcons) {
+                      return (
+                        <div
+                          className="lesson-block-header"
+                          style={{
+                            width: '100%',
+                            display: 'grid',
+                            gridTemplateColumns: '1fr auto 1fr',
+                            alignItems: 'center',
+                            columnGap: 2,
+                            marginBottom: 1,
+                            flexShrink: 0,
+                            minHeight: 0,
+                            overflow: 'clip',
+                          }}
+                        >
+                          <div style={{ gridColumn: 2, justifySelf: 'center', display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>
+                            {badgeContent}
+                          </div>
+                          <div style={{ gridColumn: 3, justifySelf: 'end', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            {statusIcons}
+                          </div>
+                        </div>
+                      );
                     }
 
-                    if (!badgeContent && !showEditedIcon && !hasDrift) {
+                    if (effectiveStatusPlacement === 'header-below' && badgeContent && statusIcons) {
+                      return (
+                        <div
+                          className="lesson-block-header"
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            marginBottom: 1,
+                            flexShrink: 0,
+                            minHeight: 0,
+                            overflow: 'clip',
+                          }}
+                        >
+                          {badgeContent}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            {statusIcons}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (effectiveStatusPlacement === 'header-only' && statusIcons && !badgeContent) {
+                      return (
+                        <div
+                          className="lesson-block-header"
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 2,
+                            marginBottom: 1,
+                            flexShrink: 0,
+                            minHeight: 0,
+                            overflow: 'clip',
+                          }}
+                        >
+                          {statusIcons}
+                        </div>
+                      );
+                    }
+
+                    if (!badgeContent) {
                       return null;
                     }
 
@@ -2115,11 +2276,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                           marginBottom: 1,
                           flexShrink: 0,
                           minHeight: 0,
-                          overflow: 'hidden',
+                          overflow: 'clip',
                         }}
                       >
                         {badgeContent}
-                        {renderInHeader && statusIcons}
                       </div>
                     );
                   })()}
@@ -2137,7 +2297,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         width: '100%',
                         minHeight: 0,
                         overflow: 'hidden',
-                        paddingTop: (fit.badge?.hide && (height >= 34 || (!lesson.isOverridden && !lesson.hasRemoteDrift && lesson.code !== 'cancelled' && !lesson.isUserCancelled))) ? '0px' : '1px',
+                        paddingTop: hasHeaderRow ? '1px' : '0px',
                         paddingBottom: (fit.room?.show || (isDayView && fit.teacher?.show)) ? '1px' : '0px',
                       }}
                     >
@@ -2158,10 +2318,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         }}
                       >
                         {fit.subject.lines.map((line, lineIdx) => {
-                          const showCompactInlineIcons = height < 34 && fit.badge?.hide && !isSwapOrigin && lineIdx === 0;
-                          const showCancelled = showCompactInlineIcons && isCancelledLesson;
-                          const showEdited = showCompactInlineIcons && !isCancelledLesson && lesson.isOverridden && !lesson.hasRemoteDrift;
-                          const showDrift = showCompactInlineIcons && lesson.hasRemoteDrift;
+                          const showCompactCancelled = isCompactBlock && fit.badge?.hide && !isSwapOrigin && isCancelledLesson && lineIdx === 0;
 
                           return (
                             <span
@@ -2180,16 +2337,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                                 textAlign: 'center',
                               }}
                             >
-                              {showCancelled && <Ban size={8} strokeWidth={2.8} className="shrink-0 text-rose-500" />}
-                              {showEdited && (lesson.swappedWith ? <ArrowUpDown size={8} strokeWidth={2.4} className="shrink-0 opacity-80" /> : <Pencil size={8} strokeWidth={2.4} className="shrink-0 opacity-80" />)}
-                              {showDrift && (
-                                <span
-                                  className="w-2.5 h-2.5 rounded-full bg-amber-500 text-white text-[7px] font-black inline-flex items-center justify-center shrink-0"
-                                  title="WebUntis ha actualizado esta clase"
-                                >
-                                  !
-                                </span>
-                              )}
+                              {showCompactCancelled && <Ban size={8} strokeWidth={2.8} className="shrink-0 text-rose-500" />}
                               <span>{line}</span>
                             </span>
                           );
