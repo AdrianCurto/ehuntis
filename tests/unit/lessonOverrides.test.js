@@ -16,6 +16,7 @@ const {
   resolveDrift,
   swapLessons,
   hasLessonOverrideChanges,
+  hasNonCancellationOverrideChanges,
   areRoomsEqual,
   cleanObsoleteLessonOverrides,
 } = require('../../app/utils/lessonOverrides');
@@ -1143,6 +1144,94 @@ describe('lessonOverrides utility suite', () => {
       const pass1 = reconcileLessonOverrides(ovConflict, [updated]);
       const pass2 = reconcileLessonOverrides(pass1, [updated]);
       assert.equal(pass2, pass1);
+    });
+  });
+
+  describe('hasNonCancellationOverrideChanges', () => {
+    const baseOfficial = {
+      id: 8001,
+      date: 20261118,
+      startTime: 900,
+      endTime: 1100,
+      rooms: ['P2 G3A'],
+      teachers: ['Prof A'],
+      code: null,
+    };
+
+    test('returns false for non-overridden lessons or lessons that are only user-cancelled', () => {
+      const [plain] = applyLessonOverrides([baseOfficial], {});
+      assert.equal(hasNonCancellationOverrideChanges(plain), false);
+
+      const cancelOnlyOv = setLessonOverride({}, baseOfficial, { userCancelled: true });
+      const [cancelledOnly] = applyLessonOverrides([baseOfficial], cancelOnlyOv);
+      assert.equal(cancelledOnly.isOverridden, true);
+      assert.equal(cancelledOnly.isUserCancelled, true);
+      assert.equal(hasNonCancellationOverrideChanges(cancelledOnly), false);
+    });
+
+    test('returns true when a user-cancelled lesson also has room, time, date, notes, or swap overrides', () => {
+      const ovRoom = setLessonOverride({}, baseOfficial, {
+        userCancelled: true,
+        customRooms: ['Lab 4'],
+      });
+      const [cancelledWithRoom] = applyLessonOverrides([baseOfficial], ovRoom);
+      assert.equal(cancelledWithRoom.isUserCancelled, true);
+      assert.equal(hasNonCancellationOverrideChanges(cancelledWithRoom), true);
+
+      const ovNotes = setLessonOverride({}, baseOfficial, {
+        userCancelled: true,
+        customNotes: 'Recordatorio',
+      });
+      const [cancelledWithNotes] = applyLessonOverrides([baseOfficial], ovNotes);
+      assert.equal(hasNonCancellationOverrideChanges(cancelledWithNotes), true);
+
+      const ovTime = setLessonOverride({}, baseOfficial, {
+        userCancelled: true,
+        customStartTime: 1000,
+        customEndTime: 1200,
+      });
+      const [cancelledWithTime] = applyLessonOverrides([baseOfficial], ovTime);
+      assert.equal(hasNonCancellationOverrideChanges(cancelledWithTime), true);
+
+      const ovDate = setLessonOverride({}, baseOfficial, {
+        userCancelled: true,
+        customDate: 20261119,
+      });
+      const [cancelledWithDate] = applyLessonOverrides([baseOfficial], ovDate);
+      assert.equal(hasNonCancellationOverrideChanges(cancelledWithDate), true);
+    });
+
+    test('returns true for non-cancelled overridden lessons and supports fallback without overrideData', () => {
+      const ovRoomOnly = setLessonOverride({}, baseOfficial, { customRooms: ['Lab 9'] });
+      const [roomOnly] = applyLessonOverrides([baseOfficial], ovRoomOnly);
+      assert.equal(hasNonCancellationOverrideChanges(roomOnly), true);
+
+      // Fallback without overrideData
+      assert.equal(
+        hasNonCancellationOverrideChanges({
+          isOverridden: true,
+          isUserCancelled: true,
+          date: 20261118,
+          rawDate: 20261118,
+          startTime: 900,
+          rawStartTime: 900,
+          endTime: 1100,
+          rawEndTime: 1100,
+          rooms: ['P2 G3A'],
+          rawRooms: ['P2 G3A'],
+          notes: '',
+        }),
+        false
+      );
+
+      assert.equal(
+        hasNonCancellationOverrideChanges({
+          isOverridden: true,
+          isUserCancelled: true,
+          notes: 'Traer portatil',
+        }),
+        true
+      );
     });
   });
 

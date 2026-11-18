@@ -358,6 +358,38 @@ function hasLessonOverrideChanges(override, snapshot, lesson) {
 }
 
 /**
+ * Comprueba si una lección personalizada tiene modificaciones distintas a la cancelación manual
+ * (p. ej. cambio de fecha, horario, aula, notas personales, intercambio o ignorar cancelación oficial).
+ * Devuelve false si la clase no tiene override o si su única modificación es `userCancelled: true`.
+ *
+ * @param {Object} lesson Lección enriquecida por applyLessonOverrides
+ * @returns {boolean}
+ */
+function hasNonCancellationOverrideChanges(lesson) {
+  if (!lesson || typeof lesson !== 'object' || !lesson.isOverridden) {
+    return false;
+  }
+
+  if (lesson.overrideData && typeof lesson.overrideData === 'object') {
+    return hasLessonOverrideChanges(
+      { ...lesson.overrideData, userCancelled: false },
+      lesson.overrideData.originalSnapshot,
+      lesson
+    );
+  }
+
+  if (lesson.swappedWith) return true;
+  if (lesson.ignoresOfficialCancellation) return true;
+  if (typeof lesson.notes === 'string' && lesson.notes.trim() !== '') return true;
+  if (lesson.rawDate !== undefined && Number(lesson.date) !== Number(lesson.rawDate)) return true;
+  if (lesson.rawStartTime !== undefined && lesson.startTime !== lesson.rawStartTime) return true;
+  if (lesson.rawEndTime !== undefined && lesson.endTime !== lesson.rawEndTime) return true;
+  if (lesson.rawRooms !== undefined && !areRoomsEqual(lesson.rooms, lesson.rawRooms)) return true;
+
+  return false;
+}
+
+/**
  * Reconcilia en 3-way un override de usuario contra la lección oficial fresca de WebUntis:
  * - Si WebUntis cambió un campo que el usuario NO modificó: aplica el cambio oficial y avanza el snapshot (sin conflicto).
  * - Si WebUntis cambió un campo al MISMO valor que el usuario había fijado (convergencia): elimina el custom* y avanza el snapshot (sin conflicto).
@@ -1377,6 +1409,7 @@ module.exports = {
   resolveDrift,
   swapLessons,
   hasLessonOverrideChanges,
+  hasNonCancellationOverrideChanges,
   normalizeRooms,
   areRoomsEqual,
   cleanObsoleteLessonOverrides,

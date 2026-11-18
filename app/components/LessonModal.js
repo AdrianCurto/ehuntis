@@ -15,6 +15,7 @@ import {
 import {
   ResponsiveModal,
   ResponsiveModalContent,
+  ResponsiveModalTitle,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
 import { ConfirmDialog } from './ui/confirm-dialog';
@@ -23,6 +24,7 @@ import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
+import { hasNonCancellationOverrideChanges } from '../utils/lessonOverrides';
 import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -65,6 +67,7 @@ export default function LessonModal({
   const isUserCancelled = Boolean(lesson.isUserCancelled);
   const isWebUntisCancelled = lesson.code === 'cancelled' && !isUserCancelled;
   const isOverridden = Boolean(lesson.isOverridden);
+  const showResetButton = isOverridden && (!isUserCancelled || hasNonCancellationOverrideChanges(lesson));
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
   const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
@@ -111,23 +114,26 @@ export default function LessonModal({
             '--card-ink': color.text,
           }}
         >
-          {/* Cabecera: Asignatura primero, fecha y hora como subtitulo */}
-          <div className="pr-8 mb-3 text-left">
+          {/* Cabecera: Asignatura primero, fecha y hora como subtitulo, todo centrado */}
+          <div className="px-8 mb-3 flex flex-col items-center text-center">
             {subgroupStr && (
-              <div className="text-[11px] font-semibold uppercase tracking-wider mb-1 opacity-75" style={{ color: color.text }}>
+              <div className="text-[11px] font-semibold uppercase tracking-wider mb-1 opacity-75 text-center" style={{ color: color.text }}>
                 {subgroupStr}
                 {lesson.type ? ` · ${lesson.type}` : ''}
               </div>
             )}
-            <h2 className="text-xl font-bold leading-snug tracking-tight text-balance font-[var(--font-display)]" style={{ color: color.text }}>
+            <ResponsiveModalTitle
+              className="text-xl font-bold leading-snug tracking-tight text-balance text-center font-[var(--font-display)]"
+              style={{ color: color.text }}
+            >
               {subjectName}
-            </h2>
+            </ResponsiveModalTitle>
             {!subgroupStr && lesson.type && (
-              <div className="text-xs font-medium opacity-80 mt-0.5" style={{ color: color.text }}>
+              <div className="text-xs font-medium opacity-80 mt-0.5 text-center" style={{ color: color.text }}>
                 {lesson.type}
               </div>
             )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums" style={{ color: color.text, opacity: 0.85 }}>
+            <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums text-center" style={{ color: color.text, opacity: 0.85 }}>
               <span>{dayName} {dateStr}</span>
               <span aria-hidden="true">·</span>
               <span className="font-bold">{timeStr}</span>
@@ -136,14 +142,14 @@ export default function LessonModal({
 
           {/* Banner de drift remoto si WebUntis actualizo datos */}
           {hasDrift && (
-            <div className="p-3.5 my-3 rounded-[var(--radius-lg)] bg-white/90 dark:bg-slate-950/80 border border-amber-500/40 text-slate-900 dark:text-slate-100 text-xs shadow-sm backdrop-blur-xs">
-              <div className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-300 mb-2">
+            <div className="p-3.5 my-3 rounded-[var(--radius-lg)] bg-white/90 dark:bg-slate-950/80 border border-amber-500/40 text-slate-900 dark:text-slate-100 text-xs text-center shadow-sm backdrop-blur-xs">
+              <div className="flex items-center justify-center gap-2 font-semibold text-amber-900 dark:text-amber-300 mb-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>WebUntis ha actualizado esta clase</span>
               </div>
-              <div className="flex flex-col gap-1.5 mb-3">
+              <div className="flex flex-col items-center gap-1.5 mb-3">
                 {lesson.driftChanges.map((ch, idx) => (
-                  <div key={idx} className="flex flex-wrap items-center gap-1.5 tabular-nums">
+                  <div key={idx} className="flex flex-wrap items-center justify-center gap-1.5 tabular-nums">
                     <span className="font-medium text-slate-600 dark:text-slate-400">{ch.label}:</span>
                     <span className="line-through text-slate-500 dark:text-slate-400">{ch.before}</span>
                     <span className="text-slate-400" aria-hidden="true">→</span>
@@ -158,7 +164,7 @@ export default function LessonModal({
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
                 <Button
                   size="sm"
                   className="touch-target-44 bg-[#c2410c] hover:bg-[#9a3412] text-white border border-transparent h-8 px-3 text-xs font-semibold shadow-xs"
@@ -180,7 +186,7 @@ export default function LessonModal({
 
           {/* Badges de estado / Swap */}
           {(isUserCancelled || isWebUntisCancelled || lesson.swappedWith || isOverridden) && (
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
               {isUserCancelled && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/18 text-rose-800 dark:text-rose-200 border border-rose-500/30">
                   <Ban className="w-3.5 h-3.5" /> Cancelada por ti
@@ -194,8 +200,8 @@ export default function LessonModal({
               )}
 
               {lesson.swappedWith && !isUserCancelled && !isWebUntisCancelled && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-black/8 dark:bg-white/14 border border-current/15" style={{ color: color.text }}>
-                  <ArrowUpDown className="w-3.5 h-3.5" /> Intercambiada con {lesson.swappedWith.subjectName}
+                <span className="inline-flex items-center justify-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-center bg-black/8 dark:bg-white/14 border border-current/15" style={{ color: color.text }}>
+                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" /> Intercambiada con {lesson.swappedWith.subjectName}
                 </span>
               )}
 
@@ -215,10 +221,10 @@ export default function LessonModal({
 
           {/* Detalles: Profesor y Aula */}
           {(teacher || room) && (
-            <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
               {teacher && (
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium"
+                  className="inline-flex items-center justify-center gap-1.5 max-w-full px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium text-center"
                   style={{
                     background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
                     color: color.text,
@@ -230,7 +236,7 @@ export default function LessonModal({
               )}
               {room && (
                 <div
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-bold"
+                  className="inline-flex items-center justify-center gap-1.5 max-w-full px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-bold text-center"
                   style={{
                     background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
                     color: color.text,
@@ -246,13 +252,13 @@ export default function LessonModal({
           {/* Notas personales */}
           {lesson.notes && (
             <div
-              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words text-left"
+              className="p-3 rounded-[var(--radius-md)] text-xs leading-relaxed mb-4 whitespace-pre-wrap break-words text-center"
               style={{
                 background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                 color: color.text,
               }}
             >
-              <div className="flex items-center gap-1.5 font-semibold opacity-80 mb-1">
+              <div className="flex items-center justify-center gap-1.5 font-semibold opacity-80 mb-1">
                 <FileText className="w-3.5 h-3.5 shrink-0" />
                 <span>Notas personales</span>
               </div>
@@ -311,7 +317,7 @@ export default function LessonModal({
                 )}
               </Button>
 
-              {isOverridden && (
+              {showResetButton && (
                 <Button
                   variant="ghost"
                   size="md"
