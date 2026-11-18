@@ -48,8 +48,34 @@ export const SheetContent = React.forwardRef(
       }
     };
 
+    const isInsideScrollableOrNoDrag = (target) => {
+      if (!target || !contentRef.current) return false;
+      if (target.closest?.('[data-sheet-no-drag]')) return true;
+      let node = target;
+      while (node && node !== contentRef.current) {
+        if (node instanceof HTMLElement) {
+          const { overflowY } = window.getComputedStyle(node);
+          const canScrollY =
+            (overflowY === 'auto' || overflowY === 'scroll') &&
+            node.scrollHeight > node.clientHeight + 1;
+          if (canScrollY && node.scrollTop > 0) {
+            return true;
+          }
+        }
+        node = node.parentElement;
+      }
+      return false;
+    };
+
     const handleTouchStart = (e) => {
-      const fromHandle = Boolean(e.target.closest('[data-sheet-handle]'));
+      e.stopPropagation();
+      const fromHandle = Boolean(e.target.closest?.('[data-sheet-handle]'));
+      if (!fromHandle && isInsideScrollableOrNoDrag(e.target)) {
+        touchStartY.current = null;
+        touchStartFromHandle.current = false;
+        return;
+      }
+
       const scrollable = contentRef.current?.querySelector('[data-sheet-scroll]') || contentRef.current;
       const scrollTop = scrollable ? scrollable.scrollTop : 0;
 
@@ -64,6 +90,7 @@ export const SheetContent = React.forwardRef(
     };
 
     const handleTouchMove = (e) => {
+      e.stopPropagation();
       if (touchStartY.current === null) return;
       const deltaY = e.touches[0].clientY - touchStartY.current;
       if (deltaY > 8) {
@@ -76,7 +103,8 @@ export const SheetContent = React.forwardRef(
       }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e) => {
+      e.stopPropagation();
       if (touchStartY.current === null) return;
       if (dragY > 68) {
         setDragY(0);
