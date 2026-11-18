@@ -11,6 +11,7 @@ import {
   getDaysInMonth,
   clampDayToMonth,
   buildValidCalendarDate,
+  resolveDateSegmentInput,
 } from '../../app/utils/dateTimeUtils.js';
 
 describe('Pickers unit suite (DatePicker & TimePicker)', () => {
@@ -102,6 +103,27 @@ describe('Pickers unit suite (DatePicker & TimePicker)', () => {
       assert.equal(clampDayToMonth(31, 2, 2028), 29);
       assert.equal(clampDayToMonth(31, 4, 2026), 30);
       assert.equal(clampDayToMonth(0, 6, 2026), 1);
+    });
+
+    test('resolveDateSegmentInput allows typing 27/10/2026 cleanly even when mobile IME collapses selection', () => {
+      // Fresh entry where selection worked ("18" replaced by "2")
+      assert.equal(resolveDateSegmentInput('18', '2', 2, true, false), '2');
+      assert.equal(resolveDateSegmentInput('2', '27', 2, false, false), '27');
+
+      // Fresh entry where mobile IME ignored select() and appended ("04" + "2" = "042")
+      assert.equal(resolveDateSegmentInput('04', '042', 2, true, false), '2');
+      assert.equal(resolveDateSegmentInput('2', '27', 2, false, false), '27');
+
+      // Same for month "10" over "04" ("041" -> "1", then "10")
+      assert.equal(resolveDateSegmentInput('04', '041', 2, true, false), '1');
+      assert.equal(resolveDateSegmentInput('1', '10', 2, false, false), '10');
+
+      // Typing "2" over selected "22" must keep "2" (not treat as deletion)
+      assert.equal(resolveDateSegmentInput('22', '2', 2, true, false), '2');
+      // Pressing backspace on fresh entry clears segment cleanly instead of leaving "0"
+      assert.equal(resolveDateSegmentInput('04', '0', 2, true, true), '');
+      // Year segment fresh entry with IME append
+      assert.equal(resolveDateSegmentInput('2026', '20262', 4, true, false), '2');
     });
   });
 

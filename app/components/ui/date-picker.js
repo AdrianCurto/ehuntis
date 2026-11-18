@@ -17,6 +17,7 @@ import {
 import { Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './sheet';
+import { Button } from './button';
 import { cn } from '@/app/utils/cn';
 import { useIsDesktop } from '@/app/utils/useMediaQuery';
 import {
@@ -26,6 +27,7 @@ import {
   formatMonthYearHeading,
   buildValidCalendarDate,
   clampDayToMonth,
+  resolveDateSegmentInput,
 } from '@/app/utils/dateTimeUtils';
 
 export { parseValueToCalendarDate };
@@ -96,6 +98,7 @@ export function CalendarView({
 
   const [draftDate, setDraftDate] = React.useState(() => parsedValue);
   const [focusedDate, setFocusedDate] = React.useState(() => parsedValue || todayDate);
+  const [anchorDay, setAnchorDay] = React.useState(() => parsedValue?.day ?? todayDate.day);
   const [viewMode, setViewMode] = React.useState('days'); // 'days' | 'months'
 
   const initialParts = React.useMemo(() => formatDateParts(parsedValue), [parsedValue]);
@@ -107,6 +110,7 @@ export function CalendarView({
   const dayInputRef = React.useRef(null);
   const monthInputRef = React.useRef(null);
   const yearInputRef = React.useRef(null);
+  const freshEntryRef = React.useRef(null); // 'day' | 'month' | 'year' | null
 
   const parsedValueKey = parsedValue
     ? `${parsedValue.year}-${parsedValue.month}-${parsedValue.day}`
@@ -118,6 +122,7 @@ export function CalendarView({
     setDraftDate(parsedValue);
     if (parsedValue) {
       setFocusedDate(parsedValue);
+      setAnchorDay(parsedValue.day);
     }
     const parts = formatDateParts(parsedValue);
     setDayInput(parts.day);
@@ -145,6 +150,15 @@ export function CalendarView({
     setIsInputInvalid(false);
   };
 
+  const selectAllText = (el) => {
+    if (!el) return;
+    try {
+      el.setSelectionRange(0, el.value.length);
+    } catch {
+      el.select();
+    }
+  };
+
   const tryApplyTypedDate = (nextDay, nextMonth, nextYear) => {
     if (!nextDay && !nextMonth && !nextYear) {
       setIsInputInvalid(false);
@@ -155,6 +169,7 @@ export function CalendarView({
       if (valid) {
         setDraftDate(valid);
         setFocusedDate(valid);
+        setAnchorDay(valid.day);
         setIsInputInvalid(false);
         return valid;
       }
@@ -165,59 +180,50 @@ export function CalendarView({
     return null;
   };
 
-  const focusAndSelect = (ref) => {
+  const focusAndSelect = (ref, segmentName) => {
     const el = ref.current;
     if (!el) return;
+    freshEntryRef.current = segmentName;
     el.focus();
-    requestAnimationFrame(() => el.select());
+    requestAnimationFrame(() => selectAllText(el));
   };
 
-  const handleDayInputChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
-    const num = Number(raw);
-    let nextVal = raw;
-    let shouldAdvance = false;
+  const isDeleteEvent = (e) =>
+    typeof e.nativeEvent?.inputType === 'string' && e.nativeEvent.inputType.startsWith('delete');
 
-    if (raw.length === 1 && num >= 4) {
-      nextVal = `0${raw}`;
-      shouldAdvance = true;
-    } else if (raw.length === 2) {
-      shouldAdvance = true;
-    }
+  const handleDayInputChange = (e) => {
+    const isFresh = freshEntryRef.current === 'day';
+    const nextVal = resolveDateSegmentInput(dayInput, e.target.value, 2, isFresh, isDeleteEvent(e));
+    freshEntryRef.current = null;
 
     setDayInput(nextVal);
     tryApplyTypedDate(nextVal, monthInput, yearInput);
 
-    if (shouldAdvance) {
-      focusAndSelect(monthInputRef);
+    if (nextVal.length === 2) {
+      focusAndSelect(monthInputRef, 'month');
     }
   };
 
   const handleMonthInputChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
-    const num = Number(raw);
-    let nextVal = raw;
-    let shouldAdvance = false;
-
-    if (raw.length === 1 && num >= 2) {
-      nextVal = `0${raw}`;
-      shouldAdvance = true;
-    } else if (raw.length === 2) {
-      shouldAdvance = true;
-    }
+    const isFresh = freshEntryRef.current === 'month';
+    const nextVal = resolveDateSegmentInput(monthInput, e.target.value, 2, isFresh, isDeleteEvent(e));
+    freshEntryRef.current = null;
 
     setMonthInput(nextVal);
     tryApplyTypedDate(dayInput, nextVal, yearInput);
 
-    if (shouldAdvance) {
-      focusAndSelect(yearInputRef);
+    if (nextVal.length === 2) {
+      focusAndSelect(yearInputRef, 'year');
     }
   };
 
   const handleYearInputChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    setYearInput(raw);
-    tryApplyTypedDate(dayInput, monthInput, raw);
+    const isFresh = freshEntryRef.current === 'year';
+    const nextVal = resolveDateSegmentInput(yearInput, e.target.value, 4, isFresh, isDeleteEvent(e));
+    freshEntryRef.current = null;
+
+    setYearInput(nextVal);
+    tryApplyTypedDate(dayInput, monthInput, nextVal);
   };
 
   const handleConfirmTyped = () => {
@@ -230,6 +236,7 @@ export function CalendarView({
       }
       setDraftDate(valid);
       setFocusedDate(valid);
+      setAnchorDay(valid.day);
       setIsInputInvalid(false);
       commitDate(valid);
       return;
@@ -239,10 +246,34 @@ export function CalendarView({
     }
   };
 
+  const moveToMonthYear = (targetYear, targetMonth) => {
+    const preferredDay = anchorDay || draftDate?.day || todayDate.day;
+    const clampedDay = clampDayToMonth(preferredDay, targetMonth, targetYear);
+    const nextDate = buildValidCalendarDate(clampedDay, targetMonth, targetYear);
+    if (!nextDate) return;
+    setFocusedDate(nextDate);
+    setDraftDate(nextDate);
+    syncInputsFromDate(nextDate);
+  };
+
+  const handleCalendarFocusChange = (nextFocused) => {
+    if (!nextFocused) return;
+    const monthOrYearChanged =
+      !focusedDate ||
+      nextFocused.year !== focusedDate.year ||
+      nextFocused.month !== focusedDate.month;
+    if (monthOrYearChanged) {
+      moveToMonthYear(nextFocused.year, nextFocused.month);
+    } else {
+      setFocusedDate(nextFocused);
+    }
+  };
+
   const handleGridSelect = (newDate) => {
     setDraftDate(newDate);
     if (newDate) {
       setFocusedDate(newDate);
+      setAnchorDay(newDate.day);
       syncInputsFromDate(newDate);
     }
     commitDate(newDate);
@@ -253,30 +284,22 @@ export function CalendarView({
     if (!nowDate) return;
     setDraftDate(nowDate);
     setFocusedDate(nowDate);
+    setAnchorDay(nowDate.day);
     syncInputsFromDate(nowDate);
     setViewMode('days');
   };
 
   const handleMonthGridSelect = (monthIndex) => {
     const targetYear = focusedDate?.year ?? todayDate.year;
-    const baseDay = focusedDate?.day ?? 1;
-    const clampedDay = clampDayToMonth(baseDay, monthIndex, targetYear);
-    const nextFocused = buildValidCalendarDate(clampedDay, monthIndex, targetYear);
-    if (nextFocused) {
-      setFocusedDate(nextFocused);
-    }
+    moveToMonthYear(targetYear, monthIndex);
     setViewMode('days');
   };
 
   const handleYearStep = (delta) => {
     const currentYear = focusedDate?.year ?? todayDate.year;
     const nextYear = Math.min(2100, Math.max(1900, currentYear + delta));
-    const month = focusedDate?.month ?? 1;
-    const clampedDay = clampDayToMonth(focusedDate?.day ?? 1, month, nextYear);
-    const nextFocused = buildValidCalendarDate(clampedDay, month, nextYear);
-    if (nextFocused) {
-      setFocusedDate(nextFocused);
-    }
+    const month = focusedDate?.month ?? todayDate.month;
+    moveToMonthYear(nextYear, month);
   };
 
   const segmentInputClass = cn(
@@ -301,16 +324,27 @@ export function CalendarView({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          maxLength={2}
           value={dayInput}
           placeholder="DD"
           aria-label="Día"
           aria-invalid={isInputInvalid || undefined}
           onFocus={(e) => {
             const el = e.currentTarget;
-            requestAnimationFrame(() => el.select());
+            freshEntryRef.current = 'day';
+            requestAnimationFrame(() => selectAllText(el));
+          }}
+          onMouseUp={(e) => {
+            if (freshEntryRef.current === 'day') {
+              e.preventDefault();
+              selectAllText(e.currentTarget);
+            }
+          }}
+          onClick={(e) => {
+            freshEntryRef.current = 'day';
+            selectAllText(e.currentTarget);
           }}
           onBlur={() => {
+            if (freshEntryRef.current === 'day') freshEntryRef.current = null;
             if (dayInput.length === 1 && Number(dayInput) >= 1) {
               const padded = `0${dayInput}`;
               setDayInput(padded);
@@ -321,7 +355,7 @@ export function CalendarView({
           onKeyDown={(e) => {
             if (e.key === '/' || e.key === '-' || (e.key === 'ArrowRight' && e.currentTarget.selectionStart === e.currentTarget.value.length)) {
               e.preventDefault();
-              focusAndSelect(monthInputRef);
+              focusAndSelect(monthInputRef, 'month');
             } else if (e.key === 'Enter') {
               e.preventDefault();
               handleConfirmTyped();
@@ -335,16 +369,27 @@ export function CalendarView({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          maxLength={2}
           value={monthInput}
           placeholder="MM"
           aria-label="Mes"
           aria-invalid={isInputInvalid || undefined}
           onFocus={(e) => {
             const el = e.currentTarget;
-            requestAnimationFrame(() => el.select());
+            freshEntryRef.current = 'month';
+            requestAnimationFrame(() => selectAllText(el));
+          }}
+          onMouseUp={(e) => {
+            if (freshEntryRef.current === 'month') {
+              e.preventDefault();
+              selectAllText(e.currentTarget);
+            }
+          }}
+          onClick={(e) => {
+            freshEntryRef.current = 'month';
+            selectAllText(e.currentTarget);
           }}
           onBlur={() => {
+            if (freshEntryRef.current === 'month') freshEntryRef.current = null;
             if (monthInput.length === 1 && Number(monthInput) >= 1) {
               const padded = `0${monthInput}`;
               setMonthInput(padded);
@@ -355,10 +400,10 @@ export function CalendarView({
           onKeyDown={(e) => {
             if (e.key === '/' || e.key === '-' || (e.key === 'ArrowRight' && e.currentTarget.selectionStart === e.currentTarget.value.length)) {
               e.preventDefault();
-              focusAndSelect(yearInputRef);
+              focusAndSelect(yearInputRef, 'year');
             } else if ((e.key === 'ArrowLeft' || e.key === 'Backspace') && e.currentTarget.selectionStart === 0 && (e.key === 'ArrowLeft' || e.currentTarget.value === '')) {
               e.preventDefault();
-              focusAndSelect(dayInputRef);
+              focusAndSelect(dayInputRef, 'day');
             } else if (e.key === 'Enter') {
               e.preventDefault();
               handleConfirmTyped();
@@ -372,20 +417,33 @@ export function CalendarView({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          maxLength={4}
           value={yearInput}
           placeholder="AAAA"
           aria-label="Año"
           aria-invalid={isInputInvalid || undefined}
           onFocus={(e) => {
             const el = e.currentTarget;
-            requestAnimationFrame(() => el.select());
+            freshEntryRef.current = 'year';
+            requestAnimationFrame(() => selectAllText(el));
+          }}
+          onMouseUp={(e) => {
+            if (freshEntryRef.current === 'year') {
+              e.preventDefault();
+              selectAllText(e.currentTarget);
+            }
+          }}
+          onClick={(e) => {
+            freshEntryRef.current = 'year';
+            selectAllText(e.currentTarget);
+          }}
+          onBlur={() => {
+            if (freshEntryRef.current === 'year') freshEntryRef.current = null;
           }}
           onChange={handleYearInputChange}
           onKeyDown={(e) => {
             if ((e.key === 'ArrowLeft' || e.key === 'Backspace') && e.currentTarget.selectionStart === 0 && (e.key === 'ArrowLeft' || e.currentTarget.value === '')) {
               e.preventDefault();
-              focusAndSelect(monthInputRef);
+              focusAndSelect(monthInputRef, 'month');
             } else if (e.key === 'Enter') {
               e.preventDefault();
               handleConfirmTyped();
@@ -399,7 +457,7 @@ export function CalendarView({
         aria-label={ariaLabel}
         value={draftDate}
         focusedValue={focusedDate}
-        onFocusChange={setFocusedDate}
+        onFocusChange={handleCalendarFocusChange}
         onChange={handleGridSelect}
         className="w-full select-none"
       >
@@ -508,23 +566,27 @@ export function CalendarView({
       </AriaCalendar>
 
       {/* Pie de acciones rápidas (alineado con TimePicker) */}
-      <div className="flex items-center justify-between pt-3 mt-2 border-t border-[var(--border)]">
-        <button
+      <div className="flex items-center justify-between px-1 pt-3 mt-2 border-t border-[var(--border)]">
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={handleSetToday}
-          className="text-xs font-medium text-[var(--accent)] hover:underline cursor-pointer"
+          className="rounded-lg font-semibold"
         >
           Hoy
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="default"
+          size="sm"
           onClick={handleConfirmTyped}
           disabled={!canConfirm}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-semibold shadow-xs hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+          className="rounded-lg font-semibold"
         >
           <Check className="w-3.5 h-3.5" />
           <span>Listo</span>
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -594,7 +656,7 @@ export function DatePicker({
         isDisabled={disabled}
         shouldForceLeadingZeros
         aria-label={ariaLabel}
-        className="flex items-center pointer-events-none sm:pointer-events-auto"
+        className="flex items-center pointer-events-none"
       >
         <DateInput className="flex items-center font-sans text-sm font-medium tabular-nums">
           {(segment) => (
@@ -621,7 +683,11 @@ export function DatePicker({
           <PopoverTrigger asChild>
             {triggerContent}
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" align="start">
+          <PopoverContent
+            className="w-auto p-2"
+            align="start"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
             <CalendarView
               value={calendarDate}
               onSelect={handleCalendarSelect}

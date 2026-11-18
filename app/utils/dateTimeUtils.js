@@ -38,6 +38,27 @@ export function buildValidCalendarDate(day, month, year) {
   return new CalendarDate(y, m, d);
 }
 
+export function resolveDateSegmentInput(prevValue, rawNextValue, maxDigits, isFreshEntry, isDeletion = false) {
+  const digits = String(rawNextValue ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (isFreshEntry) {
+    if (isDeletion) return '';
+    const prev = String(prevValue ?? '').replace(/\D/g, '');
+    if (prev && digits.length > prev.length) {
+      if (digits.startsWith(prev)) {
+        return digits.slice(prev.length, prev.length + maxDigits);
+      }
+      if (digits.endsWith(prev)) {
+        return digits.slice(0, digits.length - prev.length).slice(0, maxDigits);
+      }
+    }
+    return digits.slice(0, maxDigits);
+  }
+
+  return digits.slice(0, maxDigits);
+}
+
 export function parseValueToCalendarDate(val) {
   if (!val) return null;
   if (typeof val === 'number') {

@@ -92,7 +92,11 @@ export default function WeekHeader({
             <PopoverTrigger asChild>
               {monthBoxButton}
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" align="start">
+            <PopoverContent
+              className="w-auto p-2"
+              align="start"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
               <CalendarView
                 value={pickerDate}
                 onSelect={(str, num, jsDate) => {
