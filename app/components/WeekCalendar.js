@@ -2021,10 +2021,11 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         ? { box: 9, icon: 6, driftFont: 6.5, radius: '0 0 0 3px' }
                         : { box: 8, icon: 5.5, driftFont: 6, radius: '0 0 0 3px' };
 
-                const tabStyle = {
+                const isDualStatus = Boolean(isSwapped && isEdited);
+
+                const tabBaseStyle = {
                   width: cfg.box,
                   height: cfg.box,
-                  borderRadius: cfg.radius,
                   background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)',
                   color: color.text,
                   opacity: 0.92,
@@ -2038,7 +2039,12 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   <>
                     {isSwapped && (
                       <div
-                        style={tabStyle}
+                        style={{
+                          ...tabBaseStyle,
+                          // Cuando ambas están presentes, la superior no se redondea abajo a la izquierda
+                          // para fusionarse de forma continua con la pestaña inferior
+                          borderRadius: isDualStatus ? 0 : cfg.radius,
+                        }}
                         title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Horario intercambiado'}
                       >
                         <ArrowUpDown size={cfg.icon} strokeWidth={2.5} />
@@ -2047,7 +2053,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
 
                     {isEdited && (
                       <div
-                        style={tabStyle}
+                        style={{
+                          ...tabBaseStyle,
+                          borderRadius: cfg.radius,
+                        }}
                         title="Clase personalizada"
                       >
                         <Pencil size={cfg.icon} strokeWidth={2.5} />
@@ -2121,7 +2130,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         display: 'inline-flex',
                         flexDirection: 'column',
                         alignItems: 'flex-end',
-                        gap: 1,
                         pointerEvents: 'none',
                         zIndex: 2,
                       }}
