@@ -4124,6 +4124,28 @@ html, body {
   }
 }
 
+@keyframes toastProgressShrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.undo-toast-progress {
+  animation-name: toastProgressShrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: transform;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-styled='false'] {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

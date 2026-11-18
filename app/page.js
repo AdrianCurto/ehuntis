@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { toast } from 'sonner';
+import { showUndoToast } from './components/ui/undo-toast';
 import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import {
@@ -18,18 +18,27 @@ import {
 } from './utils/syncUtils';
 import {
   LESSON_OVERRIDES_STORAGE_KEY,
-  getLessonKey,
   getStoredLessonOverrides,
   saveStoredLessonOverrides,
   applyLessonOverrides,
   setLessonOverride,
-  removeLessonOverride,
   resolveDrift,
   swapLessons,
   formatTime,
-  findOverrideEntry,
   reconcileLessonOverrides,
 } from './utils/lessonOverrides';
+import {
+  captureLessonOverrideRemoval,
+  restoreLessonOverrideEntries,
+  captureCustomEventRemoval,
+  restoreCustomEventSnapshot,
+  captureGroupRemoval,
+  restoreGroupSnapshot,
+  captureConfigRemoval,
+  restoreConfigSnapshot,
+  captureCustomColorsReset,
+  restoreCustomColorsSnapshot,
+} from './utils/undoHelpers';
 import {
   getResolvedTargetDate,
   getAcademicYearBounds,
@@ -48,7 +57,6 @@ import {
   getStoredCustomCategories,
   saveStoredCustomCategories,
   expandCustomEventsForDates,
-  deleteCustomEventInstance,
   saveCustomEventInstance,
   suggestEventColor,
 } from './utils/customEvents';
@@ -1075,20 +1083,33 @@ export default function Home() {
   }, [configs]);
 
   const handleDeleteConfig = useCallback((id) => {
+    const { snapshot, nextConfigs, nextActiveConfigId } = captureConfigRemoval(
+      configsRef.current,
+      activeConfigIdRef.current,
+      id,
+      createDefaultConfig
+    );
+    if (!snapshot) return;
+
     isUserDirtyRef.current = true;
-    setConfigs(prev => {
-      const remaining = prev.filter(c => c.id !== id);
-      if (remaining.length === 0) {
-        const fallback = createDefaultConfig();
-        setActiveConfigId(fallback.id);
-        return [fallback];
-      }
-      if (activeConfigId === id) {
-        setActiveConfigId(remaining[0].id);
-      }
-      return remaining;
+    configsRef.current = nextConfigs;
+    activeConfigIdRef.current = nextActiveConfigId;
+    setConfigs(nextConfigs);
+    setActiveConfigId(nextActiveConfigId);
+
+    showUndoToast({
+      message: `Horario "${snapshot.deletedConfig.name}" eliminado`,
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        const restored = restoreConfigSnapshot(configsRef.current, snapshot);
+        if (!restored) return;
+        configsRef.current = restored.nextConfigs;
+        activeConfigIdRef.current = restored.nextActiveConfigId;
+        setConfigs(restored.nextConfigs);
+        setActiveConfigId(restored.nextActiveConfigId);
+      },
     });
-  }, [activeConfigId]);
+  }, []);
 
   // ── Subject Custom Colors resolution & swap handler ────────────────────────
   const resolvedSubjectColors = useMemo(() => {
@@ -1112,11 +1133,36 @@ export default function Home() {
   }, [semesterTimetable, updateActiveConfig]);
 
   const handleResetSubjectColors = useCallback(() => {
-    updateActiveConfig(prev => ({
-      ...prev,
-      customColors: {},
-    }));
-  }, [updateActiveConfig]);
+    const currentConfigs = configsRef.current;
+    const targetConfig =
+      currentConfigs.find(c => c.id === activeConfigIdRef.current) || currentConfigs[0];
+    if (!targetConfig) return;
+
+    const { previousColors } = captureCustomColorsReset(targetConfig);
+    if (!previousColors) return;
+
+    const targetConfigId = targetConfig.id;
+    isUserDirtyRef.current = true;
+    setConfigs(prev => {
+      const next = prev.map(c => (c.id === targetConfigId ? { ...c, customColors: {} } : c));
+      configsRef.current = next;
+      return next;
+    });
+
+    showUndoToast({
+      message: 'Colores restablecidos',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setConfigs(prev => {
+          const next = prev.map(c =>
+            c.id === targetConfigId ? restoreCustomColorsSnapshot(c, previousColors) : c
+          );
+          configsRef.current = next;
+          return next;
+        });
+      },
+    });
+  }, []);
 
   const handleResetSingleSubjectColor = useCallback((subjectId) => {
     updateActiveConfig(prev => {
@@ -1503,10 +1549,39 @@ export default function Home() {
   }, [editingCustomEvent, selectedDay, currentMonday]);
 
   const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
+    const { snapshot, nextEvents } = captureCustomEventRemoval(
+      customEventsRef.current,
+      eventId,
+      dateNum,
+      mode
+    );
+    if (!snapshot) return;
+
     isUserDirtyRef.current = true;
-    setCustomEvents(prev => deleteCustomEventInstance(prev, eventId, dateNum, mode));
+    customEventsRef.current = nextEvents;
+    setCustomEvents(nextEvents);
     setEditingCustomEvent(null);
     setSelectedCustomEvent(null);
+
+    const message =
+      mode === 'single' && snapshot.isWeekly
+        ? 'Instancia eliminada'
+        : snapshot.isWeekly
+          ? 'Serie semanal eliminada'
+          : 'Evento eliminado';
+
+    showUndoToast({
+      message,
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setCustomEvents(prev => {
+          const restored = restoreCustomEventSnapshot(prev, snapshot);
+          if (!restored) return prev;
+          customEventsRef.current = restored;
+          return restored;
+        });
+      },
+    });
   }, []);
 
   const handleLessonClick = useCallback((lesson) => {
@@ -1572,55 +1647,55 @@ export default function Home() {
   }, []);
 
   const handleRemoveLessonOverride = useCallback((lessonOrKey) => {
-    isUserDirtyRef.current = true;
-    let removedEntries = null;
-    setLessonOverrides(prev => {
-      const found = typeof lessonOrKey === 'object' && lessonOrKey ? findOverrideEntry(prev, lessonOrKey) : null;
-      const key = typeof lessonOrKey === 'string'
-        ? lessonOrKey
-        : (found?.key || lessonOrKey.lessonKey || getLessonKey(lessonOrKey));
-      const partnerKey = (typeof lessonOrKey === 'object' && lessonOrKey?.swappedWith?.lessonKey) || prev[key]?.swappedWith?.lessonKey;
-      removedEntries = {};
-      if (prev[key]) removedEntries[key] = prev[key];
-      if (partnerKey && prev[partnerKey]) removedEntries[partnerKey] = prev[partnerKey];
+    const { removedEntries, nextOverrides } = captureLessonOverrideRemoval(
+      lessonOverridesRef.current,
+      lessonOrKey
+    );
+    if (!removedEntries) return null;
 
-      let updated = removeLessonOverride(prev, key);
-      if (partnerKey && updated[partnerKey]) {
-        updated = removeLessonOverride(updated, partnerKey);
-      }
-      saveStoredLessonOverrides(updated);
-      return updated;
+    isUserDirtyRef.current = true;
+    lessonOverridesRef.current = nextOverrides;
+    setLessonOverrides(nextOverrides);
+    saveStoredLessonOverrides(nextOverrides);
+
+    showUndoToast({
+      message: 'Clase restablecida al horario oficial',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, removedEntries);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
+      },
     });
+
     return removedEntries;
   }, []);
 
-  const handleRestoreLessonOverride = useCallback((removedEntries) => {
-    if (!removedEntries || typeof removedEntries !== 'object' || Object.keys(removedEntries).length === 0) return;
-    isUserDirtyRef.current = true;
-    setLessonOverrides(prev => {
-      const restored = { ...prev, ...removedEntries };
-      saveStoredLessonOverrides(restored);
-      return restored;
-    });
-  }, []);
-
   const handleResetAllLessonOverrides = useCallback(() => {
+    const current = lessonOverridesRef.current;
+    if (!current || Object.keys(current).length === 0) return;
+
+    const previousOverrides = JSON.parse(JSON.stringify(current));
     isUserDirtyRef.current = true;
-    let previousOverrides = null;
-    setLessonOverrides(prev => {
-      previousOverrides = { ...prev };
-      saveStoredLessonOverrides({});
-      return {};
-    });
-    toast.success('Clases restablecidas al horario oficial', {
-      action: {
-        label: 'Deshacer',
-        onClick: () => {
-          if (!previousOverrides || Object.keys(previousOverrides).length === 0) return;
-          isUserDirtyRef.current = true;
-          setLessonOverrides(previousOverrides);
-          saveStoredLessonOverrides(previousOverrides);
-        },
+    lessonOverridesRef.current = {};
+    setLessonOverrides({});
+    saveStoredLessonOverrides({});
+
+    showUndoToast({
+      message: 'Clases restablecidas al horario oficial',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, previousOverrides);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
       },
     });
   }, []);
@@ -1678,22 +1753,40 @@ export default function Home() {
     } catch (_) {}
   }, [updateActiveConfig]);
 
-  const removeGroup = useCallback((g) => {
+  const removeGroup = useCallback((g, options = {}) => {
+    const currentConfigs = configsRef.current;
+    const targetConfig =
+      currentConfigs.find(c => c.id === activeConfigIdRef.current) || currentConfigs[0];
+    if (!targetConfig) return;
+
     const key = groupKey(g);
-    updateActiveConfig(cfg => {
-      const nextDisabledSubjs = { ...cfg.disabledSubjectsByGroup };
-      delete nextDisabledSubjs[key];
-      const nextDisabledSubgroups = { ...cfg.disabledSubgroupsBySubject };
-      delete nextDisabledSubgroups[key];
-      return {
-        ...cfg,
-        selectedGroups: cfg.selectedGroups.filter(x => x.id !== g.id),
-        disabledGroupIds: cfg.disabledGroupIds.filter(id => id !== key),
-        disabledSubjectsByGroup: nextDisabledSubjs,
-        disabledSubgroupsBySubject: nextDisabledSubgroups,
-      };
+    const { snapshot, nextConfig } = captureGroupRemoval(targetConfig, g, key);
+    if (!snapshot) return;
+
+    const targetConfigId = targetConfig.id;
+    isUserDirtyRef.current = true;
+    setConfigs(prev => {
+      const next = prev.map(c => (c.id === targetConfigId ? nextConfig : c));
+      configsRef.current = next;
+      return next;
     });
-  }, [updateActiveConfig]);
+
+    if (options.withUndo) {
+      showUndoToast({
+        message: `Grupo ${g.name} eliminado`,
+        onUndo: () => {
+          isUserDirtyRef.current = true;
+          setConfigs(prev => {
+            const next = prev.map(c =>
+              c.id === targetConfigId ? restoreGroupSnapshot(c, snapshot) : c
+            );
+            configsRef.current = next;
+            return next;
+          });
+        },
+      });
+    }
+  }, []);
 
   const toggleGroupDisabled = useCallback((gKey) => {
     updateActiveConfig(cfg => {
@@ -2174,7 +2267,7 @@ export default function Home() {
           onToggleGroupDisabled={toggleGroupDisabled}
           onToggleSubjectForGroup={toggleSubjectForGroup}
           onToggleSubgroupForSubject={toggleSubgroupForSubject}
-          onRemoveGroup={removeGroup}
+          onRemoveGroup={(g) => removeGroup(g, { withUndo: true })}
           onAddGroup={() => setShowGroupSearch(true)}
 
           customColors={activeConfig.customColors || {}}
@@ -2253,7 +2346,6 @@ export default function Home() {
             setCalendarSwapOrigin(lesson);
           }}
           onResetOverride={handleRemoveLessonOverride}
-          onRestoreOverride={handleRestoreLessonOverride}
           onResolveDrift={handleResolveLessonDrift}
         />
       )}
@@ -2264,7 +2356,6 @@ export default function Home() {
           isDark={isDark}
           onSave={handleSaveLessonOverride}
           onResetOverride={handleRemoveLessonOverride}
-          onRestoreOverride={handleRestoreLessonOverride}
           onClose={() => setEditingLesson(null)}
         />
       )}

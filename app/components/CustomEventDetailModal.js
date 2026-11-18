@@ -9,7 +9,6 @@ import {
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
 import { ConfirmDialog } from './ui/confirm-dialog';
-import { toast } from 'sonner';
 import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
 import { formatTime } from '../utils/dateTimeUtils';
@@ -22,7 +21,6 @@ export default function CustomEventDetailModal({
   event,
   onEdit,
   onDelete,
-  onRestore, // callback opcional para deshacer
   onClose,
   isDark = false,
 }) {
@@ -64,14 +62,6 @@ export default function CustomEventDetailModal({
 
   const handleConfirmDelete = (mode) => {
     onDelete(rawEvent.id, event.date, mode);
-    toast.success(mode === 'single' ? 'Instancia eliminada' : 'Serie semanal eliminada', {
-      action: {
-        label: 'Deshacer',
-        onClick: () => {
-          onRestore?.(rawEvent, mode);
-        },
-      },
-    });
     onClose();
   };
 
@@ -249,19 +239,11 @@ export default function CustomEventDetailModal({
         open={confirmSingleDeleteOpen}
         onOpenChange={setConfirmSingleDeleteOpen}
         title="Eliminar evento"
-        description={`¿Eliminar "${title}"? Esta acción se puede deshacer.`}
+        description={`¿Eliminar "${title}"? Podrás deshacerlo durante unos segundos.`}
         confirmText="Eliminar"
         variant="destructive"
         onConfirm={() => {
           onDelete(rawEvent.id, event.date, 'series');
-          toast.success('Evento eliminado', {
-            action: {
-              label: 'Deshacer',
-              onClick: () => {
-                onRestore?.(rawEvent, 'series');
-              },
-            },
-          });
           onClose();
         }}
       />

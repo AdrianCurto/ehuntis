@@ -208,7 +208,6 @@ export default function SettingsView({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [resetAllOverridesModalOpen, setResetAllOverridesModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
-  const [overrideToReset, setOverrideToReset] = useState(null);
 
   useEffect(() => {
     if (!pickerSubjectId) return;
@@ -1427,7 +1426,7 @@ export default function SettingsView({
                           <button
                             type="button"
                             className="settings-btn-secondary"
-                            onClick={() => setOverrideToReset(item)}
+                            onClick={() => onResetLessonOverride?.(item.key)}
                             title="Restablecer clase al estado oficial de WebUntis"
                             style={{ padding: '5px 11px', fontSize: '0.78rem' }}
                             onMouseEnter={e => {
@@ -1601,7 +1600,7 @@ export default function SettingsView({
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
         title="Eliminar configuración"
-        description={`¿Eliminar "${activeConfig?.name}"? Esta acción no se puede deshacer.`}
+        description={`¿Eliminar "${activeConfig?.name}"? Podrás deshacerlo durante unos segundos.`}
         confirmText="Eliminar"
         variant="destructive"
         onConfirm={() => {
@@ -1615,7 +1614,7 @@ export default function SettingsView({
         open={resetAllOverridesModalOpen}
         onOpenChange={setResetAllOverridesModalOpen}
         title="Restablecer horario oficial"
-        description="Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis. Tus eventos personales quedarán intactos."
+        description="Se descartarán tus personalizaciones de horario, aula y cancelaciones, volviendo a los datos oficiales de WebUntis. Tus eventos personales quedarán intactos. Podrás deshacerlo durante unos segundos."
         affectedSummary={(() => {
           const count = Object.values(lessonOverrides || {}).filter(hasLessonOverrideChanges).length;
           if (count <= 0) return undefined;
@@ -1635,30 +1634,13 @@ export default function SettingsView({
         open={Boolean(eventToDelete)}
         onOpenChange={(open) => { if (!open) setEventToDelete(null); }}
         title="Eliminar evento"
-        description={eventToDelete ? `¿Eliminar "${eventToDelete.title}"?${eventToDelete.isWeekly ? ' Se descartarán todas sus repeticiones semanales.' : ' Esta acción no se puede deshacer.'}` : ''}
+        description={eventToDelete ? `¿Eliminar "${eventToDelete.title}"?${eventToDelete.isWeekly ? ' Se eliminarán todas sus repeticiones semanales.' : ''} Podrás deshacerlo durante unos segundos.` : ''}
         confirmText="Eliminar"
         variant="destructive"
         onConfirm={() => {
           if (eventToDelete) {
             onDeleteCustomEvent?.(eventToDelete.id, null, 'series');
             setEventToDelete(null);
-          }
-        }}
-      />
-
-      {/* Confirmation modal: Restablecer clase individual a oficial */}
-      <ConfirmDialog
-        open={Boolean(overrideToReset)}
-        onOpenChange={(open) => { if (!open) setOverrideToReset(null); }}
-        title="Restablecer clase"
-        description={overrideToReset ? `¿Restablecer "${overrideToReset.title}" al horario y aula oficiales de WebUntis? Se descartarán tus cambios.` : ''}
-        confirmText="Restablecer"
-        variant="destructive"
-        icon={RotateCcw}
-        onConfirm={() => {
-          if (overrideToReset) {
-            onResetLessonOverride?.(overrideToReset.key);
-            setOverrideToReset(null);
           }
         }}
       />

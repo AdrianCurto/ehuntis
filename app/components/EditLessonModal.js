@@ -14,7 +14,6 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { TimePicker } from './ui/time-picker';
 import { DatePicker } from './ui/date-picker';
-import { toast } from 'sonner';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
 import { areRoomsEqual } from '../utils/lessonOverrides';
@@ -61,7 +60,6 @@ export default function EditLessonModal({
   lesson,
   onSave,
   onResetOverride,
-  onRestoreOverride,
   onClose,
   isDark = false,
 }) {
@@ -119,15 +117,7 @@ export default function EditLessonModal({
 
   const handleResetToOfficial = () => {
     if (lesson.isOverridden && onResetOverride) {
-      const snapshot = onResetOverride(lesson);
-      toast.success('Clase restablecida al horario oficial', {
-        action: onRestoreOverride
-          ? {
-              label: 'Deshacer',
-              onClick: () => onRestoreOverride(snapshot, lesson),
-            }
-          : undefined,
-      });
+      onResetOverride(lesson);
       onClose();
       return;
     }

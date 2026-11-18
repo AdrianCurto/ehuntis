@@ -32,7 +32,6 @@ import { DatePicker } from './ui/date-picker';
 import { TimePicker } from './ui/time-picker';
 import { InlineCategoryChip } from './ui/inline-category-chip';
 import { ConfirmDialog } from './ui/confirm-dialog';
-import { toast } from 'sonner';
 import {
   CHROMATIC_ORDER_MAIN,
   CHROMATIC_ORDER_SOFT,
@@ -822,19 +821,11 @@ export default function CustomEventModal({
         open={confirmSingleDeleteOpen}
         onOpenChange={setConfirmSingleDeleteOpen}
         title="Eliminar evento"
-        description={`¿Eliminar "${title.trim() || 'este evento'}"? Esta acción se puede deshacer.`}
+        description={`¿Eliminar "${title.trim() || 'este evento'}"? Podrás deshacerlo durante unos segundos.`}
         confirmText="Eliminar"
         variant="destructive"
         onConfirm={() => {
           onDelete(rawEvent.id, targetDateNum, 'series');
-          toast.success('Evento eliminado', {
-            action: {
-              label: 'Deshacer',
-              onClick: () => {
-                onSave(rawEvent, 'series');
-              },
-            },
-          });
           onClose();
         }}
       />

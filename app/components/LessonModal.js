@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   MapPin,
   User,
@@ -18,8 +17,6 @@ import {
   ResponsiveModalTitle,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
-import { ConfirmDialog } from './ui/confirm-dialog';
-import { toast } from 'sonner';
 import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/dateTimeUtils';
@@ -45,11 +42,8 @@ export default function LessonModal({
   onOpenEdit,
   onOpenSwap,
   onResetOverride,
-  onRestoreOverride,
   onResolveDrift,
 }) {
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
   if (!lesson) return null;
 
   const date = parseDate(lesson.date);
@@ -73,37 +67,16 @@ export default function LessonModal({
   const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
 
   const handleToggleCancelClick = () => {
-    const nextCancelled = !isUserCancelled;
     onToggleCancelled?.(lesson);
-    toast.success(nextCancelled ? 'Clase marcada como cancelada' : 'Clase reactivada', {
-      action: {
-        label: 'Deshacer',
-        onClick: () => {
-          onToggleCancelled?.({ ...lesson, isUserCancelled: nextCancelled });
-        },
-      },
-    });
   };
 
-  const handleResetConfirm = () => {
-    setShowResetConfirm(false);
-    const snapshot = onResetOverride?.(lesson);
-    toast.success('Clase restablecida al horario oficial', {
-      action: onRestoreOverride
-        ? {
-            label: 'Deshacer',
-            onClick: () => {
-              onRestoreOverride(snapshot, lesson);
-            },
-          }
-        : undefined,
-    });
+  const handleResetClick = () => {
+    onResetOverride?.(lesson);
     onClose?.();
   };
 
   return (
-    <>
-      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose?.(); }}>
+    <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose?.(); }}>
         <ResponsiveModalContent
           onOpenAutoFocus={(e) => e.preventDefault()}
           className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
@@ -322,7 +295,7 @@ export default function LessonModal({
                   variant="ghost"
                   size="md"
                   className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
-                  onClick={() => setShowResetConfirm(true)}
+                  onClick={handleResetClick}
                 >
                   <RotateCcw className="w-4 h-4 mr-1.5" />
                   <span>Restablecer</span>
@@ -332,18 +305,5 @@ export default function LessonModal({
           </div>
         </ResponsiveModalContent>
       </ResponsiveModal>
-
-      {/* Dialogo de confirmacion para restablecer clase a version original */}
-      <ConfirmDialog
-        open={showResetConfirm}
-        onOpenChange={setShowResetConfirm}
-        title="Restablecer clase"
-        description="¿Restablecer esta clase a los datos oficiales de WebUntis? Se descartarán tus modificaciones."
-        confirmText="Restablecer"
-        variant="destructive"
-        icon={RotateCcw}
-        onConfirm={handleResetConfirm}
-      />
-    </>
   );
 }
