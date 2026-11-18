@@ -16,7 +16,7 @@ import { TimePicker } from './ui/time-picker';
 import { DatePicker } from './ui/date-picker';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
-import { areRoomsEqual } from '../utils/lessonOverrides';
+import { areRoomsEqual, getOfficialDiffSummaryParts } from '../utils/lessonOverrides';
 import { formatTime } from '../utils/dateTimeUtils';
 
 function timeNumberToString(t) {
@@ -85,23 +85,30 @@ export default function EditLessonModal({
   const officialDateNum = lesson.rawDate ?? lesson.date;
   const officialStartNum = lesson.rawStartTime ?? lesson.startTime;
   const officialEndNum = lesson.rawEndTime ?? lesson.endTime;
-  const officialRoomsStr = formatRooms(lesson.rawRooms ?? lesson.rooms);
+  const officialRooms = lesson.rawRooms ?? lesson.rooms;
+  const officialRoomsStr = formatRooms(officialRooms);
 
   const currentStartNum = timeStringToNumber(startTimeStr);
   const currentEndNum = timeStringToNumber(endTimeStr);
 
   const isDateModified = selectedDateNum !== officialDateNum;
   const isTimeModified = currentStartNum !== officialStartNum || currentEndNum !== officialEndNum;
-  const isRoomModified = !areRoomsEqual(roomsStr, lesson.rawRooms ?? lesson.rooms);
+  const isRoomModified = !areRoomsEqual(roomsStr, officialRooms);
   const isNotesModified = Boolean(notes.trim());
   const hasAnyDiffFromOfficial = Boolean(
     lesson.isOverridden || isDateModified || isTimeModified || isRoomModified || isNotesModified
   );
 
-  const officialSummaryParts = [
-    `${formatTime(officialStartNum)}–${formatTime(officialEndNum)}`,
-    officialRoomsStr || null,
-  ].filter(Boolean);
+  const officialSummaryParts = getOfficialDiffSummaryParts({
+    officialDate: officialDateNum,
+    currentDate: selectedDateNum,
+    officialStartTime: officialStartNum,
+    officialEndTime: officialEndNum,
+    currentStartTime: currentStartNum,
+    currentEndTime: currentEndNum,
+    officialRooms,
+    currentRooms: roomsStr,
+  });
 
   const handleStartTimeChange = (newStart) => {
     setStartTimeStr(newStart);
@@ -196,8 +203,20 @@ export default function EditLessonModal({
         {hasAnyDiffFromOfficial && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs">
             <div className="text-[var(--text-secondary)] tabular-nums">
-              <span className="font-semibold text-[var(--text-primary)]">Oficial:</span>{' '}
-              {officialSummaryParts.join(' · ')}
+              {officialSummaryParts.length > 0 ? (
+                <>
+                  <span className="font-semibold text-[var(--text-primary)]">Oficial:</span>{' '}
+                  {officialSummaryParts.join(' · ')}
+                </>
+              ) : (
+                <span>
+                  {isNotesModified
+                    ? 'Solo notas personales'
+                    : lesson.isUserCancelled
+                      ? 'Clase cancelada por ti'
+                      : 'Sin diferencias con el horario oficial'}
+                </span>
+              )}
             </div>
             <button
               type="button"

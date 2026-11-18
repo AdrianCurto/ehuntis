@@ -1391,10 +1391,63 @@ function cleanObsoleteLessonOverrides(currentOverrides = {}, lessons = []) {
   return reconcileLessonOverrides(currentOverrides, lessons);
 }
 
+/**
+ * Devuelve las partes de texto de los valores oficiales de WebUntis que difieren
+ * respecto a los valores actuales en edición (fecha, horario y/o aula).
+ *
+ * @param {Object} params
+ * @param {number} [params.officialDate]
+ * @param {number} [params.currentDate]
+ * @param {number} [params.officialStartTime]
+ * @param {number} [params.officialEndTime]
+ * @param {number} [params.currentStartTime]
+ * @param {number} [params.currentEndTime]
+ * @param {Array<string>|string} [params.officialRooms]
+ * @param {Array<string>|string} [params.currentRooms]
+ * @returns {Array<string>}
+ */
+function getOfficialDiffSummaryParts({
+  officialDate,
+  currentDate,
+  officialStartTime,
+  officialEndTime,
+  currentStartTime,
+  currentEndTime,
+  officialRooms,
+  currentRooms,
+} = {}) {
+  const parts = [];
+
+  if (officialDate != null && currentDate != null && Number(currentDate) !== Number(officialDate)) {
+    parts.push(formatDateDisplay(officialDate));
+  }
+
+  const timeChanged =
+    (officialStartTime != null && currentStartTime != null && Number(currentStartTime) !== Number(officialStartTime)) ||
+    (officialEndTime != null && currentEndTime != null && Number(currentEndTime) !== Number(officialEndTime));
+
+  if (timeChanged && officialStartTime != null && officialEndTime != null) {
+    parts.push(`${formatTime(officialStartTime)}–${formatTime(officialEndTime)}`);
+  }
+
+  if (!areRoomsEqual(currentRooms, officialRooms)) {
+    const officialRoomList = Array.isArray(officialRooms)
+      ? officialRooms
+      : typeof officialRooms === 'string'
+        ? officialRooms.split(',')
+        : [];
+    const officialRoomsStr = formatRooms(officialRoomList);
+    parts.push(officialRoomsStr || 'Sin aula');
+  }
+
+  return parts;
+}
+
 module.exports = {
   LESSON_OVERRIDES_STORAGE_KEY,
   formatTime,
   formatDateDisplay,
+  getOfficialDiffSummaryParts,
   buildCanonicalLessonKey,
   getLessonKey,
   findOverrideEntry,

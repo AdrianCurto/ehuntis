@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   LESSON_OVERRIDES_STORAGE_KEY,
   formatTime,
+  getOfficialDiffSummaryParts,
   getLessonKey,
   getStoredLessonOverrides,
   saveStoredLessonOverrides,
@@ -1231,6 +1232,82 @@ describe('lessonOverrides utility suite', () => {
           notes: 'Traer portatil',
         }),
         true
+      );
+    });
+  });
+
+  describe('getOfficialDiffSummaryParts (resumen oficial selectivo en EditLessonModal)', () => {
+    const baseParams = {
+      officialDate: 20261118,
+      currentDate: 20261118,
+      officialStartTime: 900,
+      officialEndTime: 1100,
+      currentStartTime: 900,
+      currentEndTime: 1100,
+      officialRooms: ['P2 G3A'],
+      currentRooms: 'P2 G3A',
+    };
+
+    test('returns empty array when no official field differs (including equivalent room formatting)', () => {
+      assert.deepEqual(getOfficialDiffSummaryParts(baseParams), []);
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({ ...baseParams, currentRooms: 'p2g3a' }),
+        []
+      );
+    });
+
+    test('returns only date when only date differs', () => {
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({ ...baseParams, currentDate: 20261119 }),
+        ['18/11/2026']
+      );
+    });
+
+    test('returns only time range when start or end time differs', () => {
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({ ...baseParams, currentStartTime: 930 }),
+        ['09:00–11:00']
+      );
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({ ...baseParams, currentEndTime: 1130 }),
+        ['09:00–11:00']
+      );
+    });
+
+    test('returns only room when only room differs, with fallback when official has no room', () => {
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({ ...baseParams, currentRooms: 'Lab 2' }),
+        ['P2G3A']
+      );
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({
+          ...baseParams,
+          officialRooms: [],
+          currentRooms: 'Lab 2',
+        }),
+        ['Sin aula']
+      );
+    });
+
+    test('returns all differing official fields in Date · Time · Room order', () => {
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({
+          ...baseParams,
+          currentDate: 20261120,
+          currentRooms: 'Lab 4',
+        }),
+        ['18/11/2026', 'P2G3A']
+      );
+
+      assert.deepEqual(
+        getOfficialDiffSummaryParts({
+          ...baseParams,
+          currentDate: 20261120,
+          currentStartTime: 1000,
+          currentEndTime: 1200,
+          currentRooms: 'Lab 4',
+        }),
+        ['18/11/2026', '09:00–11:00', 'P2G3A']
       );
     });
   });
