@@ -4145,8 +4145,15 @@ html, body {
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-styled='false'] {
+  width: var(--width);
   display: flex;
   justify-content: center;
+}
+
+@media (max-width: 600px) {
+  [data-sonner-toaster] [data-sonner-toast][data-styled='false'] {
+    width: calc(100% - var(--mobile-offset-left) * 2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

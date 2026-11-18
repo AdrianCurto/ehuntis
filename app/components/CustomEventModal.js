@@ -57,8 +57,6 @@ const DAYS_NAMES = [
   { day: 0, label: 'D', full: 'Domingo' },
 ];
 
-const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
 const RECURRENCE_OPTIONS = [
   { value: 'none', label: 'Solo una vez' },
   { value: 'weekly', label: 'Semanal' },
@@ -357,16 +355,6 @@ export default function CustomEventModal({
     onClose();
   };
 
-  const headerDateObj = useMemo(() => {
-    if (recurrenceType === 'none' && singleDateStr) {
-      const parsed = new Date(`${singleDateStr}T00:00:00`);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
-    }
-    return initialDate;
-  }, [recurrenceType, singleDateStr, initialDate]);
-
-  const headerDateSubtitle = `${DAYS_LONG[headerDateObj.getDay()]} ${String(headerDateObj.getDate()).padStart(2, '0')}/${String(headerDateObj.getMonth() + 1).padStart(2, '0')}/${headerDateObj.getFullYear()}`;
-
   return (
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -481,9 +469,6 @@ export default function CustomEventModal({
                 <ResponsiveModalTitle className="text-base font-bold">
                   {isEditing ? 'Editar evento' : 'Nuevo evento'}
                 </ResponsiveModalTitle>
-                <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
-                  {headerDateSubtitle}
-                </div>
               </ResponsiveModalHeader>
 
               {/* Cuerpo del formulario con scroll independiente */}

@@ -211,26 +211,6 @@ export default function EditLessonModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          {/* Fecha de la clase */}
-          <div className="space-y-1.5">
-            <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-              <span>Fecha</span>
-              {isDateModified && (
-                <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
-              )}
-            </label>
-            <DatePicker
-              value={dateStr}
-              error={errorField === 'date'}
-              onChange={(newDate) => {
-                setDateStr(newDate);
-                setError('');
-                setErrorField(null);
-              }}
-              ariaLabel="Fecha de la clase"
-            />
-          </div>
-
           {/* Horas de Inicio y Fin */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -269,19 +249,40 @@ export default function EditLessonModal({
             </div>
           </div>
 
-          {/* Aula */}
+          {/* Fecha de la clase */}
           <div className="space-y-1.5">
             <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-              <span>
-                Aula / Ubicación
-                <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
-              </span>
+              <span>Fecha</span>
+              {isDateModified && (
+                <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+              )}
+            </label>
+            <DatePicker
+              value={dateStr}
+              error={errorField === 'date'}
+              onChange={(newDate) => {
+                setDateStr(newDate);
+                setError('');
+                setErrorField(null);
+              }}
+              ariaLabel="Fecha de la clase"
+            />
+          </div>
+
+          {/* Aula */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="edit-lesson-room"
+              className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]"
+            >
+              <span>Aula</span>
               {isRoomModified && (
                 <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
               )}
             </label>
             <Input
-              placeholder="Aula o ubicación..."
+              id="edit-lesson-room"
+              placeholder="Aula"
               value={roomsStr}
               onChange={(e) => setRoomsStr(e.target.value)}
             />
@@ -289,11 +290,14 @@ export default function EditLessonModal({
 
           {/* Notas personales */}
           <div className="space-y-1.5">
-            <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
+            <label
+              htmlFor="edit-lesson-notes"
+              className="flex items-center text-[13px] font-medium text-[var(--text-primary)]"
+            >
               <span>Notas personales</span>
-              <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
             </label>
             <Textarea
+              id="edit-lesson-notes"
               placeholder="Detalles, enlaces o recordatorios..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
