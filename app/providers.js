@@ -44,10 +44,14 @@ function ThemeAwareToaster() {
       }}
       mobileOffset={{
         bottom: 'calc(var(--tab-bar-h, 72px) + 32px + env(safe-area-inset-bottom, 0px))',
-        left: '16px',
-        right: '16px',
+        left: '12px',
+        right: '12px',
       }}
       containerAriaLabel="Notificaciones"
+      style={{
+        '--width': 'min(480px, calc(100vw - 24px))',
+        fontFamily: 'var(--font-body)',
+      }}
       toastOptions={{
         style: {
           fontFamily: 'var(--font-body)',

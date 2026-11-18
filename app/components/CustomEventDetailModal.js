@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft } from 'lucide-react';
+import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft, FileText } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -152,9 +152,9 @@ export default function CustomEventDetailModal({
               </div>
             </div>
           ) : (
-            <div className="space-y-4 text-left">
-              {/* Cabecera: Categoria opcional + Titulo primero + Fecha y hora como subtitulo */}
-              <div className="pr-8 space-y-1.5">
+            <div className="space-y-4 text-center">
+              {/* Cabecera: Categoria opcional + Titulo primero + Fecha y hora como subtitulo, todo centrado */}
+              <div className="px-8 flex flex-col items-center text-center space-y-1.5">
                 {category && (
                   <div
                     className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
@@ -167,65 +167,93 @@ export default function CustomEventDetailModal({
                   </div>
                 )}
 
-                <h2 className="text-xl font-bold leading-snug tracking-tight text-balance font-[var(--font-display)]" style={{ color: color.text }}>
+                <ResponsiveModalTitle
+                  className="text-xl font-bold leading-snug tracking-tight text-balance text-center font-[var(--font-display)]"
+                  style={{ color: color.text }}
+                >
                   {title}
-                </h2>
+                </ResponsiveModalTitle>
 
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums" style={{ color: color.text, opacity: 0.85 }}>
+                <div
+                  className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums text-center"
+                  style={{ color: color.text, opacity: 0.85 }}
+                >
                   <span>{dayName} {dateStr}</span>
                   <span aria-hidden="true">·</span>
                   <span className="font-bold">{timeStr}</span>
                 </div>
               </div>
 
-              {/* Detalles adicionales alineados a la izquierda */}
-              <div className="space-y-2.5 text-sm pt-0.5 flex flex-col items-start text-left" style={{ color: color.text }}>
+              {/* Detalles adicionales centrados en pildoras consistentes con LessonModal */}
+              <div className="flex flex-wrap items-center justify-center gap-2" style={{ color: color.text }}>
                 {location && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 mt-0.5 opacity-75 shrink-0" />
-                    <span className="font-medium">{location}</span>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-2 text-xs opacity-85">
-                  <Calendar className="w-3.5 h-3.5 mt-0.5 opacity-75 shrink-0" />
-                  <span>{recurrenceDescription}</span>
-                </div>
-
-                {notes && (
                   <div
-                    className="w-full p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words mt-1 text-left text-pretty"
+                    className="inline-flex items-center justify-center gap-1.5 max-w-full px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-bold text-center"
                     style={{
-                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                      background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                      color: color.text,
                     }}
                   >
-                    {notes}
+                    <MapPin className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                    <span>{location}</span>
                   </div>
                 )}
+
+                <div
+                  className="inline-flex items-center justify-center gap-1.5 max-w-full px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium text-center"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)',
+                    color: color.text,
+                  }}
+                >
+                  {isRecurring ? (
+                    <CalendarRange className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                  ) : (
+                    <Calendar className="w-3.5 h-3.5 opacity-75 shrink-0" />
+                  )}
+                  <span>{recurrenceDescription}</span>
+                </div>
               </div>
 
-              {/* Pie con acciones: contraste garantizado y tono integrado con la tarjeta */}
+              {/* Notas centradas */}
+              {notes && (
+                <div
+                  className="w-full p-3 rounded-[var(--radius-md)] text-xs leading-relaxed whitespace-pre-wrap break-words text-center"
+                  style={{
+                    background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    color: color.text,
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-1.5 font-semibold opacity-80 mb-1">
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    <span>Notas</span>
+                  </div>
+                  <div className="text-pretty">{notes}</div>
+                </div>
+              )}
+
+              {/* Pie con acciones ocupando toda la fila y misma estetica que LessonModal */}
               <div
-                className="pt-3.5 flex items-center justify-between gap-2 border-t"
+                className="pt-3.5 flex items-center gap-2.5 border-t"
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
               >
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="md"
                   onClick={handleDeleteClick}
-                  className="lesson-card-btn-danger touch-target-44 h-9 px-3.5 font-semibold transition-all duration-150"
+                  className="lesson-card-btn-danger flex-1 font-semibold transition-all duration-150"
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  <Trash2 className="w-4 h-4 mr-1.5" />
                   <span>Eliminar</span>
                 </Button>
 
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="md"
                   onClick={onEdit}
-                  className="lesson-card-btn-primary touch-target-44 h-9 px-4 font-semibold shadow-xs transition-all duration-150"
+                  className="lesson-card-btn-primary flex-1 font-semibold shadow-xs transition-all duration-150"
                 >
-                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  <Pencil className="w-4 h-4 mr-1.5" />
                   <span>Editar</span>
                 </Button>
               </div>

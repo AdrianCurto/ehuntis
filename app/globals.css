@@ -4140,8 +4140,11 @@ html, body {
   will-change: transform;
 }
 
+[data-sonner-toaster] {
+  font-family: var(--font-body) !important;
+}
+
 [data-sonner-toaster] [data-sonner-toast][data-styled='false'] {
-  width: 100%;
   display: flex;
   justify-content: center;
 }

@@ -99,15 +99,19 @@ export function UndoToastCard({ toastId, message, onUndo, duration = DEFAULT_UND
           setIsPaused(false);
         }
       }}
-      className="w-full max-w-[420px] overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] dark:border-white/12 bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-[0_12px_32px_rgba(15,23,42,0.18)] dark:shadow-[0_16px_44px_rgba(0,0,0,0.65)] select-none"
+      className="w-full overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border)] dark:border-white/12 bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-[0_12px_32px_rgba(15,23,42,0.18)] dark:shadow-[0_16px_44px_rgba(0,0,0,0.65)] select-none"
+      style={{ fontFamily: 'var(--font-body)' }}
     >
       {/* Indicador visual sutil en movil para deslizar y descartar */}
       <div className="flex sm:hidden items-center justify-center pt-1.5 pb-0.5" aria-hidden="true">
-        <span className="h-1 w-9 rounded-full bg-[var(--text-muted)]/35" />
+        <span className="h-1 w-10 rounded-full bg-[var(--text-muted)]/35" />
       </div>
 
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5 sm:py-3">
-        <p className="flex-1 min-w-0 text-[13.5px] font-medium leading-snug text-[var(--text-primary)] break-words">
+      <div className="flex items-center gap-3 px-4 py-2.5 sm:py-3">
+        <p
+          className="flex-1 min-w-0 text-[13.5px] font-semibold leading-snug tracking-[-0.01em] text-[var(--text-primary)] break-words"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
           {message}
         </p>
 
@@ -115,7 +119,8 @@ export function UndoToastCard({ toastId, message, onUndo, duration = DEFAULT_UND
           <button
             type="button"
             onClick={handleUndo}
-            className="touch-target-44 inline-flex items-center gap-1.5 shrink-0 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-semibold bg-[var(--accent-light)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white active:scale-[0.97] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60"
+            style={{ fontFamily: 'var(--font-display)' }}
+            className="touch-target-44 inline-flex items-center gap-1.5 shrink-0 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-semibold tracking-[-0.01em] bg-[var(--accent-light)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white active:scale-[0.97] transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60"
           >
             <Undo2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span>Deshacer</span>

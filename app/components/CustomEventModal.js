@@ -27,7 +27,6 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
 import { SegmentedControl } from './ui/segmented-control';
-import { Tooltip } from './ui/tooltip';
 import { DatePicker } from './ui/date-picker';
 import { TimePicker } from './ui/time-picker';
 import { InlineCategoryChip } from './ui/inline-category-chip';
@@ -57,6 +56,8 @@ const DAYS_NAMES = [
   { day: 6, label: 'S', full: 'Sábado' },
   { day: 0, label: 'D', full: 'Domingo' },
 ];
+
+const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 const RECURRENCE_OPTIONS = [
   { value: 'none', label: 'Solo una vez' },
@@ -356,23 +357,22 @@ export default function CustomEventModal({
     onClose();
   };
 
-  const activeColorStyle = getSubjectColorStyle(selectedColor, isDark);
+  const headerDateObj = useMemo(() => {
+    if (recurrenceType === 'none' && singleDateStr) {
+      const parsed = new Date(`${singleDateStr}T00:00:00`);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    return initialDate;
+  }, [recurrenceType, singleDateStr, initialDate]);
+
+  const headerDateSubtitle = `${DAYS_LONG[headerDateObj.getDay()]} ${String(headerDateObj.getDate()).padStart(2, '0')}/${String(headerDateObj.getMonth() + 1).padStart(2, '0')}/${headerDateObj.getFullYear()}`;
 
   return (
     <>
       <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
         <ResponsiveModalContent
-          className="max-w-lg p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
+          className="max-w-md p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
         >
-          {/* Pildora superior de acento con margen lateral (sin efecto media luna en esquinas) */}
-          <div
-            className="pointer-events-none absolute top-0 left-6 right-6 h-[3px] rounded-b-[4px] z-10"
-            style={{
-              backgroundColor: isDark
-                ? `color-mix(in oklab, ${activeColorStyle.text} 55%, ${activeColorStyle.bg})`
-                : activeColorStyle.bg,
-            }}
-          />
 
           {/* Sub-paso: Seleccionar alcance para Guardar o Eliminar */}
           {viewStep === 'scope-save' || viewStep === 'scope-delete' ? (
@@ -477,38 +477,31 @@ export default function CustomEventModal({
           ) : (
             /* Vista del Formulario Principal con cuerpo scrollable y pie fijo */
             <form onSubmit={handleSaveClick} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
-              <ResponsiveModalHeader className="px-5 sm:px-6 pt-5 sm:pt-6 pb-2 mb-0 shrink-0">
-                <div className="flex items-center justify-between gap-2 pr-8">
-                  <ResponsiveModalTitle>
-                    {isEditing ? 'Editar evento' : 'Nuevo evento'}
-                  </ResponsiveModalTitle>
-
-                  {isEditing && (
-                    <Tooltip content="Eliminar evento">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleDeleteClick}
-                        aria-label="Eliminar evento"
-                        className="h-8 w-8 rounded-full text-rose-600 dark:text-rose-400 hover:bg-rose-500/12 hover:text-rose-700 dark:hover:text-rose-300"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </Tooltip>
-                  )}
+              <ResponsiveModalHeader className="px-5 sm:px-6 pt-1 sm:pt-5 pb-2 mb-0 pr-12 shrink-0">
+                <ResponsiveModalTitle className="text-base font-bold">
+                  {isEditing ? 'Editar evento' : 'Nuevo evento'}
+                </ResponsiveModalTitle>
+                <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
+                  {headerDateSubtitle}
                 </div>
               </ResponsiveModalHeader>
 
               {/* Cuerpo del formulario con scroll independiente */}
               <div
                 data-sheet-scroll="true"
-                className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-3 pb-4 space-y-4"
+                className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-2 pb-4 space-y-4"
               >
                 {/* Titulo */}
-                <div>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="custom-event-title"
+                    className="block text-[13px] font-medium text-[var(--text-primary)]"
+                  >
+                    Título
+                  </label>
                   <Input
-                    placeholder="Título del evento..."
+                    id="custom-event-title"
+                    placeholder="Título del evento"
                     value={title}
                     error={fieldErrors.title}
                     onChange={(e) => {
@@ -519,7 +512,6 @@ export default function CustomEventModal({
                       }
                     }}
                     autoFocus={!isEditing}
-                    className="text-base font-medium"
                   />
                 </div>
 
@@ -724,11 +716,15 @@ export default function CustomEventModal({
 
                 {/* Ubicacion y Notas */}
                 <div className="space-y-1.5">
-                  <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
+                  <label
+                    htmlFor="custom-event-location"
+                    className="flex items-center text-[13px] font-medium text-[var(--text-primary)]"
+                  >
                     <span>Lugar</span>
                     <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>
                   <Input
+                    id="custom-event-location"
                     placeholder="Aula, biblioteca, despacho..."
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
@@ -736,16 +732,19 @@ export default function CustomEventModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
+                  <label
+                    htmlFor="custom-event-notes"
+                    className="flex items-center text-[13px] font-medium text-[var(--text-primary)]"
+                  >
                     <span>Notas</span>
                     <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>
                   <Textarea
+                    id="custom-event-notes"
                     minRows={2}
                     placeholder="Detalles o recordatorios..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="min-h-[46px] py-1.5"
                   />
                 </div>
 
@@ -787,6 +786,22 @@ export default function CustomEventModal({
                     className="p-3 rounded-[var(--radius-md)] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 text-xs font-medium"
                   >
                     {formError}
+                  </div>
+                )}
+
+                {/* Accion destructiva al final del formulario scrollable */}
+                {isEditing && (
+                  <div className="pt-3 border-t border-[var(--border-light)]">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="md"
+                      onClick={handleDeleteClick}
+                      className="w-full justify-center font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/8 hover:bg-rose-500/15 hover:text-rose-700 dark:hover:text-rose-300 border border-rose-500/20"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      <span>Eliminar evento</span>
+                    </Button>
                   </div>
                 )}
               </div>
