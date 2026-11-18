@@ -1068,6 +1068,21 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   const selectedDayIndexRef = useRef(selectedDayIndex);
   selectedDayIndexRef.current = selectedDayIndex;
 
+  // Pre-index lessons by date (YYYYMMDD) for O(1) day lookups across all panels
+  const lessonsByDate = useMemo(() => {
+    const map = new Map();
+    for (const lesson of (lessons || [])) {
+      if (!lesson || !lesson.date) continue;
+      let list = map.get(lesson.date);
+      if (!list) {
+        list = [];
+        map.set(lesson.date, list);
+      }
+      list.push(lesson);
+    }
+    return map;
+  }, [lessons]);
+
   // Track container width for synchronous column width calculation
   useEffect(() => {
     const el = calendarScrollRef.current;
@@ -1145,36 +1160,26 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   // Helper: clear all inline drag styles from track + panels + header + thumb
   const clearDragStyles = useCallback(() => {
     const {
-      daysTrackEl, prevPanel, currPanel, nextPanel,
-      headerTrackEl, prevHeader, currHeader, nextHeader,
+      daysTrackEl,
+      headerTrackEl,
       thumbEl,
-      currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+      currentTimeOverlayEl,
     } = getPanels();
     if (daysTrackEl) {
       daysTrackEl.style.transition = 'none';
       daysTrackEl.style.transform = 'translate3d(0, 0, 0)';
     }
-    if (prevPanel) { prevPanel.style.transition = 'none'; prevPanel.style.opacity = ''; }
-    if (currPanel) { currPanel.style.transition = 'none'; currPanel.style.opacity = ''; }
-    if (nextPanel) { nextPanel.style.transition = 'none'; nextPanel.style.opacity = ''; }
 
     if (currentTimeOverlayEl) {
       currentTimeOverlayEl.classList.remove('is-moving');
       currentTimeOverlayEl.style.transition = 'none';
       currentTimeOverlayEl.style.transform = 'translate3d(0, 0, 0)';
-      currentTimeOverlayEl.style.opacity = '';
     }
-    if (prevTimePanel) { prevTimePanel.style.transition = 'none'; prevTimePanel.style.opacity = ''; }
-    if (currTimePanel) { currTimePanel.style.transition = 'none'; currTimePanel.style.opacity = ''; }
-    if (nextTimePanel) { nextTimePanel.style.transition = 'none'; nextTimePanel.style.opacity = ''; }
 
     if (headerTrackEl) {
       headerTrackEl.style.transition = 'none';
       headerTrackEl.style.transform = 'translate3d(0, 0, 0)';
     }
-    if (prevHeader) { prevHeader.style.transition = 'none'; prevHeader.style.opacity = ''; }
-    if (currHeader) { currHeader.style.transition = 'none'; currHeader.style.opacity = ''; }
-    if (nextHeader) { nextHeader.style.transition = 'none'; nextHeader.style.opacity = ''; }
 
     if (thumbEl && isDayViewRef.current) {
       const currentIdx = selectedDayIndexRef.current;
@@ -1194,61 +1199,25 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     const targetX = isNext ? '-100%' : '100%';
 
     const {
-      daysTrackEl, prevPanel, currPanel, nextPanel,
-      headerTrackEl, prevHeader, currHeader, nextHeader,
+      daysTrackEl,
+      headerTrackEl,
       thumbEl,
-      currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+      currentTimeOverlayEl,
     } = getPanels();
 
     if (daysTrackEl) {
       daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
       daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
     }
-    if (currPanel) {
-      currPanel.style.transition = 'opacity 0.24s ease';
-      currPanel.style.opacity = '0';
-    }
     if (currentTimeOverlayEl) {
       currentTimeOverlayEl.classList.add('is-moving');
       currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
       currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
     }
-    if (currTimePanel) {
-      currTimePanel.style.transition = 'opacity 0.24s ease';
-      currTimePanel.style.opacity = '0';
-    }
-    if (isNext && nextTimePanel) {
-      nextTimePanel.style.transition = 'opacity 0.24s ease';
-      nextTimePanel.style.opacity = '1';
-    }
-    if (!isNext && prevTimePanel) {
-      prevTimePanel.style.transition = 'opacity 0.24s ease';
-      prevTimePanel.style.opacity = '1';
-    }
-    if (isNext && nextPanel) {
-      nextPanel.style.transition = 'opacity 0.24s ease';
-      nextPanel.style.opacity = '1';
-    }
-    if (!isNext && prevPanel) {
-      prevPanel.style.transition = 'opacity 0.24s ease';
-      prevPanel.style.opacity = '1';
-    }
 
     if (headerTrackEl && !isDayViewRef.current) {
       headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
       headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-      if (currHeader) {
-        currHeader.style.transition = 'opacity 0.24s ease';
-        currHeader.style.opacity = '0';
-      }
-      if (isNext && nextHeader) {
-        nextHeader.style.transition = 'opacity 0.24s ease';
-        nextHeader.style.opacity = '1';
-      }
-      if (!isNext && prevHeader) {
-        prevHeader.style.transition = 'opacity 0.24s ease';
-        prevHeader.style.opacity = '1';
-      }
     }
 
     if (thumbEl && isDayViewRef.current) {
@@ -1415,106 +1384,29 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       drag.dragOffset = dx;
 
       const {
-        daysTrackEl, prevPanel, currPanel, nextPanel,
-        headerTrackEl, prevHeader, currHeader, nextHeader,
+        daysTrackEl,
+        headerTrackEl,
         thumbEl,
-        currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+        currentTimeOverlayEl,
       } = getPanels();
       const viewportWidth = el.clientWidth || 360;
-      const progress = Math.min(1, absX / (viewportWidth * 0.7));
 
       if (daysTrackEl) {
         daysTrackEl.style.transition = 'none';
         daysTrackEl.style.transform = `translate3d(${dx}px, 0, 0)`;
 
-        // Outgoing panel loses opacity
-        const currOpacity = Math.max(0.15, 1 - progress * 0.85);
-        if (currPanel) {
-          currPanel.style.transition = 'none';
-          currPanel.style.opacity = String(currOpacity);
-        }
         if (currentTimeOverlayEl) {
           currentTimeOverlayEl.classList.add('is-moving');
           currentTimeOverlayEl.style.transition = 'none';
           currentTimeOverlayEl.style.transform = `translate3d(${dx}px, 0, 0)`;
         }
-        if (currTimePanel) {
-          currTimePanel.style.transition = 'none';
-          currTimePanel.style.opacity = String(currOpacity);
-        }
-
-        // Incoming panel gains opacity
-        if (dx < 0) {
-          const nextOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (nextPanel) {
-            nextPanel.style.transition = 'none';
-            nextPanel.style.opacity = String(nextOpacity);
-          }
-          if (nextTimePanel) {
-            nextTimePanel.style.transition = 'none';
-            nextTimePanel.style.opacity = String(nextOpacity);
-          }
-          if (prevPanel) {
-            prevPanel.style.transition = 'none';
-            prevPanel.style.opacity = '0.2';
-          }
-          if (prevTimePanel) {
-            prevTimePanel.style.transition = 'none';
-            prevTimePanel.style.opacity = '0';
-          }
-        } else {
-          const prevOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (prevPanel) {
-            prevPanel.style.transition = 'none';
-            prevPanel.style.opacity = String(prevOpacity);
-          }
-          if (prevTimePanel) {
-            prevTimePanel.style.transition = 'none';
-            prevTimePanel.style.opacity = String(prevOpacity);
-          }
-          if (nextPanel) {
-            nextPanel.style.transition = 'none';
-            nextPanel.style.opacity = '0.2';
-          }
-          if (nextTimePanel) {
-            nextTimePanel.style.transition = 'none';
-            nextTimePanel.style.opacity = '0';
-          }
-        }
       }
 
-      // In Week View: header track moves 1:1 and panels fade simultaneously
+      // In Week View: header track moves 1:1 with finger
       // In Day View: header track stays fixed and static
       if (headerTrackEl && !isDayViewRef.current) {
         headerTrackEl.style.transition = 'none';
         headerTrackEl.style.transform = `translate3d(${dx}px, 0, 0)`;
-
-        const currOpacity = Math.max(0.15, 1 - progress * 0.85);
-        if (currHeader) {
-          currHeader.style.transition = 'none';
-          currHeader.style.opacity = String(currOpacity);
-        }
-        if (dx < 0) {
-          const nextOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (nextHeader) {
-            nextHeader.style.transition = 'none';
-            nextHeader.style.opacity = String(nextOpacity);
-          }
-          if (prevHeader) {
-            prevHeader.style.transition = 'none';
-            prevHeader.style.opacity = '0.2';
-          }
-        } else {
-          const prevOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (prevHeader) {
-            prevHeader.style.transition = 'none';
-            prevHeader.style.opacity = String(prevOpacity);
-          }
-          if (nextHeader) {
-            nextHeader.style.transition = 'none';
-            nextHeader.style.opacity = '0.2';
-          }
-        }
       }
 
       // In Day View: blue circle thumb glides in real-time with finger
@@ -1562,10 +1454,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
         }
 
         const {
-          daysTrackEl, prevPanel, currPanel, nextPanel,
-          headerTrackEl, prevHeader, currHeader, nextHeader,
+          daysTrackEl,
+          headerTrackEl,
           thumbEl,
-          currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+          currentTimeOverlayEl,
         } = getPanels();
 
         if (shouldCommit) {
@@ -1585,51 +1477,15 @@ const WeekCalendar = forwardRef(function WeekCalendar({
             daysTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
             daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
           }
-          if (currPanel) {
-            currPanel.style.transition = 'opacity 0.22s ease';
-            currPanel.style.opacity = '0';
-          }
           if (currentTimeOverlayEl) {
             currentTimeOverlayEl.classList.add('is-moving');
             currentTimeOverlayEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
             currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
           }
-          if (currTimePanel) {
-            currTimePanel.style.transition = 'opacity 0.22s ease';
-            currTimePanel.style.opacity = '0';
-          }
-          if (isNext && nextTimePanel) {
-            nextTimePanel.style.transition = 'opacity 0.22s ease';
-            nextTimePanel.style.opacity = '1';
-          }
-          if (!isNext && prevTimePanel) {
-            prevTimePanel.style.transition = 'opacity 0.22s ease';
-            prevTimePanel.style.opacity = '1';
-          }
-          if (isNext && nextPanel) {
-            nextPanel.style.transition = 'opacity 0.22s ease';
-            nextPanel.style.opacity = '1';
-          }
-          if (!isNext && prevPanel) {
-            prevPanel.style.transition = 'opacity 0.22s ease';
-            prevPanel.style.opacity = '1';
-          }
 
           if (headerTrackEl && !isDayViewRef.current) {
             headerTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
             headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-            if (currHeader) {
-              currHeader.style.transition = 'opacity 0.22s ease';
-              currHeader.style.opacity = '0';
-            }
-            if (isNext && nextHeader) {
-              nextHeader.style.transition = 'opacity 0.22s ease';
-              nextHeader.style.opacity = '1';
-            }
-            if (!isNext && prevHeader) {
-              prevHeader.style.transition = 'opacity 0.22s ease';
-              prevHeader.style.opacity = '1';
-            }
           }
 
           if (thumbEl && isDayViewRef.current) {
@@ -1644,59 +1500,31 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           setTimeout(() => {
             if (isNext) onSwipeLeftRef.current?.();
             else onSwipeRightRef.current?.();
-          }, 225);
+          }, 200);
           return;
         }
 
-        // Cancel: Snap back smoothly to 0 with opacities restoring
+        // Cancel: Snap back smoothly to 0
         if (daysTrackEl) {
           daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
           daysTrackEl.style.transform = 'translate3d(0, 0, 0)';
-        }
-        if (currPanel) {
-          currPanel.style.transition = 'opacity 0.24s ease';
-          currPanel.style.opacity = '1';
         }
         if (currentTimeOverlayEl) {
           currentTimeOverlayEl.classList.add('is-moving');
           currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
           currentTimeOverlayEl.style.transform = 'translate3d(0, 0, 0)';
         }
-        if (currTimePanel) {
-          currTimePanel.style.transition = 'opacity 0.24s ease';
-          currTimePanel.style.opacity = '1';
-        }
-        if (nextTimePanel) {
-          nextTimePanel.style.transition = 'opacity 0.24s ease';
-          nextTimePanel.style.opacity = '0';
-        }
-        if (prevTimePanel) {
-          prevTimePanel.style.transition = 'opacity 0.24s ease';
-          prevTimePanel.style.opacity = '0';
-        }
-        if (nextPanel) {
-          nextPanel.style.transition = 'opacity 0.24s ease';
-          nextPanel.style.opacity = '0.2';
-        }
-        if (prevPanel) {
-          prevPanel.style.transition = 'opacity 0.24s ease';
-          prevPanel.style.opacity = '0.2';
-        }
 
         if (headerTrackEl && !isDayViewRef.current) {
           headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
           headerTrackEl.style.transform = 'translate3d(0, 0, 0)';
-          if (currHeader) {
-            currHeader.style.transition = 'opacity 0.24s ease';
-            currHeader.style.opacity = '1';
-          }
-          if (nextHeader) {
-            nextHeader.style.transition = 'opacity 0.24s ease';
-            nextHeader.style.opacity = '0.2';
-          }
-          if (prevHeader) {
-            prevHeader.style.transition = 'opacity 0.24s ease';
-            prevHeader.style.opacity = '0.2';
+        }
+
+        if (thumbEl && isDayViewRef.current) {
+          const currentIdx = selectedDayIndexRef.current;
+          if (currentIdx >= 0) {
+            thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+            thumbEl.style.transform = `translate3d(${currentIdx * 100}%, 0, 0)`;
           }
         }
 
@@ -1854,18 +1682,25 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     if (!Array.isArray(datesList)) return null;
     const panelColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / Math.max(1, datesList.length || 5));
 
+    // Pre-analizar columnas y calcular layout una sola vez por día
+    const columnsData = datesList.map((date, dayIdx) => {
+      if (!date) return null;
+      const d = date instanceof Date ? date : new Date(date);
+      if (isNaN(d.getTime())) return null;
+      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      const dayLessons = lessonsByDate.get(dateNum) || [];
+      const layout = arrangeColumns(dayLessons);
+      return { date: d, dayIdx, dateNum, dayLessons, layout };
+    });
+
     // ── Supresión en cascada de badges magistrales (ámbito de la vista actual) ──
     let weekSuppressedMagistralIds = null;
     if (!isDayView) {
       let anyMissingInWeek = false;
       const allMagistralInWeek = [];
-      for (const date of datesList) {
-        if (!date) continue;
-        const d = date instanceof Date ? date : new Date(date);
-        if (isNaN(d.getTime())) continue;
-        const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-        const dayLessons = (lessons || []).filter(l => l && l.date === dateNum);
-        const layout = arrangeColumns(dayLessons);
+      for (const colData of columnsData) {
+        if (!colData) continue;
+        const { dayLessons, layout } = colData;
         for (const lesson of dayLessons) {
           if (!isMagistralType(lesson.type)) continue;
           allMagistralInWeek.push(lesson.id);
@@ -1885,13 +1720,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       }
     }
 
-    return datesList.map((date, dayIdx) => {
-      if (!date) return null;
-      const d = date instanceof Date ? date : new Date(date);
-      if (isNaN(d.getTime())) return null;
-      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-      const dayLessons = (lessons || []).filter(l => l && l.date === dateNum);
-      const layout = arrangeColumns(dayLessons);
+    return columnsData.map((colData, dayIdx) => {
+      if (!colData) return null;
+      const { date: d, dateNum, dayLessons, layout } = colData;
       const isToday = isSameDay(d, now);
 
       // En vista de día: evaluar cascada para el día actual

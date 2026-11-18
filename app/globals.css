@@ -307,7 +307,7 @@ html, body {
 
 .week-nav-panel.panel-prev {
   transform: translate3d(-100%, 0, 0);
-  opacity: 0.2;
+  opacity: 1;
 }
 
 .week-nav-panel.panel-current {
@@ -317,7 +317,7 @@ html, body {
 
 .week-nav-panel.panel-next {
   transform: translate3d(100%, 0, 0);
-  opacity: 0.2;
+  opacity: 1;
 }
 
 .week-nav-days {
@@ -597,7 +597,7 @@ html, body {
 
 .days-panel.panel-prev {
   transform: translate3d(-100%, 0, 0);
-  opacity: 0.2;
+  opacity: 1;
 }
 
 .days-panel.panel-current {
@@ -607,7 +607,7 @@ html, body {
 
 .days-panel.panel-next {
   transform: translate3d(100%, 0, 0);
-  opacity: 0.2;
+  opacity: 1;
 }
 
 .day-col-inner {
@@ -640,12 +640,12 @@ html, body {
   height: 0;
   display: flex;
   pointer-events: none;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .current-time-panel.panel-prev {
   transform: translate3d(-100%, 0, 0);
-  opacity: 0;
+  opacity: 1;
 }
 
 .current-time-panel.panel-current {
@@ -655,7 +655,7 @@ html, body {
 
 .current-time-panel.panel-next {
   transform: translate3d(100%, 0, 0);
-  opacity: 0;
+  opacity: 1;
 }
 
 .current-time-col-segment {
