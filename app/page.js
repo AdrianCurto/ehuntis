@@ -62,11 +62,13 @@ import {
   suggestEventColor,
 } from './utils/customEvents';
 
-const preloadLessonModal = () => import('./components/LessonModal');
-const preloadEditLessonModal = () => import('./components/EditLessonModal');
-const preloadSwapLessonModal = () => import('./components/SwapLessonModal');
-const preloadCustomEventModal = () => import('./components/CustomEventModal');
-const preloadCustomEventDetailModal = () => import('./components/CustomEventDetailModal');
+import {
+  preloadLessonModal,
+  preloadEditLessonModal,
+  preloadSwapLessonModal,
+  preloadCustomEventModal,
+  preloadCustomEventDetailModal,
+} from './utils/modalPreload';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
@@ -2142,7 +2144,7 @@ export default function Home() {
   const handleSwipeLeft = useCallback(() => handleSwipeCommit('next'), [handleSwipeCommit]);
   const handleSwipeRight = useCallback(() => handleSwipeCommit('prev'), [handleSwipeCommit]);
 
-  // Precargar chunks de modales en tiempo ocioso tras el arranque para eliminar lag en la primera apertura
+  // Precargar chunks de modales tras el arranque para eliminar lag en la primera apertura
   useEffect(() => {
     if (!initDone || typeof window === 'undefined') return;
     let cancelled = false;
@@ -2155,18 +2157,32 @@ export default function Home() {
       preloadSwapLessonModal();
     };
     if (typeof window.requestIdleCallback === 'function') {
-      const idleId = window.requestIdleCallback(warmModals, { timeout: 1500 });
+      const idleId = window.requestIdleCallback(warmModals, { timeout: 250 });
       return () => {
         cancelled = true;
         window.cancelIdleCallback?.(idleId);
       };
     }
-    const timerId = window.setTimeout(warmModals, 600);
+    const timerId = window.setTimeout(warmModals, 150);
     return () => {
       cancelled = true;
       window.clearTimeout(timerId);
     };
   }, [initDone]);
+
+  // Precarga por intencion de modales secundarios mientras el usuario visualiza los modales de detalle
+  useEffect(() => {
+    if (displayedActiveLesson) {
+      preloadEditLessonModal();
+      preloadSwapLessonModal();
+    }
+  }, [displayedActiveLesson]);
+
+  useEffect(() => {
+    if (selectedCustomEvent) {
+      preloadCustomEventModal();
+    }
+  }, [selectedCustomEvent]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {

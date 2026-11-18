@@ -199,7 +199,7 @@ export function TimePicker({
   const digitInputClass =
     'w-16 h-13 rounded-xl text-center text-3xl font-bold tabular-nums tracking-tight bg-[var(--surface-hover)] text-[var(--text-primary)] border-2 border-transparent hover:bg-[var(--surface-active)] focus:bg-[var(--surface)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/25 focus:outline-none transition-all cursor-text';
 
-  const pickerContent = (
+  const pickerContent = isOpen ? (
     <div className="w-[260px] p-1 flex flex-col select-none">
       {/* Pantalla digital editable directa (pulsar abre teclado seleccionando todo) */}
       <div
@@ -395,7 +395,7 @@ export function TimePicker({
         </Button>
       </div>
     </div>
-  );
+  ) : null;
 
   const triggerContent = (
     <button

@@ -10,6 +10,7 @@ import {
   getMaxCenteredBadgeWidthForCorner,
 } from '../utils/statusBadgeLayout';
 import { hasNonSwapOverrides } from '../utils/lessonOverrides';
+import { preloadLessonModal, preloadCustomEventDetailModal } from '../utils/modalPreload';
 
 import {
   PALETTE,
@@ -2116,6 +2117,14 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     alignItems: 'center',
                     textAlign: 'center',
                     overflow: 'hidden',
+                  }}
+                  onPointerEnter={() => {
+                    if (lesson.isCustomEvent) preloadCustomEventDetailModal();
+                    else preloadLessonModal();
+                  }}
+                  onTouchStart={() => {
+                    if (lesson.isCustomEvent) preloadCustomEventDetailModal();
+                    else preloadLessonModal();
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft, FileText } from 'lucide-react';
 import {
   ResponsiveModal,
@@ -13,6 +13,7 @@ import { getSubjectColorStyle } from '../utils/colorLogic';
 import { parseDateNumber, formatDateShort } from '../utils/dayLogic';
 import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
+import { preloadCustomEventModal } from '../utils/modalPreload';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const DAYS_SHORT = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 0: 'Domingo' };
@@ -26,6 +27,10 @@ export default function CustomEventDetailModal({
 }) {
   const [viewMode, setViewMode] = useState('detail'); // 'detail' | 'scope-delete'
   const [confirmSingleDeleteOpen, setConfirmSingleDeleteOpen] = useState(false);
+
+  useEffect(() => {
+    preloadCustomEventModal();
+  }, []);
 
   if (!event) return null;
 
@@ -251,6 +256,8 @@ export default function CustomEventDetailModal({
                   variant="ghost"
                   size="md"
                   onClick={onEdit}
+                  onPointerEnter={preloadCustomEventModal}
+                  onTouchStart={preloadCustomEventModal}
                   className="lesson-card-btn-primary flex-1 font-semibold shadow-xs transition-all duration-150"
                 >
                   <Pencil className="w-4 h-4 mr-1.5" />

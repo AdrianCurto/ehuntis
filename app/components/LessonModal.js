@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import {
   MapPin,
   User,
@@ -23,6 +24,7 @@ import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
 import { shouldShowLessonResetButton } from '../utils/lessonOverrides';
+import { preloadEditLessonModal, preloadSwapLessonModal } from '../utils/modalPreload';
 import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -46,6 +48,11 @@ export default function LessonModal({
   onResetOverride,
   onResolveDrift,
 }) {
+  useEffect(() => {
+    preloadEditLessonModal();
+    preloadSwapLessonModal();
+  }, []);
+
   if (!lesson) return null;
 
   const date = parseDate(lesson.date);
@@ -257,6 +264,8 @@ export default function LessonModal({
               variant="ghost"
               size="md"
               className="lesson-card-btn-primary w-full font-semibold shadow-xs transition-all duration-150"
+              onPointerEnter={preloadEditLessonModal}
+              onTouchStart={preloadEditLessonModal}
               onClick={() => onOpenEdit?.(lesson)}
             >
               <Pencil className="w-4 h-4 mr-1.5" />
@@ -279,6 +288,8 @@ export default function LessonModal({
                 variant="ghost"
                 size="md"
                 className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
+                onPointerEnter={preloadSwapLessonModal}
+                onTouchStart={preloadSwapLessonModal}
                 onClick={() => onOpenSwap?.(lesson)}
               >
                 <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />

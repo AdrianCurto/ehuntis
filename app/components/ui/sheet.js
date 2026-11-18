@@ -32,7 +32,6 @@ export const SheetContent = React.forwardRef(
     const contentRef = React.useRef(null);
     const overlayRef = React.useRef(null);
     const onBeforeDismissRef = React.useRef(onBeforeDismiss);
-    const [mountSeq, setMountSeq] = React.useState(0);
     const settleTimerRef = React.useRef(null);
 
     React.useEffect(() => {
@@ -63,11 +62,7 @@ export const SheetContent = React.forwardRef(
 
     const mergedRef = React.useCallback(
       (node) => {
-        const changed = contentRef.current !== node;
         contentRef.current = node;
-        if (changed) {
-          setMountSeq((n) => n + 1);
-        }
         if (typeof ref === 'function') ref(node);
         else if (ref) ref.current = node;
       },
@@ -78,8 +73,7 @@ export const SheetContent = React.forwardRef(
       overlayRef.current = node;
     }, []);
 
-    // Entrada sincronizada tras commit + layout + pintura (doble rAF) vinculada al nodo real del portal.
-    // Por defecto el Sheet es visible (translate3d(0,0,0)); solo se oculta justo antes del primer paint en useLayoutEffect.
+    // Entrada sincronizada en compositor: postura inicial en useLayoutEffect + raf unico tras forzar reflow
     React.useLayoutEffect(() => {
       const contentEl = contentRef.current;
       if (!contentEl) return;
@@ -115,43 +109,40 @@ export const SheetContent = React.forwardRef(
         overlayEl.style.opacity = '0';
       }
 
-      let raf1 = 0;
-      let raf2 = 0;
-      let enterTimer = null;
+      // Fijar la postura inicial al compositor inmediatamente antes de animar en el primer frame
+      void contentEl.offsetHeight;
 
-      raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => {
-          if (dragRef.current.dragging || dragRef.current.closing) return;
-          contentEl.style.transition = 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)';
-          contentEl.style.transform = 'translate3d(0, 0, 0)';
-          if (overlayEl) {
-            overlayEl.style.transition = 'opacity 200ms ease-out';
-            overlayEl.style.opacity = '1';
-          }
-          enterTimer = setTimeout(() => {
-            enterTimer = null;
-            if (!dragRef.current.dragging && !dragRef.current.closing) {
-              contentEl.style.transition = '';
-              contentEl.style.transform = '';
-              if (overlayEl) {
-                overlayEl.style.transition = '';
-                overlayEl.style.opacity = '';
-              }
+      let enterTimer = null;
+      const rafId = requestAnimationFrame(() => {
+        if (dragRef.current.dragging || dragRef.current.closing) return;
+        contentEl.style.transition = 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)';
+        contentEl.style.transform = 'translate3d(0, 0, 0)';
+        if (overlayEl) {
+          overlayEl.style.transition = 'opacity 200ms ease-out';
+          overlayEl.style.opacity = '1';
+        }
+        enterTimer = setTimeout(() => {
+          enterTimer = null;
+          if (!dragRef.current.dragging && !dragRef.current.closing) {
+            contentEl.style.transition = '';
+            contentEl.style.transform = '';
+            if (overlayEl) {
+              overlayEl.style.transition = '';
+              overlayEl.style.opacity = '';
             }
-          }, 270);
-        });
+          }
+        }, 270);
       });
 
       return () => {
-        if (raf1) cancelAnimationFrame(raf1);
-        if (raf2) cancelAnimationFrame(raf2);
+        if (rafId) cancelAnimationFrame(rafId);
         if (enterTimer) clearTimeout(enterTimer);
         if (settleTimerRef.current) {
           clearTimeout(settleTimerRef.current);
           settleTimerRef.current = null;
         }
       };
-    }, [mountSeq]);
+    }, []);
 
     const triggerClose = React.useCallback(() => {
       const closeBtn = contentRef.current?.querySelector('[data-sheet-close]');
@@ -354,7 +345,7 @@ export const SheetContent = React.forwardRef(
         contentEl.removeEventListener('touchend', onTouchEnd);
         contentEl.removeEventListener('touchcancel', onTouchEnd);
       };
-    }, [mountSeq, clearInlineTransitions, triggerClose]);
+    }, [clearInlineTransitions, triggerClose]);
 
     const stopReactTouchBubbling = (e) => {
       e.stopPropagation();
