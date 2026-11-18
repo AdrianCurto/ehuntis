@@ -7,8 +7,7 @@ import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
 import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
 import {
   resolveStatusIndicatorPlacement,
-  needsBelowStatusRow,
-  STATUS_SUBROW_HEIGHT_PX,
+  getMaxCenteredBadgeWidthForCorner,
 } from '../utils/statusBadgeLayout';
 
 import {
@@ -346,33 +345,54 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
 
-  // El badge se mide siempre contra el ancho completo disponible para no abreviarlo
-  // ni descentrarlo al editar la clase; los iconos de estado se colocan después según espacio libre.
+  // El badge permanece siempre centrado; si hay indicador de estado en la esquina superior derecha,
+  // intentamos primero un tamaño de fuente de BADGE_STYLES que deje hueco simétrico a la pestaña sin abreviar.
   const badgeAvailWidth = availWidth;
   const hasDrift = Boolean(lesson.hasRemoteDrift);
   const showEditedIcon = !isCancelled && Boolean(lesson.isOverridden) && !hasDrift;
+  const maxBadgeWidthForCorner = getMaxCenteredBadgeWidthForCorner({
+    showEditedIcon,
+    hasDrift,
+    blockWidth,
+  });
+  const preferredBadgeWidth =
+    (showEditedIcon || hasDrift) && maxBadgeWidthForCorner > 0
+      ? Math.min(badgeAvailWidth, maxBadgeWidthForCorner)
+      : badgeAvailWidth;
+
+  const pickBestBadgeStyle = (text, extraWidth = 2) => {
+    let fallbackMatch = null;
+    for (const style of BADGE_STYLES) {
+      const width = measureText(text, style.font, '800') + style.padX * 2 + extraWidth;
+      if (width <= preferredBadgeWidth) {
+        return { style, width };
+      }
+      if (!fallbackMatch && width <= badgeAvailWidth) {
+        fallbackMatch = { style, width };
+      }
+    }
+    return fallbackMatch;
+  };
 
   if (isCancelled) {
     const cancelTexts = ['Cancelada', 'Canc.'];
     for (const text of cancelTexts) {
-      for (const style of BADGE_STYLES) {
-        // Reserva para icono (8px) + gap (2.5px) + padding (padX * 2) + border (2px) + margen (2px) = padX * 2 + 14.5px
-        const totalBadgeWidth = measureText(text, style.font, '800') + style.padX * 2 + 14.5;
-        if (totalBadgeWidth <= badgeAvailWidth) {
-          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
-          badgeCandidates.push({
-            hide: false,
-            text,
-            isCancelledBadge: true,
-            iconOnly: false,
-            font: style.font,
-            padding: `${style.padY}px ${style.padX}px`,
-            lineHeight: 1.1,
-            height,
-            width: Math.ceil(totalBadgeWidth),
-          });
-          break;
-        }
+      // Reserva para icono (8px) + gap (2.5px) + padding (padX * 2) + border (2px) + margen (2px) = padX * 2 + 14.5px
+      const match = pickBestBadgeStyle(text, 14.5);
+      if (match) {
+        const { style, width: totalBadgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text,
+          isCancelledBadge: true,
+          iconOnly: false,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(totalBadgeWidth),
+        });
       }
     }
 
@@ -393,21 +413,19 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   } else if (lesson.isCustomEvent) {
     if (lesson.category) {
       const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
-      for (const style of BADGE_STYLES) {
-        const badgeWidth = measureText(catText, style.font, '800') + style.padX * 2 + 2;
-        if (badgeWidth <= badgeAvailWidth) {
-          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
-          badgeCandidates.push({
-            hide: false,
-            text: catText,
-            font: style.font,
-            padding: `${style.padY}px ${style.padX}px`,
-            lineHeight: 1.1,
-            height,
-            width: Math.ceil(badgeWidth),
-          });
-          break;
-        }
+      const match = pickBestBadgeStyle(catText, 2);
+      if (match) {
+        const { style, width: badgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text: catText,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(badgeWidth),
+        });
       }
     }
   } else if (lesson.type && lesson.type.trim()) {
@@ -452,21 +470,19 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
 
     const uniqueTexts = Array.from(new Set(texts));
     for (const text of uniqueTexts) {
-      for (const style of BADGE_STYLES) {
-        const badgeWidth = measureText(text, style.font, '800') + style.padX * 2 + 2;
-        if (badgeWidth <= badgeAvailWidth) {
-          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
-          badgeCandidates.push({
-            hide: false,
-            text,
-            font: style.font,
-            padding: `${style.padY}px ${style.padX}px`,
-            lineHeight: 1.1,
-            height,
-            width: Math.ceil(badgeWidth),
-          });
-          break;
-        }
+      const match = pickBestBadgeStyle(text, 2);
+      if (match) {
+        const { style, width: badgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(badgeWidth),
+        });
       }
     }
   }
@@ -627,74 +643,60 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     const candidateTeachers = attempt.allowTeacher && validTeacherCandidates.length > 0 ? validTeacherCandidates : [hiddenTeacher];
     const candidateRooms = attempt.allowRoom && validRoomCandidates.length > 0 ? validRoomCandidates : [hiddenRoom];
 
-    const wantsBelowReserve = needsBelowStatusRow({
-      showEditedIcon,
-      hasDrift,
-      hasBadge: !curBadge.hide,
-      badgeWidth: curBadge.width || 0,
-      blockWidth,
-    });
-    const reservePasses = wantsBelowReserve ? [STATUS_SUBROW_HEIGHT_PX, 0] : [0];
+    for (const tier of tiers) {
+      const fonts = isDayView
+        ? [14, 13, 12, 11, 10]
+        : (tier.isStacked ? [10, 9, 8] : [11, 10, 9, 8]);
 
-    for (const belowReserve of reservePasses) {
-      for (const tier of tiers) {
-        const fonts = isDayView
-          ? [14, 13, 12, 11, 10]
-          : (tier.isStacked ? [10, 9, 8] : [11, 10, 9, 8]);
+      const steps = generateAlternatingSteps(fonts.length, candidateRooms.length, candidateTeachers.length);
 
-        const steps = generateAlternatingSteps(fonts.length, candidateRooms.length, candidateTeachers.length);
+      for (const step of steps) {
+        const font = fonts[step.s];
+        const roomCandidate = candidateRooms[step.r];
+        const teacherCandidate = candidateTeachers[step.t];
 
-        for (const step of steps) {
-          const font = fonts[step.s];
-          const roomCandidate = candidateRooms[step.r];
-          const teacherCandidate = candidateTeachers[step.t];
+        const roomHeight = roomCandidate.height;
+        const curTeacherHeight = teacherCandidate.height;
+        const remainingHeight = availHeight - curBadgeHeight - roomHeight - curTeacherHeight;
 
-          const roomHeight = roomCandidate.height;
-          const curTeacherHeight = teacherCandidate.height;
-          const remainingHeight = availHeight - curBadgeHeight - belowReserve - roomHeight - curTeacherHeight;
+        if (remainingHeight < 10) {
+          continue;
+        }
 
-          if (remainingHeight < 10) {
-            continue;
+        let lines = null;
+        if (tier.isStacked) {
+          if (tier.words.every(l => measureText(l, font, '700', 0.01) <= availWidth - (isDayView ? 2 : 0))) {
+            lines = tier.words;
           }
+        } else {
+          lines = wrapWords(tier.words, font, availWidth, remainingHeight, isDayView);
+        }
+        if (!lines) continue;
 
-          let lines = null;
-          if (tier.isStacked) {
-            if (tier.words.every(l => measureText(l, font, '700', 0.01) <= availWidth - (isDayView ? 2 : 0))) {
-              lines = tier.words;
-            }
-          } else {
-            lines = wrapWords(tier.words, font, availWidth, remainingHeight, isDayView);
-          }
-          if (!lines) continue;
+        const lineHeight = font >= 11 ? 1.14 : 1.1;
+        const subjectHeight = lines.length * Math.round(font * lineHeight);
 
-          const lineHeight = font >= 11 ? 1.14 : 1.1;
-          const subjectHeight = lines.length * Math.round(font * lineHeight);
-
-          if (subjectHeight <= remainingHeight + 1) {
-            const usedHeight = curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight;
-            const statusPlacement = resolveStatusIndicatorPlacement({
-              showEditedIcon,
-              hasDrift,
-              hasBadge: !curBadge.hide,
-              badgeWidth: curBadge.width || 0,
-              blockWidth,
-              availWidth,
-              availHeight,
-              usedHeight,
-            });
-            return {
-              padding,
-              badge: curBadge,
-              room: roomCandidate,
-              teacher: teacherCandidate,
-              subject: { mode: 'lines', lines, font, lineHeight, tier: tier.name },
-              totalHeight: usedHeight,
-              blockWidth,
-              availWidth,
-              availHeight,
-              statusPlacement,
-            };
-          }
+        if (subjectHeight <= remainingHeight + 1) {
+          const usedHeight = curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight;
+          const statusPlacement = resolveStatusIndicatorPlacement({
+            showEditedIcon,
+            hasDrift,
+            hasBadge: !curBadge.hide,
+            badgeWidth: curBadge.width || 0,
+            blockWidth,
+          });
+          return {
+            padding,
+            badge: curBadge,
+            room: roomCandidate,
+            teacher: teacherCandidate,
+            subject: { mode: 'lines', lines, font, lineHeight, tier: tier.name },
+            totalHeight: usedHeight,
+            blockWidth,
+            availWidth,
+            availHeight,
+            statusPlacement,
+          };
         }
       }
     }
@@ -731,9 +733,6 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     hasBadge: !fallbackBadge.hide,
     badgeWidth: fallbackBadge.width || 0,
     blockWidth,
-    availWidth,
-    availHeight,
-    usedHeight: availHeight,
   });
 
   return {
@@ -1953,7 +1952,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const isCompactBlock = height < 34;
 
               // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge
-              // y recalcular la colocación de iconos de estado con la altura liberada.
+              // y recalcular el tamaño de la pestaña superior derecha sin badge.
               if (activeSuppressedIds && activeSuppressedIds.has(lesson.id) && isMagistralType(lesson.type)) {
                 const prevBadgeHeight = fit.badge?.hide ? 0 : (fit.badge?.height || 0);
                 const nextTotalHeight = Math.max(0, (fit.totalHeight || 0) - prevBadgeHeight);
@@ -1967,9 +1966,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     hasBadge: false,
                     badgeWidth: 0,
                     blockWidth: fit.blockWidth || blockWidth,
-                    availWidth: fit.availWidth || blockWidth,
-                    availHeight: fit.availHeight || height,
-                    usedHeight: nextTotalHeight,
                   }),
                 };
               }
@@ -1986,15 +1982,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 : (fit.statusPlacement || 'none');
 
               const isCornerTabStatus =
-                (effectiveStatusPlacement === 'corner-md' ||
-                  effectiveStatusPlacement === 'corner-sm' ||
-                  effectiveStatusPlacement === 'corner-xs') &&
-                (showEditedIcon || hasDrift);
+                effectiveStatusPlacement !== 'none' && (showEditedIcon || hasDrift);
 
-              const hasHeaderRow =
-                hasVisibleHeaderBadge ||
-                effectiveStatusPlacement === 'header-side' ||
-                effectiveStatusPlacement === 'header-below';
+              const hasHeaderRow = hasVisibleHeaderBadge;
 
               const statusTooltip = hasDrift
                 ? 'WebUntis ha actualizado esta clase'
@@ -2003,15 +1993,13 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const renderStatusIcons = (mode) => {
                 if (!showEditedIcon && !hasDrift) return null;
                 const cfg =
-                  mode === 'side'
-                    ? { box: 13, icon: 8, driftFont: 8, radius: 3, isCorner: false }
-                    : mode === 'below'
-                      ? { box: 11, icon: 7, driftFont: 7.5, radius: 3, isCorner: false }
-                      : mode === 'corner-md'
-                        ? { box: 11, icon: 7, driftFont: 7.5, radius: '0 0 0 4px', isCorner: true }
-                        : mode === 'corner-sm'
-                          ? { box: 9, icon: 6, driftFont: 6.5, radius: '0 0 0 3px', isCorner: true }
-                          : { box: 8, icon: 5.5, driftFont: 6, radius: '0 0 0 3px', isCorner: true };
+                  mode === 'corner-lg'
+                    ? { box: 13, icon: 8, driftFont: 8, radius: '0 0 0 5px' }
+                    : mode === 'corner-md'
+                      ? { box: 11, icon: 7, driftFont: 7.5, radius: '0 0 0 4px' }
+                      : mode === 'corner-sm'
+                        ? { box: 9, icon: 6, driftFont: 6.5, radius: '0 0 0 3px' }
+                        : { box: 8, icon: 5.5, driftFont: 6, radius: '0 0 0 3px' };
 
                 return (
                   <>
@@ -2021,11 +2009,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                           width: cfg.box,
                           height: cfg.box,
                           borderRadius: cfg.radius,
-                          background: cfg.isCorner
-                            ? (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)')
-                            : (isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.08)'),
+                          background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)',
                           color: color.text,
-                          opacity: cfg.isCorner ? 0.92 : 0.85,
+                          opacity: 0.92,
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -2046,16 +2032,15 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         style={{
                           background: '#f59e0b',
                           color: '#ffffff',
-                          borderRadius: cfg.isCorner ? cfg.radius : '50%',
-                          width: cfg.isCorner ? cfg.box : Math.max(10, cfg.box - 1),
-                          height: cfg.isCorner ? cfg.box : Math.max(10, cfg.box - 1),
+                          borderRadius: cfg.radius,
+                          width: cfg.box,
+                          height: cfg.box,
                           fontSize: cfg.driftFont,
                           lineHeight: 1,
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 900,
-                          boxShadow: cfg.isCorner ? 'none' : '0 1px 2px rgba(0,0,0,0.3)',
                           flexShrink: 0,
                         }}
                         title="WebUntis ha actualizado esta clase"
@@ -2233,56 +2218,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
 
                       return null;
                     })();
-
-                    if (effectiveStatusPlacement === 'header-side' && badgeContent && (showEditedIcon || hasDrift)) {
-                      return (
-                        <div
-                          className="lesson-block-header"
-                          style={{
-                            width: '100%',
-                            display: 'grid',
-                            gridTemplateColumns: '1fr auto 1fr',
-                            alignItems: 'center',
-                            columnGap: 2,
-                            marginBottom: 1,
-                            flexShrink: 0,
-                            minHeight: 0,
-                            overflow: 'clip',
-                          }}
-                        >
-                          <div style={{ gridColumn: 2, justifySelf: 'center', display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>
-                            {badgeContent}
-                          </div>
-                          <div style={{ gridColumn: 3, justifySelf: 'end', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                            {renderStatusIcons('side')}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    if (effectiveStatusPlacement === 'header-below' && badgeContent && (showEditedIcon || hasDrift)) {
-                      return (
-                        <div
-                          className="lesson-block-header"
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 1.5,
-                            marginBottom: 1,
-                            flexShrink: 0,
-                            minHeight: 0,
-                            overflow: 'clip',
-                          }}
-                        >
-                          {badgeContent}
-                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                            {renderStatusIcons('below')}
-                          </div>
-                        </div>
-                      );
-                    }
 
                     if (!badgeContent) {
                       return null;

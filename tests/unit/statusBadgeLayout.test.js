@@ -2,10 +2,10 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   resolveStatusIndicatorPlacement,
-  needsBelowStatusRow,
+  getMaxCenteredBadgeWidthForCorner,
 } from '../../app/utils/statusBadgeLayout.js';
 
-describe('resolveStatusIndicatorPlacement (progressive top-right corner badge scaling)', () => {
+describe('resolveStatusIndicatorPlacement (always top-right corner tab, progressive sizing)', () => {
   test('returns none when neither edited nor drift indicators are active', () => {
     assert.equal(
       resolveStatusIndicatorPlacement({
@@ -14,137 +14,92 @@ describe('resolveStatusIndicatorPlacement (progressive top-right corner badge sc
         hasBadge: true,
         badgeWidth: 24,
         blockWidth: 62,
-        availWidth: 57,
-        availHeight: 80,
-        usedHeight: 40,
       }),
       'none'
     );
   });
 
-  test('places normal 13px icon in header-side when symmetric inner room fits without shifting badge', () => {
-    // Desktop wide column with "Magistral"
+  test('picks corner-lg (13px) on wide desktop columns and mobile blocks with short badges like GA/GL1', () => {
     assert.equal(
       resolveStatusIndicatorPlacement({
         showEditedIcon: true,
         hasBadge: true,
         badgeWidth: 46,
         blockWidth: 185,
-        availWidth: 180,
-        availHeight: 90,
-        usedHeight: 60,
       }),
-      'header-side'
+      'corner-lg'
     );
 
-    // Mobile 5-day column with short "GA" badge (~20px -> 19px per side >= 15px)
+    // Mobile 5-day column (62px) with GA (~20px -> 21px per side >= 15px) -> corner-lg
     assert.equal(
       resolveStatusIndicatorPlacement({
         showEditedIcon: true,
         hasBadge: true,
         badgeWidth: 20,
-        blockWidth: 63,
-        availWidth: 58,
-        availHeight: 76,
-        usedHeight: 50,
+        blockWidth: 62,
       }),
-      'header-side'
+      'corner-lg'
     );
   });
 
-  test('scales down progressively to top-right corner-md (11px) and corner-sm (9px) without touching centered badge', () => {
-    // Mobile 5-day column (62px, availWidth 57px) with medium badge (36px):
-    // inner space = (57 - 36) / 2 = 10.5px (< 15px), corner space = (62 - 36) / 2 = 13px (>= 12px) -> corner-md
+  test('scales down smoothly to corner-md (11px), corner-sm (9px) and corner-xs (8px) while staying in top-right corner', () => {
+    // 62px block, 36px badge -> 13px per side (>= 12px, < 15px) -> corner-md
     assert.equal(
       resolveStatusIndicatorPlacement({
         showEditedIcon: true,
         hasBadge: true,
         badgeWidth: 36,
         blockWidth: 62,
-        availWidth: 57,
-        availHeight: 76,
-        usedHeight: 68,
       }),
       'corner-md'
     );
 
-    // Slightly wider badge (42px in 62px): corner space = 10px (>= 9.5px, < 12px) -> corner-sm
+    // 62px block, 42px badge -> 10px per side (>= 9.5px, < 12px) -> corner-sm
     assert.equal(
       resolveStatusIndicatorPlacement({
         hasDrift: true,
         hasBadge: true,
         badgeWidth: 42,
         blockWidth: 62,
-        availWidth: 57,
-        availHeight: 76,
-        usedHeight: 68,
       }),
       'corner-sm'
     );
-  });
 
-  test('drops to header-below when badge reaches near the edge and spare height exists, or corner-xs when micro-compact', () => {
-    // Wide "Magistral" (48px in 60px -> corner space 6px < 9.5px) with vertical spare room -> header-below
-    assert.equal(
-      needsBelowStatusRow({
-        showEditedIcon: true,
-        hasBadge: true,
-        badgeWidth: 48,
-        blockWidth: 60,
-      }),
-      true
-    );
-
+    // Narrow parallel column (30px) with 22px badge -> corner-xs (never moves below badge)
     assert.equal(
       resolveStatusIndicatorPlacement({
         showEditedIcon: true,
         hasBadge: true,
-        badgeWidth: 48,
-        blockWidth: 60,
-        availWidth: 55,
-        availHeight: 110,
-        usedHeight: 80,
-      }),
-      'header-below'
-    );
-
-    // Extreme micro-block (28px wide, badge 24px, tight height) -> corner-xs real-icon tab
-    assert.equal(
-      resolveStatusIndicatorPlacement({
-        hasDrift: true,
-        hasBadge: true,
-        badgeWidth: 24,
-        blockWidth: 28,
-        availWidth: 26,
-        availHeight: 34,
-        usedHeight: 30,
+        badgeWidth: 22,
+        blockWidth: 30,
       }),
       'corner-xs'
     );
   });
 
-  test('keeps badge-less blocks consistently in top-right corner with zero height loss', () => {
+  test('getMaxCenteredBadgeWidthForCorner leaves symmetric room for at least corner-xs without shifting badge', () => {
     assert.equal(
-      resolveStatusIndicatorPlacement({
-        showEditedIcon: true,
-        hasBadge: false,
-        blockWidth: 58,
-        availWidth: 53,
-        availHeight: 40,
-        usedHeight: 36,
-      }),
+      getMaxCenteredBadgeWidthForCorner({ showEditedIcon: false, hasDrift: false, blockWidth: 60 }),
+      60
+    );
+    // 60px block - (8 + 1) * 2 = 42px max badge width to leave 9px cleanly on each side
+    assert.equal(
+      getMaxCenteredBadgeWidthForCorner({ showEditedIcon: true, blockWidth: 60 }),
+      42
+    );
+  });
+
+  test('keeps badge-less blocks consistently in top-right corner scaled by block width', () => {
+    assert.equal(
+      resolveStatusIndicatorPlacement({ showEditedIcon: true, hasBadge: false, blockWidth: 160 }),
+      'corner-lg'
+    );
+    assert.equal(
+      resolveStatusIndicatorPlacement({ showEditedIcon: true, hasBadge: false, blockWidth: 58 }),
       'corner-md'
     );
-
     assert.equal(
-      resolveStatusIndicatorPlacement({
-        showEditedIcon: true,
-        hasBadge: false,
-        blockWidth: 15,
-        availWidth: 13,
-        availHeight: 28,
-        usedHeight: 26,
-      }),
+      resolveStatusIndicatorPlacement({ showEditedIcon: true, hasBadge: false, blockWidth: 15 }),
       'corner-sm'
     );
   });
