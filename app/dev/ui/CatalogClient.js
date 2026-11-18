@@ -574,7 +574,7 @@ export default function CatalogClient() {
         {activeModal === 'swap-lesson' && (
           <SwapLessonModal
             lesson={mockLesson}
-            candidateLessons={mockSwapCandidates}
+            targetLesson={mockSwapCandidates[0]}
             isDark={isDark}
             onSwap={() => {
               toast.success('Intercambio de horario completado');

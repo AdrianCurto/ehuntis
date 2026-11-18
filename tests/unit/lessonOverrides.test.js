@@ -23,6 +23,7 @@ const {
   hasNonSwapOverrides,
   shouldShowLessonResetButton,
   areRoomsEqual,
+  areLessonsIdentical,
   cleanObsoleteLessonOverrides,
 } = require('../../app/utils/lessonOverrides');
 
@@ -516,7 +517,92 @@ describe('lessonOverrides utility suite', () => {
     });
   });
 
+  describe('areLessonsIdentical validation', () => {
+    test('returns true when subject, type, teacher, rooms and classes match regardless of date or time', () => {
+      const lessonA = {
+        id: 101,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        subjects: ['Cálculo I'],
+        type: 'GA',
+        teachers: ['García Pérez, Ana'],
+        rooms: ['Aula 1.4'],
+        classes: ['G31'],
+      };
+      const lessonB = {
+        id: 102,
+        date: 20261111,
+        startTime: 1100,
+        endTime: 1300,
+        subjects: ['Cálculo I'],
+        type: 'GA',
+        teachers: ['García Pérez, Ana'],
+        rooms: ['Aula 1.4'],
+        classes: ['G31'],
+      };
+
+      assert.equal(areLessonsIdentical(lessonA, lessonB), true);
+    });
+
+    test('returns false when any essential property differs', () => {
+      const base = {
+        id: 201,
+        date: 20261109,
+        startTime: 830,
+        endTime: 1030,
+        subjects: ['Física'],
+        type: 'GL-1',
+        teachers: ['López, Juan'],
+        rooms: ['Lab 2'],
+      };
+
+      // Diferente asignatura
+      assert.equal(areLessonsIdentical(base, { ...base, id: 202, subjects: ['Química'] }), false);
+      // Diferente tipo/badge (GL-1 vs GA)
+      assert.equal(areLessonsIdentical(base, { ...base, id: 202, type: 'GA' }), false);
+      // Diferente profesor
+      assert.equal(areLessonsIdentical(base, { ...base, id: 202, teachers: ['Martín, Pedro'] }), false);
+      // Diferente aula
+      assert.equal(areLessonsIdentical(base, { ...base, id: 202, rooms: ['Lab 3'] }), false);
+      // Diferente subgrupo/clase
+      assert.equal(areLessonsIdentical({ ...base, classes: ['G1'] }, { ...base, id: 202, classes: ['G2'] }), false);
+    });
+
+    test('handles missing or falsy lessons safely', () => {
+      assert.equal(areLessonsIdentical(null, null), false);
+      assert.equal(areLessonsIdentical({}, null), false);
+      assert.equal(areLessonsIdentical(undefined, {}), false);
+    });
+  });
+
   describe('swapLessons atomic operation', () => {
+    test('refuses to swap two identical lessons and returns overrides unchanged', () => {
+      const lessonA = {
+        id: 301,
+        date: 20261109,
+        startTime: 900,
+        endTime: 1100,
+        subjects: ['Álgebra'],
+        type: 'Magistral',
+        teachers: ['Ruiz, Elena'],
+        rooms: ['Aula 0.1'],
+      };
+      const lessonB = {
+        id: 302,
+        date: 20261111,
+        startTime: 1100,
+        endTime: 1300,
+        subjects: ['Álgebra'],
+        type: 'Magistral',
+        teachers: ['Ruiz, Elena'],
+        rooms: ['Aula 0.1'],
+      };
+
+      const initialOverrides = { existing: { userCancelled: true } };
+      const result = swapLessons(initialOverrides, lessonA, lessonB);
+      assert.deepEqual(result, initialOverrides, 'No debe modificar overrides si las clases son idénticas');
+    });
     test('swaps timings preserving each room by default when rooms differ, and swaps rooms if option is enabled', () => {
       const lessonA = {
         id: 1001,

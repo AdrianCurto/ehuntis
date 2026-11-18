@@ -9,7 +9,7 @@ import {
   resolveStatusIndicatorPlacement,
   getMaxCenteredBadgeWidthForCorner,
 } from '../utils/statusBadgeLayout';
-import { hasNonSwapOverrides } from '../utils/lessonOverrides';
+import { hasNonSwapOverrides, areLessonsIdentical } from '../utils/lessonOverrides';
 import { preloadLessonModal, preloadCustomEventDetailModal } from '../utils/modalPreload';
 
 import {
@@ -1788,7 +1788,12 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 (lesson.lessonKey && lesson.lessonKey === swapOriginLesson.lessonKey) ||
                 (lesson.id && swapOriginLesson.id && lesson.id === swapOriginLesson.id)
               ));
-              const isSwapTargetCandidate = Boolean(swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent);
+              const isSwapIdentical = Boolean(
+                swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent && areLessonsIdentical(swapOriginLesson, lesson)
+              );
+              const isSwapTargetCandidate = Boolean(
+                swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent && !isSwapIdentical
+              );
               const isCancelledLesson = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
               const hasDrift = Boolean(lesson.hasRemoteDrift);
               const isSwapped = !isSwapOrigin && !isCancelledLesson && Boolean(lesson.swappedWith) && !hasDrift;
@@ -1821,7 +1826,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
               const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
               const hasVisibleHeaderBadge =
-                isSwapOrigin ||
                 hasTextBadge ||
                 (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock));
 
@@ -1920,11 +1924,15 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                 );
               };
 
+              const swapDisabledTooltip = isSwapIdentical
+                ? 'No se pueden intercambiar dos clases idénticas (misma asignatura, tipo, profesor y aula)'
+                : undefined;
+
               return (
                 <div
                   key={blockKey}
-                  title={isCornerTabStatus ? statusTooltip : undefined}
-                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${isCancelledLesson ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden && !isCancelledLesson ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}`}
+                  title={isCornerTabStatus ? statusTooltip : swapDisabledTooltip}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${isCancelledLesson ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden && !isCancelledLesson ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}${isSwapIdentical ? ' is-swap-disabled' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,
@@ -1938,8 +1946,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     boxShadow: isSwapOrigin
                       ? '0 0 16px rgba(99, 102, 241, 0.45)'
                       : (effectiveStatusPlacement === 'corner-xs' && hasDrift ? 'inset 0 2px 0 #f59e0b' : undefined),
-                    zIndex: isSwapOrigin ? 15 : undefined,
-                    cursor: isSwapTargetCandidate ? 'pointer' : undefined,
+                    zIndex: isSwapOrigin ? 20 : undefined,
+                    cursor: isSwapTargetCandidate ? 'pointer' : (isSwapIdentical ? 'not-allowed' : undefined),
                     position: 'absolute',
                     padding: fit.padding,
                     display: 'flex',
@@ -1947,7 +1955,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     justifyContent: 'flex-start',
                     alignItems: 'center',
                     textAlign: 'center',
-                    overflow: 'hidden',
+                    overflow: isSwapOrigin ? 'visible' : 'hidden',
                   }}
                   onPointerEnter={() => {
                     if (lesson.isCustomEvent) preloadCustomEventDetailModal();
@@ -1959,6 +1967,21 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
+                  {/* Pestaña superior flotante para la clase origen (preserva intacto el texto interno de la tarjeta) */}
+                  {isSwapOrigin && (
+                    <div
+                      className="swap-origin-floating-tab"
+                      style={{
+                        top: top < 12 ? '2px' : '-10px',
+                      }}
+                      title="Clase de origen para intercambio"
+                      aria-label="Clase de origen para intercambio"
+                    >
+                      <ArrowUpDown className="w-2.5 h-2.5 shrink-0" strokeWidth={2.8} />
+                      {blockWidth >= 40 && <span>Origen</span>}
+                    </div>
+                  )}
+
                   {/* Pestaña compacta con el icono real pegada a la esquina superior derecha */}
                   {isCornerTabStatus && (
                     <div
@@ -1981,58 +2004,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   {/* Cabecera de estado y badges en flujo natural (NUNCA superpuesto ni descentrando el badge) */}
                   {hasHeaderRow && (() => {
                     const badgeContent = (() => {
-                      if (isSwapOrigin) {
-                        if (!isCompactBlock || hasTextBadge) {
-                          return (
-                            <div
-                              className="swap-origin-badge"
-                              style={{
-                                fontSize: fit.badge?.font || 8,
-                                fontWeight: 800,
-                                background: 'var(--accent)',
-                                color: '#ffffff',
-                                border: '1px solid rgba(255, 255, 255, 0.45)',
-                                padding: '1px 5px',
-                                borderRadius: 3,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                lineHeight: fit.badge?.lineHeight || 1.1,
-                                flexShrink: 0,
-                                maxWidth: '100%',
-                                textAlign: 'center',
-                                whiteSpace: 'nowrap',
-                                overflow: 'clip',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.25)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.4px',
-                              }}
-                            >
-                              <ArrowUpDown size={8} strokeWidth={2.8} />
-                              <span>Origen</span>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div
-                            style={{
-                              width: 13,
-                              height: 13,
-                              borderRadius: 3,
-                              background: 'var(--accent)',
-                              color: '#ffffff',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                            title="Clase de origen para intercambio"
-                          >
-                            <ArrowUpDown size={8} strokeWidth={2.8} />
-                          </div>
-                        );
-                      }
-
                       if (hasTextBadge) {
                         return (
                           <div
@@ -2153,7 +2124,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         }}
                       >
                         {fit.subject.lines.map((line, lineIdx) => {
-                          const showCompactCancelled = isCompactBlock && fit.badge?.hide && !isSwapOrigin && isCancelledLesson && lineIdx === 0;
+                          const showCompactCancelled = isCompactBlock && fit.badge?.hide && isCancelledLesson && lineIdx === 0;
 
                           return (
                             <span

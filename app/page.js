@@ -26,7 +26,9 @@ import {
   swapLessons,
   formatTime,
   reconcileLessonOverrides,
+  areLessonsIdentical,
 } from './utils/lessonOverrides';
+import { toast } from 'sonner';
 import {
   captureLessonOverrideRemoval,
   captureLessonUnswap,
@@ -50,7 +52,7 @@ import {
   getPrevDayContextual,
 } from './utils/dayLogic';
 import { resolveSubjectColors, swapSubjectColor, getSubjectColorStyle } from './utils/colorLogic';
-import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, Search, X } from 'lucide-react';
+import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, X } from 'lucide-react';
 import posthog from 'posthog-js';
 import {
   getStoredCustomEvents,
@@ -263,10 +265,8 @@ export default function Home() {
 
   const [activeLesson, setActiveLesson] = useState(null);
   const [editingLesson, setEditingLesson] = useState(null);
-  const [swappingLesson, setSwappingLesson] = useState(null);
   const [calendarSwapOrigin, setCalendarSwapOrigin] = useState(null);
   const [calendarSwapTarget, setCalendarSwapTarget] = useState(null);
-  const [showSwapListModal, setShowSwapListModal] = useState(false);
   const [lessonOverrides, setLessonOverrides] = useState(() => {
     if (typeof window === 'undefined') return {};
     return getStoredLessonOverrides();
@@ -1606,6 +1606,10 @@ export default function Home() {
         setCalendarSwapOrigin(null);
         return;
       }
+      if (areLessonsIdentical(calendarSwapOrigin, lesson)) {
+        toast.info('No se pueden intercambiar dos clases idénticas (misma asignatura, tipo, profesor y aula)');
+        return;
+      }
       setCalendarSwapTarget(lesson);
       return;
     }
@@ -1625,15 +1629,6 @@ export default function Home() {
       (l.id !== undefined && activeLesson.id !== undefined && l.id === activeLesson.id)
     ) || activeLesson;
   }, [activeLesson, timetableWithOverrides]);
-
-  const swapCandidateLessons = useMemo(() => {
-    const origin = calendarSwapOrigin || swappingLesson;
-    if (!origin) return [];
-    return timetableWithOverrides.filter(l => 
-      !l.isCustomEvent && 
-      (l.lessonKey ? l.lessonKey !== origin.lessonKey : l.id !== origin.id)
-    );
-  }, [calendarSwapOrigin, swappingLesson, timetableWithOverrides]);
 
   const handleToggleLessonCancelled = useCallback((lesson) => {
     isUserDirtyRef.current = true;
@@ -1726,10 +1721,8 @@ export default function Home() {
       saveStoredLessonOverrides(updated);
       return updated;
     });
-    setSwappingLesson(null);
     setCalendarSwapOrigin(null);
     setCalendarSwapTarget(null);
-    setShowSwapListModal(false);
   }, []);
 
   const handleUnswapLesson = useCallback((lessonOrKey) => {
@@ -2054,7 +2047,6 @@ export default function Home() {
         if (calendarSwapOrigin) {
           setCalendarSwapOrigin(null);
           setCalendarSwapTarget(null);
-          setShowSwapListModal(false);
           return;
         }
         if (activeLesson) {
@@ -2082,7 +2074,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, activeLesson, showGroupSearch, handleNavClick]);
+  }, [activeTab, activeLesson, showGroupSearch, calendarSwapOrigin, handleNavClick]);
 
   const handleSelectDay = useCallback((date) => {
     pendingNavQueueRef.current = [];
@@ -2217,6 +2209,15 @@ export default function Home() {
           {calendarSwapOrigin && (() => {
             const originColorIdx = resolvedSubjectColors?.[calendarSwapOrigin.subjectIds?.[0]] ?? 0;
             const originColor = getSubjectColorStyle(originColorIdx, isDark);
+            const originDateObj = (() => {
+              if (!calendarSwapOrigin.date) return null;
+              const y = Math.floor(calendarSwapOrigin.date / 10000);
+              const m = Math.floor((calendarSwapOrigin.date % 10000) / 100) - 1;
+              const d = calendarSwapOrigin.date % 100;
+              return new Date(y, m, d);
+            })();
+            const dayName = originDateObj ? ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][originDateObj.getDay()] : '';
+
             return (
               <div className="swap-banner-wrap" aria-live="polite">
                 <div className="swap-banner">
@@ -2237,28 +2238,23 @@ export default function Home() {
                         }}
                       />
                       <strong>{calendarSwapOrigin.subjects?.[0] || 'Clase'}</strong>
+                      {calendarSwapOrigin.type && (
+                        <span className="text-[11px] font-normal opacity-80 ml-1">
+                          ({calendarSwapOrigin.type})
+                        </span>
+                      )}
                       <span className="swap-banner-meta">
-                        ({formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)})
+                        ({dayName ? `${dayName} ` : ''}{formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)})
                       </span>
                     </div>
                   </div>
                   <div className="swap-banner-actions">
                     <button
                       type="button"
-                      className="swap-banner-btn list-btn"
-                      onClick={() => setShowSwapListModal(true)}
-                      title="Buscar o elegir de la lista"
-                    >
-                      <Search size={13} />
-                      <span>Lista</span>
-                    </button>
-                    <button
-                      type="button"
                       className="swap-banner-btn cancel-btn"
                       onClick={() => {
                         setCalendarSwapOrigin(null);
                         setCalendarSwapTarget(null);
-                        setShowSwapListModal(false);
                       }}
                       title="Cancelar intercambio"
                     >
@@ -2453,21 +2449,18 @@ export default function Home() {
         />
       )}
 
-      {(calendarSwapTarget || showSwapListModal || swappingLesson) && (calendarSwapOrigin || swappingLesson) && (
+      {calendarSwapOrigin && calendarSwapTarget && (
         <SwapLessonModal
-          key={calendarSwapTarget?.lessonKey || 'list'}
-          lesson={calendarSwapOrigin || swappingLesson}
+          key={`${calendarSwapOrigin.lessonKey || calendarSwapOrigin.id}_${calendarSwapTarget.lessonKey || calendarSwapTarget.id}`}
+          lesson={calendarSwapOrigin}
           targetLesson={calendarSwapTarget}
-          candidateLessons={swapCandidateLessons}
-          onSelectFromCalendar={() => {
-            setShowSwapListModal(false);
+          onSelectAnother={() => {
             setCalendarSwapTarget(null);
           }}
           onSwap={handleSwapLessons}
           onClose={() => {
+            setCalendarSwapOrigin(null);
             setCalendarSwapTarget(null);
-            setShowSwapListModal(false);
-            setSwappingLesson(null);
           }}
           isDark={isDark}
         />

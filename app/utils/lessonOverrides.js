@@ -240,6 +240,89 @@ function areRoomsEqual(roomsA, roomsB) {
   return normA.every((r, idx) => r === normB[idx]);
 }
 
+function normalizeTeachersList(teachers) {
+  if (!teachers) return [];
+  const arr = Array.isArray(teachers) ? teachers : [teachers];
+  return arr
+    .map(t => {
+      if (!t) return '';
+      if (typeof t === 'string') return t.trim().toLowerCase();
+      if (typeof t === 'object' && t.name) return String(t.name).trim().toLowerCase();
+      return String(t).trim().toLowerCase();
+    })
+    .filter(Boolean)
+    .sort();
+}
+
+function normalizeClassesList(classes) {
+  if (!classes) return [];
+  const arr = Array.isArray(classes) ? classes : [classes];
+  return arr
+    .map(c => String(c).trim().toLowerCase())
+    .filter(Boolean)
+    .sort();
+}
+
+/**
+ * Comprueba si dos clases son esencialmente idénticas
+ * (misma asignatura, mismo tipo/badge de actividad, mismos profesores,
+ * misma aula y mismos subgrupos/clases), independientemente de su fecha y horario.
+ *
+ * @param {Object} lessonA
+ * @param {Object} lessonB
+ * @returns {boolean}
+ */
+function areLessonsIdentical(lessonA, lessonB) {
+  if (!lessonA || !lessonB || typeof lessonA !== 'object' || typeof lessonB !== 'object') {
+    return false;
+  }
+
+  // Si representan la misma lección oficial o clave
+  if (lessonA.lessonKey && lessonB.lessonKey && lessonA.lessonKey === lessonB.lessonKey) {
+    return true;
+  }
+  if (lessonA.id && lessonB.id && lessonA.id === lessonB.id && lessonA.date === lessonB.date) {
+    return true;
+  }
+
+  // 1. Asignatura (nombre o ID)
+  const subA = (lessonA.subjects?.[0] || '').trim().toLowerCase();
+  const subB = (lessonB.subjects?.[0] || '').trim().toLowerCase();
+  if (subA !== subB) return false;
+
+  const idA = lessonA.subjectIds?.[0];
+  const idB = lessonB.subjectIds?.[0];
+  if (idA !== undefined && idB !== undefined && idA !== idB) return false;
+
+  // 2. Tipo de actividad / badge (GA, GL-1, Magistral, etc.)
+  const typeA = (lessonA.type || '').trim().toUpperCase();
+  const typeB = (lessonB.type || '').trim().toUpperCase();
+  if (typeA !== typeB) return false;
+
+  // 3. Profesores
+  const teachA = normalizeTeachersList(lessonA.teachers);
+  const teachB = normalizeTeachersList(lessonB.teachers);
+  if (teachA.length !== teachB.length) return false;
+  for (let i = 0; i < teachA.length; i++) {
+    if (teachA[i] !== teachB[i]) return false;
+  }
+
+  // 4. Aulas (normalizadas vía areRoomsEqual)
+  const roomsA = lessonA.rooms ?? lessonA.rawRooms ?? [];
+  const roomsB = lessonB.rooms ?? lessonB.rawRooms ?? [];
+  if (!areRoomsEqual(roomsA, roomsB)) return false;
+
+  // 5. Clases / subgrupos
+  const clsA = normalizeClassesList(lessonA.classes);
+  const clsB = normalizeClassesList(lessonB.classes);
+  if (clsA.length !== clsB.length) return false;
+  for (let i = 0; i < clsA.length; i++) {
+    if (clsA[i] !== clsB[i]) return false;
+  }
+
+  return true;
+}
+
 /**
  * Comprueba si un override contiene alguna modificación real respecto al estado oficial de WebUntis.
  * Devuelve false si todos los campos son idénticos a los oficiales (o vacíos en el caso de notas).
@@ -1124,6 +1207,7 @@ function resolveDrift(currentOverrides = {}, lesson, action) {
  */
 function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   if (!lessonA || !lessonB) return currentOverrides;
+  if (areLessonsIdentical(lessonA, lessonB)) return currentOverrides;
   const foundA = findOverrideEntry(currentOverrides, lessonA);
   const foundB = findOverrideEntry(currentOverrides, lessonB);
   const keyA = foundA ? foundA.key : getLessonKey(lessonA);
@@ -1747,5 +1831,6 @@ module.exports = {
   shouldShowLessonResetButton,
   normalizeRooms,
   areRoomsEqual,
+  areLessonsIdentical,
   cleanObsoleteLessonOverrides,
 };
