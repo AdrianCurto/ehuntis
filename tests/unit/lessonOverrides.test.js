@@ -17,8 +17,10 @@ const {
   removeLessonOverride,
   resolveDrift,
   swapLessons,
+  unswapLessons,
   hasLessonOverrideChanges,
   hasNonCancellationOverrideChanges,
+  shouldShowLessonResetButton,
   areRoomsEqual,
   cleanObsoleteLessonOverrides,
 } = require('../../app/utils/lessonOverrides');
@@ -1341,6 +1343,169 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(isEditLessonFormDirty(initial, { ...initial, endTime: 1130 }), true);
       assert.equal(isEditLessonFormDirty(initial, { ...initial, rooms: 'Lab 2' }), true);
       assert.equal(isEditLessonFormDirty(initial, { ...initial, notes: '' }), true);
+    });
+  });
+
+  describe('unswapLessons & shouldShowLessonResetButton (Deshacer intercambio)', () => {
+    const lessonA = {
+      id: 9101,
+      date: 20261118,
+      startTime: 900,
+      endTime: 1100,
+      rooms: ['P1A1'],
+      subjects: ['Matemáticas'],
+      teachers: ['Prof A'],
+    };
+    const lessonB = {
+      id: 9102,
+      date: 20261119,
+      startTime: 1200,
+      endTime: 1400,
+      rooms: ['P2B2'],
+      subjects: ['Física'],
+      teachers: ['Prof B'],
+    };
+
+    test('unswapLessons reverts BOTH classes cleanly to official when swap had no extra edits (with and without swapRooms)', () => {
+      // Without swapRooms
+      const swappedNoRooms = swapLessons({}, lessonA, lessonB, { swapRooms: false });
+      const [appliedA1, appliedB1] = applyLessonOverrides([lessonA, lessonB], swappedNoRooms);
+      assert.equal(appliedA1.date, 20261119);
+      assert.equal(appliedA1.startTime, 1200);
+      assert.equal(appliedB1.date, 20261118);
+      assert.equal(appliedB1.startTime, 900);
+      assert.equal(shouldShowLessonResetButton(appliedA1), false);
+      assert.equal(shouldShowLessonResetButton(appliedB1), false);
+
+      const unswapped1 = unswapLessons(swappedNoRooms, appliedA1);
+      assert.deepEqual(unswapped1, {});
+
+      // With swapRooms: true -> both times AND rooms must be reverted on BOTH classes
+      const swappedWithRooms = swapLessons({}, lessonA, lessonB, { swapRooms: true });
+      const [appliedA2, appliedB2] = applyLessonOverrides([lessonA, lessonB], swappedWithRooms);
+      assert.deepEqual(appliedA2.rooms, ['P2B2']);
+      assert.deepEqual(appliedB2.rooms, ['P1A1']);
+      assert.equal(shouldShowLessonResetButton(appliedA2), false);
+      assert.equal(shouldShowLessonResetButton(appliedB2), false);
+
+      const unswapped2 = unswapLessons(swappedWithRooms, appliedB2);
+      assert.deepEqual(unswapped2, {});
+      const [restoredA, restoredB] = applyLessonOverrides([lessonA, lessonB], unswapped2);
+      assert.equal(restoredA.date, 20261118);
+      assert.equal(restoredA.startTime, 900);
+      assert.deepEqual(restoredA.rooms, ['P1A1']);
+      assert.equal(restoredB.date, 20261119);
+      assert.equal(restoredB.startTime, 1200);
+      assert.deepEqual(restoredB.rooms, ['P2B2']);
+    });
+
+    test('unswapLessons preserves independent edits (notes, manual room, cancellation) on BOTH classes', () => {
+      // Class A has a personal note + custom room before swap (swapRooms: false), Class B is cancelled after swap
+      let overrides = setLessonOverride({}, lessonA, {
+        customRooms: ['Lab 5'],
+        customNotes: 'Traer bata',
+      });
+      const [editedA] = applyLessonOverrides([lessonA], overrides);
+      overrides = swapLessons(overrides, editedA, lessonB, { swapRooms: false });
+      const [swappedA, swappedB] = applyLessonOverrides([lessonA, lessonB], overrides);
+      overrides = setLessonOverride(overrides, swappedB, { userCancelled: true });
+
+      const [finalSwappedA, finalSwappedB] = applyLessonOverrides([lessonA, lessonB], overrides);
+      // A has notes + manual room -> Restablecer MUST show; B only has swap + cancellation -> Restablecer hidden
+      assert.equal(shouldShowLessonResetButton(finalSwappedA), true);
+      assert.equal(shouldShowLessonResetButton(finalSwappedB), false);
+
+      const unswapped = unswapLessons(overrides, finalSwappedA);
+      const [afterA, afterB] = applyLessonOverrides([lessonA, lessonB], unswapped);
+
+      // Both classes returned to original date/time
+      assert.equal(afterA.date, 20261118);
+      assert.equal(afterA.startTime, 900);
+      assert.equal(afterA.swappedWith, null);
+      assert.deepEqual(afterA.rooms, ['Lab 5']);
+      assert.equal(afterA.notes, 'Traer bata');
+
+      assert.equal(afterB.date, 20261119);
+      assert.equal(afterB.startTime, 1200);
+      assert.equal(afterB.swappedWith, null);
+      assert.equal(afterB.isUserCancelled, true);
+    });
+
+    test('unswapLessons restores pre-swap custom time and preserves manual room edited after swapRooms: true', () => {
+      // A already had a custom time before being swapped with B (with swapRooms: true)
+      let overrides = setLessonOverride({}, lessonA, {
+        customStartTime: 800,
+        customEndTime: 1000,
+      });
+      const [preEditedA] = applyLessonOverrides([lessonA], overrides);
+      overrides = swapLessons(overrides, preEditedA, lessonB, { swapRooms: true });
+
+      // User manually edits A's room AFTER the swap
+      const [swappedA] = applyLessonOverrides([lessonA], overrides);
+      overrides = setLessonOverride(overrides, swappedA, { customRooms: ['Sala 9'] });
+      const [postEditedA, swappedB] = applyLessonOverrides([lessonA, lessonB], overrides);
+
+      assert.equal(shouldShowLessonResetButton(postEditedA), true);
+      assert.equal(shouldShowLessonResetButton(swappedB), false);
+
+      const unswapped = unswapLessons(overrides, postEditedA);
+      const [afterA, afterB] = applyLessonOverrides([lessonA, lessonB], unswapped);
+
+      // A returns to its pre-swap custom time (08:00-10:00) and keeps the room edited after swap
+      assert.equal(afterA.date, 20261118);
+      assert.equal(afterA.startTime, 800);
+      assert.equal(afterA.endTime, 1000);
+      assert.deepEqual(afterA.rooms, ['Sala 9']);
+      assert.equal(afterA.swappedWith, null);
+
+      // B returns cleanly to official time AND official room
+      assert.equal(afterB.date, 20261119);
+      assert.equal(afterB.startTime, 1200);
+      assert.equal(afterB.endTime, 1400);
+      assert.deepEqual(afterB.rooms, ['P2B2']);
+      assert.equal(afterB.isOverridden, false);
+    });
+
+    test('unswapLessons supports legacy swaps without prevState/swapRooms metadata and reverts swapped rooms', () => {
+      const legacySwapped = {
+        '20261118_9101': {
+          lessonKey: '20261118_9101',
+          lessonId: 9101,
+          date: 20261118,
+          customDate: 20261119,
+          customStartTime: 1200,
+          customEndTime: 1400,
+          customRooms: ['P2B2'],
+          customNotes: 'Nota en A',
+          swappedWith: { lessonKey: '20261119_9102', subjectName: 'Física', date: 20261119 },
+          originalSnapshot: { ...lessonA },
+        },
+        '20261119_9102': {
+          lessonKey: '20261119_9102',
+          lessonId: 9102,
+          date: 20261119,
+          customDate: 20261118,
+          customStartTime: 900,
+          customEndTime: 1100,
+          customRooms: ['P1A1'],
+          swappedWith: { lessonKey: '20261118_9101', subjectName: 'Matemáticas', date: 20261118 },
+          originalSnapshot: { ...lessonB },
+        },
+      };
+
+      const unswapped = unswapLessons(legacySwapped, '20261118_9101');
+      const [afterA, afterB] = applyLessonOverrides([lessonA, lessonB], unswapped);
+
+      assert.equal(afterA.date, 20261118);
+      assert.equal(afterA.startTime, 900);
+      assert.deepEqual(afterA.rooms, ['P1A1']);
+      assert.equal(afterA.notes, 'Nota en A');
+      assert.equal(afterA.swappedWith, null);
+
+      assert.equal(afterB.date, 20261119);
+      assert.equal(afterB.startTime, 1200);
+      assert.deepEqual(afterB.rooms, ['P2B2']);
+      assert.equal(afterB.isOverridden, false);
     });
   });
 

@@ -29,6 +29,7 @@ import {
 } from './utils/lessonOverrides';
 import {
   captureLessonOverrideRemoval,
+  captureLessonUnswap,
   restoreLessonOverrideEntries,
   captureCustomEventRemoval,
   restoreCustomEventSnapshot,
@@ -1719,6 +1720,7 @@ export default function Home() {
     isUserDirtyRef.current = true;
     setLessonOverrides(prev => {
       const updated = swapLessons(prev, lessonA, lessonB, options);
+      lessonOverridesRef.current = updated;
       saveStoredLessonOverrides(updated);
       return updated;
     });
@@ -1726,6 +1728,35 @@ export default function Home() {
     setCalendarSwapOrigin(null);
     setCalendarSwapTarget(null);
     setShowSwapListModal(false);
+  }, []);
+
+  const handleUnswapLesson = useCallback((lessonOrKey) => {
+    const { previousEntries, nextOverrides } = captureLessonUnswap(
+      lessonOverridesRef.current,
+      lessonOrKey
+    );
+    if (!previousEntries) return null;
+
+    isUserDirtyRef.current = true;
+    lessonOverridesRef.current = nextOverrides;
+    setLessonOverrides(nextOverrides);
+    saveStoredLessonOverrides(nextOverrides);
+
+    showUndoToast({
+      message: 'Intercambio deshecho',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, previousEntries);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
+      },
+    });
+
+    return previousEntries;
   }, []);
 
   // ── Group and Subgroup management ──────────────────────────────────────────
@@ -2390,6 +2421,7 @@ export default function Home() {
             setActiveLesson(null);
             setCalendarSwapOrigin(lesson);
           }}
+          onUnswap={handleUnswapLesson}
           onResetOverride={handleRemoveLessonOverride}
           onResolveDrift={handleResolveLessonDrift}
         />

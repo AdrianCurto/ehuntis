@@ -1253,6 +1253,19 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
     return nextOverrides;
   }
 
+  const buildPrevStateForSwap = (prevOv, includeRooms) => {
+    if (!prevOv || typeof prevOv !== 'object') return null;
+    const prev = {};
+    if (prevOv.customDate !== undefined && prevOv.customDate !== null) prev.customDate = prevOv.customDate;
+    if (prevOv.customStartTime !== undefined && prevOv.customStartTime !== null) prev.customStartTime = prevOv.customStartTime;
+    if (prevOv.customEndTime !== undefined && prevOv.customEndTime !== null) prev.customEndTime = prevOv.customEndTime;
+    if (includeRooms && Array.isArray(prevOv.customRooms)) prev.customRooms = [...prevOv.customRooms];
+    return Object.keys(prev).length > 0 ? prev : null;
+  };
+
+  const prevStateA = buildPrevStateForSwap(foundA?.override, swapRooms);
+  const prevStateB = buildPrevStateForSwap(foundB?.override, swapRooms);
+
   const overrideA = pruneRedundantOverrideFields(
     {
       ...(foundA?.override || {}),
@@ -1267,6 +1280,14 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
         lessonKey: keyB,
         subjectName: subjectNameB,
         date: lessonB.date,
+        swapRooms,
+        applied: {
+          date: targetDateA,
+          startTime: customStartA,
+          endTime: customEndA,
+          ...(swapRooms ? { rooms: [...targetRoomsA] } : {}),
+        },
+        ...(prevStateA ? { prevState: prevStateA } : {}),
       },
       originalSnapshot: snapA,
       updatedAt: Date.now(),
@@ -1289,6 +1310,14 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
         lessonKey: keyA,
         subjectName: subjectNameA,
         date: lessonA.date,
+        swapRooms,
+        applied: {
+          date: targetDateB,
+          startTime: customStartB,
+          endTime: customEndB,
+          ...(swapRooms ? { rooms: [...targetRoomsB] } : {}),
+        },
+        ...(prevStateB ? { prevState: prevStateB } : {}),
       },
       originalSnapshot: snapB,
       updatedAt: Date.now(),
@@ -1300,6 +1329,215 @@ function swapLessons(currentOverrides = {}, lessonA, lessonB, options = {}) {
   nextOverrides[keyA] = overrideA;
   nextOverrides[keyB] = overrideB;
   return nextOverrides;
+}
+
+/**
+ * Busca la clave de la pareja de un intercambio en `currentOverrides`,
+ * soportando tanto referencia directa por `swappedWith.lessonKey` como búsqueda
+ * inversa por si la clave de la pareja migró tras un cambio de fecha oficial.
+ */
+function findSwapPartnerKey(currentOverrides, keyA, ovA) {
+  if (!currentOverrides || !ovA?.swappedWith) return null;
+  const directKey = ovA.swappedWith.lessonKey;
+  if (directKey && currentOverrides[directKey]) {
+    return directKey;
+  }
+  for (const [k, candidate] of Object.entries(currentOverrides)) {
+    if (k === keyA || !candidate || typeof candidate !== 'object') continue;
+    if (candidate.swappedWith?.lessonKey === keyA || candidate.lessonKey === directKey) {
+      return k;
+    }
+  }
+  return null;
+}
+
+/**
+ * Deshace un intercambio (Swap) de forma atómica en AMBAS clases implicadas:
+ * - Restaura fecha y horario (y aulas si el intercambio también intercambió aulas)
+ *   al estado previo (`prevState` si existía, o valores oficiales de WebUntis).
+ * - Conserva intactas otras ediciones independientes (notas personales, cancelación
+ *   manual, o aula editada por fuera del intercambio).
+ * - Elimina el override de cualquiera de las dos clases que vuelva a coincidir
+ *   totalmente con el horario oficial.
+ *
+ * @param {Object} currentOverrides
+ * @param {string|Object} lessonOrKey
+ * @returns {Object}
+ */
+function unswapLessons(currentOverrides = {}, lessonOrKey) {
+  if (!currentOverrides || typeof currentOverrides !== 'object' || !lessonOrKey) {
+    return currentOverrides;
+  }
+
+  let keyA = null;
+  if (typeof lessonOrKey === 'string') {
+    if (currentOverrides[lessonOrKey]) {
+      keyA = lessonOrKey;
+    } else {
+      for (const [k, ov] of Object.entries(currentOverrides)) {
+        if (ov && ov.lessonKey === lessonOrKey) {
+          keyA = k;
+          break;
+        }
+      }
+    }
+  } else if (typeof lessonOrKey === 'object') {
+    const found = findOverrideEntry(currentOverrides, lessonOrKey);
+    if (found) keyA = found.key;
+  }
+
+  if (!keyA || !currentOverrides[keyA] || !currentOverrides[keyA].swappedWith) {
+    return currentOverrides;
+  }
+
+  const ovA = currentOverrides[keyA];
+  const keyB = findSwapPartnerKey(currentOverrides, keyA, ovA);
+  const ovB = keyB ? currentOverrides[keyB] : null;
+
+  const revertSingleEntry = (ov, partnerOv) => {
+    if (!ov || typeof ov !== 'object') return null;
+    const sw = ov.swappedWith || {};
+    const snap = ov.originalSnapshot || {};
+    const prev = sw.prevState && typeof sw.prevState === 'object' ? sw.prevState : null;
+    const applied = sw.applied && typeof sw.applied === 'object' ? sw.applied : null;
+
+    // Determinar si el swap intercambió aulas (incluye detección retrocompatible para swaps legacy sin flag)
+    const didSwapRooms =
+      sw.swapRooms === true ||
+      (sw.swapRooms === undefined &&
+        Array.isArray(ov.customRooms) &&
+        partnerOv?.originalSnapshot?.rooms &&
+        areRoomsEqual(ov.customRooms, partnerOv.originalSnapshot.rooms));
+
+    const nextOv = { ...ov };
+    delete nextOv.swappedWith;
+
+    // 1. Restaurar fecha y horario al estado previo al swap (o oficial)
+    if (prev && prev.customDate !== undefined) {
+      nextOv.customDate = prev.customDate;
+    } else {
+      delete nextOv.customDate;
+    }
+
+    if (prev && prev.customStartTime !== undefined) {
+      nextOv.customStartTime = prev.customStartTime;
+    } else {
+      delete nextOv.customStartTime;
+    }
+
+    if (prev && prev.customEndTime !== undefined) {
+      nextOv.customEndTime = prev.customEndTime;
+    } else {
+      delete nextOv.customEndTime;
+    }
+
+    // 2. Restaurar aulas solo si el swap tocó aulas y el usuario no las re-editó manualmente después
+    if (didSwapRooms) {
+      const userEditedRoomAfterSwap = Boolean(
+        applied &&
+        Array.isArray(applied.rooms) &&
+        Array.isArray(ov.customRooms) &&
+        !areRoomsEqual(ov.customRooms, applied.rooms)
+      );
+      if (!userEditedRoomAfterSwap) {
+        if (prev && Array.isArray(prev.customRooms)) {
+          nextOv.customRooms = [...prev.customRooms];
+        } else {
+          delete nextOv.customRooms;
+        }
+      }
+    }
+
+    const pruned = pruneRedundantOverrideFields(nextOv, snap);
+    if (!hasLessonOverrideChanges(pruned, snap)) {
+      return null;
+    }
+    return {
+      ...pruned,
+      updatedAt: Date.now(),
+    };
+  };
+
+  const nextOverrides = { ...currentOverrides };
+  const revertedA = revertSingleEntry(ovA, ovB);
+  if (revertedA) {
+    nextOverrides[keyA] = revertedA;
+  } else {
+    delete nextOverrides[keyA];
+  }
+
+  if (keyB && ovB) {
+    const revertedB = revertSingleEntry(ovB, ovA);
+    if (revertedB) {
+      nextOverrides[keyB] = revertedB;
+    } else {
+      delete nextOverrides[keyB];
+    }
+  }
+
+  return nextOverrides;
+}
+
+/**
+ * Determina si debe mostrarse el botón "Restablecer" en LessonModal.
+ * Oculta el botón cuando sería redundante:
+ * - Si la clase solo está cancelada manualmente (ya existe "Reactivar clase").
+ * - Si la clase está intercambiada (con o sin cancelación manual) y NO tiene otras
+ *   ediciones independientes (notas personales, aula modificada aparte, ediciones previas
+ *   al intercambio o edición manual posterior sobre fecha/hora), ya que "Deshacer intercambio"
+ *   la devuelve directamente al estado oficial.
+ *
+ * @param {Object} lesson Lección enriquecida por applyLessonOverrides
+ * @returns {boolean}
+ */
+function shouldShowLessonResetButton(lesson) {
+  if (!lesson || typeof lesson !== 'object' || !lesson.isOverridden) {
+    return false;
+  }
+
+  // Sin intercambio: mantener la regla existente (ocultar si solo está cancelada manualmente)
+  if (!lesson.swappedWith) {
+    return !lesson.isUserCancelled || hasNonCancellationOverrideChanges(lesson);
+  }
+
+  const ov = lesson.overrideData && typeof lesson.overrideData === 'object' ? lesson.overrideData : null;
+  const sw = lesson.swappedWith;
+
+  // Notas personales o ignorar cancelación oficial -> requiere Restablecer
+  const notes = typeof lesson.notes === 'string' ? lesson.notes : (typeof ov?.customNotes === 'string' ? ov.customNotes : '');
+  if (notes.trim() !== '') return true;
+  if (lesson.ignoresOfficialCancellation || ov?.ignoreOfficialCancellation) return true;
+
+  // Si ya había ediciones personalizadas antes del swap (prevState), deshacer el swap no vuelve a oficial -> mostrar Restablecer
+  if (sw.prevState && typeof sw.prevState === 'object' && Object.keys(sw.prevState).length > 0) {
+    return true;
+  }
+
+  // Comprobar si el usuario modificó fecha/hora manualmente DESPUÉS del swap
+  if (sw.applied && typeof sw.applied === 'object') {
+    if (sw.applied.date !== undefined && Number(lesson.date) !== Number(sw.applied.date)) return true;
+    if (sw.applied.startTime !== undefined && Number(lesson.startTime) !== Number(sw.applied.startTime)) return true;
+    if (sw.applied.endTime !== undefined && Number(lesson.endTime) !== Number(sw.applied.endTime)) return true;
+  }
+
+  // Comprobar si el aula fue modificada fuera del swap
+  const officialRooms = lesson.rawRooms ?? ov?.originalSnapshot?.rooms ?? lesson.rooms;
+  if (sw.swapRooms === true) {
+    if (sw.applied && Array.isArray(sw.applied.rooms) && !areRoomsEqual(lesson.rooms, sw.applied.rooms)) {
+      return true;
+    }
+  } else if (sw.swapRooms === false) {
+    if (!areRoomsEqual(lesson.rooms, officialRooms)) {
+      return true;
+    }
+  } else {
+    // Swaps legacy sin flag swapRooms: si tiene customRooms explícito, mantener Restablecer por seguridad
+    if (ov && Array.isArray(ov.customRooms) && !areRoomsEqual(ov.customRooms, officialRooms)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -1482,8 +1720,10 @@ module.exports = {
   removeLessonOverride,
   resolveDrift,
   swapLessons,
+  unswapLessons,
   hasLessonOverrideChanges,
   hasNonCancellationOverrideChanges,
+  shouldShowLessonResetButton,
   normalizeRooms,
   areRoomsEqual,
   cleanObsoleteLessonOverrides,

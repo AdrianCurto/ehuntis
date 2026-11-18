@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   captureLessonOverrideRemoval,
+  captureLessonUnswap,
   restoreLessonOverrideEntries,
   captureCustomEventRemoval,
   restoreCustomEventSnapshot,
@@ -70,6 +71,54 @@ describe('undoHelpers snapshot & restore suite', () => {
       assert.equal(Object.keys(restored).length, 2);
       assert.equal(restored['20261118_1'].customStartTime, 1100);
       assert.equal(restored['20261118_2'].customStartTime, 900);
+    });
+
+    test('captureLessonUnswap unswaps both lessons preserving notes and restores both on Undo', () => {
+      const overrides = {
+        '20261118_1': {
+          lessonKey: '20261118_1',
+          lessonId: 1,
+          date: 20261118,
+          customStartTime: 1100,
+          customEndTime: 1300,
+          customNotes: 'Nota importante',
+          swappedWith: {
+            lessonKey: '20261118_2',
+            subjectName: 'Fisica',
+            swapRooms: false,
+            applied: { date: 20261118, startTime: 1100, endTime: 1300 },
+          },
+          originalSnapshot: { id: 1, date: 20261118, startTime: 900, endTime: 1100, rooms: ['A1'] },
+        },
+        '20261118_2': {
+          lessonKey: '20261118_2',
+          lessonId: 2,
+          date: 20261118,
+          customStartTime: 900,
+          customEndTime: 1100,
+          swappedWith: {
+            lessonKey: '20261118_1',
+            subjectName: 'Mates',
+            swapRooms: false,
+            applied: { date: 20261118, startTime: 900, endTime: 1100 },
+          },
+          originalSnapshot: { id: 2, date: 20261118, startTime: 1100, endTime: 1300, rooms: ['B2'] },
+        },
+      };
+
+      const { previousEntries, nextOverrides } = captureLessonUnswap(overrides, '20261118_1');
+      assert.equal(Object.keys(previousEntries).length, 2);
+      assert.equal(nextOverrides['20261118_2'], undefined);
+      assert.equal(nextOverrides['20261118_1'].customNotes, 'Nota importante');
+      assert.equal(nextOverrides['20261118_1'].swappedWith, undefined);
+      assert.equal(nextOverrides['20261118_1'].customStartTime, undefined);
+
+      const restored = restoreLessonOverrideEntries(nextOverrides, previousEntries, 7777);
+      assert.equal(Object.keys(restored).length, 2);
+      assert.equal(restored['20261118_1'].customStartTime, 1100);
+      assert.equal(restored['20261118_1'].swappedWith.lessonKey, '20261118_2');
+      assert.equal(restored['20261118_2'].customStartTime, 900);
+      assert.equal(restored['20261118_2'].swappedWith.lessonKey, '20261118_1');
     });
   });
 

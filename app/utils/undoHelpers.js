@@ -8,6 +8,7 @@ const {
   findOverrideEntry,
   getLessonKey,
   removeLessonOverride,
+  unswapLessons,
 } = require('./lessonOverrides');
 const { deleteCustomEventInstance } = require('./customEvents');
 
@@ -56,6 +57,52 @@ function captureLessonOverrideRemoval(currentOverrides = {}, lessonOrKey) {
   }
 
   return { removedEntries, nextOverrides };
+}
+
+/**
+ * Captura los overrides previos de ambas clases implicadas en un intercambio (swap)
+ * y devuelve el nuevo mapa tras deshacer únicamente el intercambio (preservando otras ediciones).
+ */
+function captureLessonUnswap(currentOverrides = {}, lessonOrKey) {
+  if (!currentOverrides || typeof currentOverrides !== 'object' || !lessonOrKey) {
+    return { previousEntries: null, nextOverrides: currentOverrides || {} };
+  }
+
+  const found =
+    typeof lessonOrKey === 'object' && lessonOrKey
+      ? findOverrideEntry(currentOverrides, lessonOrKey)
+      : null;
+
+  const key =
+    typeof lessonOrKey === 'string'
+      ? lessonOrKey
+      : found?.key || lessonOrKey.lessonKey || getLessonKey(lessonOrKey);
+
+  const ovA = key ? currentOverrides[key] : null;
+  if (!ovA || !ovA.swappedWith) {
+    return { previousEntries: null, nextOverrides: currentOverrides };
+  }
+
+  let partnerKey = ovA.swappedWith.lessonKey;
+  if (!partnerKey || !currentOverrides[partnerKey]) {
+    partnerKey =
+      Object.entries(currentOverrides).find(
+        ([k, candidate]) =>
+          k !== key &&
+          candidate &&
+          typeof candidate === 'object' &&
+          (candidate.swappedWith?.lessonKey === key || candidate.lessonKey === ovA.swappedWith.lessonKey)
+      )?.[0] || null;
+  }
+
+  const previousEntries = {};
+  previousEntries[key] = cloneDeep(ovA);
+  if (partnerKey && currentOverrides[partnerKey]) {
+    previousEntries[partnerKey] = cloneDeep(currentOverrides[partnerKey]);
+  }
+
+  const nextOverrides = unswapLessons(currentOverrides, key);
+  return { previousEntries, nextOverrides };
 }
 
 /**
@@ -322,6 +369,7 @@ function restoreCustomColorsSnapshot(currentConfig, previousColors) {
 
 module.exports = {
   captureLessonOverrideRemoval,
+  captureLessonUnswap,
   restoreLessonOverrideEntries,
   captureCustomEventRemoval,
   restoreCustomEventSnapshot,

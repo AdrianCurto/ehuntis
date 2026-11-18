@@ -5,6 +5,7 @@ import {
   User,
   Pencil,
   ArrowUpDown,
+  Undo2,
   Ban,
   CheckCircle2,
   RotateCcw,
@@ -21,7 +22,7 @@ import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
-import { hasNonCancellationOverrideChanges } from '../utils/lessonOverrides';
+import { shouldShowLessonResetButton } from '../utils/lessonOverrides';
 import { cn } from '../utils/cn';
 
 const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -41,6 +42,7 @@ export default function LessonModal({
   onToggleCancelled,
   onOpenEdit,
   onOpenSwap,
+  onUnswap,
   onResetOverride,
   onResolveDrift,
 }) {
@@ -61,13 +63,19 @@ export default function LessonModal({
   const isUserCancelled = Boolean(lesson.isUserCancelled);
   const isWebUntisCancelled = lesson.code === 'cancelled' && !isUserCancelled;
   const isOverridden = Boolean(lesson.isOverridden);
-  const showResetButton = isOverridden && (!isUserCancelled || hasNonCancellationOverrideChanges(lesson));
+  const isSwapped = Boolean(lesson.swappedWith);
+  const showResetButton = shouldShowLessonResetButton(lesson);
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
   const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
 
   const handleToggleCancelClick = () => {
     onToggleCancelled?.(lesson);
+  };
+
+  const handleUnswapClick = () => {
+    onUnswap?.(lesson);
+    onClose?.();
   };
 
   const handleResetClick = () => {
@@ -255,16 +263,28 @@ export default function LessonModal({
               <span>Editar clase</span>
             </Button>
 
-            {/* Secundario neutro: Intercambiar horario */}
-            <Button
-              variant="ghost"
-              size="md"
-              className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
-              onClick={() => onOpenSwap?.(lesson)}
-            >
-              <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />
-              <span>Intercambiar horario</span>
-            </Button>
+            {/* Secundario neutro: Intercambiar horario o Deshacer intercambio */}
+            {isSwapped ? (
+              <Button
+                variant="ghost"
+                size="md"
+                className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
+                onClick={handleUnswapClick}
+              >
+                <Undo2 className="w-4 h-4 mr-1.5 opacity-85" />
+                <span>Deshacer intercambio</span>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="md"
+                className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
+                onClick={() => onOpenSwap?.(lesson)}
+              >
+                <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />
+                <span>Intercambiar horario</span>
+              </Button>
+            )}
 
             {/* Accion destructiva / de estado: superficie propia de alto contraste */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-0.5">
