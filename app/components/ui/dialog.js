@@ -30,7 +30,7 @@ export const DialogContent = React.forwardRef(
         ref={ref}
         onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
         className={cn(
-          'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-[var(--radius-xl)] border border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-6 shadow-2xl dark:shadow-[0_24px_60px_rgba(0,0,0,0.75)] transition-all duration-200 outline-none max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain animate-[fadeScaleIn_0.16s_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none',
+          'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] rounded-[var(--radius-xl)] border border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-6 shadow-2xl dark:shadow-[0_24px_60px_rgba(0,0,0,0.75)] outline-none max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain animate-[fadeScaleIn_0.16s_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none',
           className
         )}
         {...props}
