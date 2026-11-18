@@ -45,6 +45,7 @@ import {
   timeStringToNumber,
 } from '../utils/customEvents';
 import { toDateNumber, parseDateNumber, getAcademicYearBounds } from '../utils/dayLogic';
+import { useIsDesktop } from '../utils/useMediaQuery';
 import { cn } from '../utils/cn';
 
 const DAYS_NAMES = [
@@ -89,6 +90,7 @@ export default function CustomEventModal({
   isDark = false,
 }) {
   const isEditing = Boolean(event);
+  const isDesktop = useIsDesktop();
   const rawEvent = useMemo(() => event?.rawEvent || event || {}, [event]);
 
   const defaultTimes = useMemo(() => getDefaultEventTimes(), []);
@@ -496,7 +498,7 @@ export default function CustomEventModal({
                         setFormError('');
                       }
                     }}
-                    autoFocus={!isEditing}
+                    autoFocus={!isEditing && isDesktop}
                   />
                 </div>
 

@@ -24,6 +24,7 @@ export const Textarea = React.forwardRef(
     }, []);
 
     React.useEffect(() => {
+      if (!value && !defaultValue) return;
       adjustHeight();
     }, [value, defaultValue, adjustHeight]);
 
