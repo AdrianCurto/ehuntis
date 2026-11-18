@@ -19,7 +19,7 @@ export const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/55 opacity-0 data-[sheet-entered=true]:opacity-100 will-change-[opacity]',
+      'fixed inset-0 z-50 bg-black/55 will-change-[opacity]',
       className
     )}
     {...props}
@@ -31,6 +31,7 @@ export const SheetContent = React.forwardRef(
   ({ className, children, showCloseButton = true, showHandle = true, onOpenAutoFocus, style, ...props }, ref) => {
     const contentRef = React.useRef(null);
     const overlayRef = React.useRef(null);
+    const [mountSeq, setMountSeq] = React.useState(0);
     const settleTimerRef = React.useRef(null);
     const dragRef = React.useRef({
       active: false,
@@ -55,20 +56,58 @@ export const SheetContent = React.forwardRef(
       }
     }, []);
 
-    // Entrada sincronizada tras commit + layout + pintura (doble rAF) para subir 100% en compositor sin trompicones
-    React.useEffect(() => {
+    const mergedRef = React.useCallback(
+      (node) => {
+        const changed = contentRef.current !== node;
+        contentRef.current = node;
+        if (changed) {
+          setMountSeq((n) => n + 1);
+        }
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref]
+    );
+
+    const handleOverlayRef = React.useCallback((node) => {
+      overlayRef.current = node;
+    }, []);
+
+    // Entrada sincronizada tras commit + layout + pintura (doble rAF) vinculada al nodo real del portal.
+    // Por defecto el Sheet es visible (translate3d(0,0,0)); solo se oculta justo antes del primer paint en useLayoutEffect.
+    React.useLayoutEffect(() => {
       const contentEl = contentRef.current;
-      const overlayEl = overlayRef.current;
       if (!contentEl) return;
+      const overlayEl = overlayRef.current;
+
+      // Resetear estado de arrastre en cada apertura (importante para Sheets reutilizados como DatePicker/TimePicker)
+      const drag = dragRef.current;
+      drag.active = false;
+      drag.dragging = false;
+      drag.fromHandle = false;
+      drag.scrollableEl = null;
+      drag.currentY = 0;
+      drag.closing = false;
 
       const prefersReducedMotion =
         typeof window !== 'undefined' &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       if (prefersReducedMotion) {
-        contentEl.setAttribute('data-sheet-entered', 'true');
-        overlayEl?.setAttribute('data-sheet-entered', 'true');
+        contentEl.style.transition = '';
+        contentEl.style.transform = '';
+        if (overlayEl) {
+          overlayEl.style.transition = '';
+          overlayEl.style.opacity = '';
+        }
         return;
+      }
+
+      contentEl.style.transition = 'none';
+      contentEl.style.transform = 'translate3d(0, 100%, 0)';
+      if (overlayEl) {
+        overlayEl.style.transition = 'none';
+        overlayEl.style.opacity = '0';
       }
 
       let raf1 = 0;
@@ -79,15 +118,20 @@ export const SheetContent = React.forwardRef(
         raf2 = requestAnimationFrame(() => {
           if (dragRef.current.dragging || dragRef.current.closing) return;
           contentEl.style.transition = 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)';
-          contentEl.setAttribute('data-sheet-entered', 'true');
+          contentEl.style.transform = 'translate3d(0, 0, 0)';
           if (overlayEl) {
             overlayEl.style.transition = 'opacity 200ms ease-out';
-            overlayEl.setAttribute('data-sheet-entered', 'true');
+            overlayEl.style.opacity = '1';
           }
           enterTimer = setTimeout(() => {
             enterTimer = null;
             if (!dragRef.current.dragging && !dragRef.current.closing) {
-              clearInlineTransitions();
+              contentEl.style.transition = '';
+              contentEl.style.transform = '';
+              if (overlayEl) {
+                overlayEl.style.transition = '';
+                overlayEl.style.opacity = '';
+              }
             }
           }, 270);
         });
@@ -99,18 +143,10 @@ export const SheetContent = React.forwardRef(
         if (enterTimer) clearTimeout(enterTimer);
         if (settleTimerRef.current) {
           clearTimeout(settleTimerRef.current);
+          settleTimerRef.current = null;
         }
       };
-    }, [clearInlineTransitions]);
-
-    const mergedRef = React.useCallback(
-      (node) => {
-        contentRef.current = node;
-        if (typeof ref === 'function') ref(node);
-        else if (ref) ref.current = node;
-      },
-      [ref]
-    );
+    }, [mountSeq]);
 
     const triggerClose = React.useCallback(() => {
       const closeBtn = contentRef.current?.querySelector('[data-sheet-close]');
@@ -309,7 +345,7 @@ export const SheetContent = React.forwardRef(
         contentEl.removeEventListener('touchend', onTouchEnd);
         contentEl.removeEventListener('touchcancel', onTouchEnd);
       };
-    }, [clearInlineTransitions, triggerClose]);
+    }, [mountSeq, clearInlineTransitions, triggerClose]);
 
     const stopReactTouchBubbling = (e) => {
       e.stopPropagation();
@@ -317,7 +353,7 @@ export const SheetContent = React.forwardRef(
 
     return (
       <SheetPortal>
-        <SheetOverlay ref={overlayRef} />
+        <SheetOverlay ref={handleOverlayRef} />
         <SheetPrimitive.Content
           ref={mergedRef}
           onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
@@ -327,7 +363,7 @@ export const SheetContent = React.forwardRef(
           onTouchCancel={stopReactTouchBubbling}
           style={style}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-1rem)] flex-col rounded-t-[22px] border-t border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl dark:shadow-[0_-16px_48px_rgba(0,0,0,0.75)] outline-none overflow-y-auto overscroll-contain will-change-transform [transform:translate3d(0,100%,0)] data-[sheet-entered=true]:[transform:translate3d(0,0,0)]',
+            'fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-1rem)] flex-col rounded-t-[22px] border-t border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl dark:shadow-[0_-16px_48px_rgba(0,0,0,0.75)] outline-none overflow-y-auto overscroll-contain will-change-transform [transform:translate3d(0,0,0)]',
             className
           )}
           {...props}
