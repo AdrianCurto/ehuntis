@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CalendarView } from './ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -31,7 +31,7 @@ function toInputDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-export default function WeekHeader({
+function WeekHeader({
   weekDates,
   selectedDay,
   isDayView,
@@ -232,3 +232,5 @@ export default function WeekHeader({
     </div>
   );
 }
+
+export default memo(WeekHeader);

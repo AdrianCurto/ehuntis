@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef, memo } from 'react';
 import { ArrowUpDown, Pencil, Ban } from 'lucide-react';
 import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
@@ -2380,4 +2380,4 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   );
 });
 
-export default WeekCalendar;
+export default memo(WeekCalendar);

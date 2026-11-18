@@ -61,13 +61,19 @@ import {
   suggestEventColor,
 } from './utils/customEvents';
 
+const preloadLessonModal = () => import('./components/LessonModal');
+const preloadEditLessonModal = () => import('./components/EditLessonModal');
+const preloadSwapLessonModal = () => import('./components/SwapLessonModal');
+const preloadCustomEventModal = () => import('./components/CustomEventModal');
+const preloadCustomEventDetailModal = () => import('./components/CustomEventDetailModal');
+
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
-const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
-const EditLessonModal = dynamic(() => import('./components/EditLessonModal'), { ssr: false });
-const SwapLessonModal = dynamic(() => import('./components/SwapLessonModal'), { ssr: false });
-const CustomEventModal = dynamic(() => import('./components/CustomEventModal'), { ssr: false });
-const CustomEventDetailModal = dynamic(() => import('./components/CustomEventDetailModal'), { ssr: false });
+const LessonModal = dynamic(preloadLessonModal, { ssr: false });
+const EditLessonModal = dynamic(preloadEditLessonModal, { ssr: false });
+const SwapLessonModal = dynamic(preloadSwapLessonModal, { ssr: false });
+const CustomEventModal = dynamic(preloadCustomEventModal, { ssr: false });
+const CustomEventDetailModal = dynamic(preloadCustomEventDetailModal, { ssr: false });
 const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
 const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
 const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
@@ -2045,7 +2051,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, activeLesson, showGroupSearch, handleNavClick]);
 
-  const handleSelectDay = (date) => {
+  const handleSelectDay = useCallback((date) => {
     pendingNavQueueRef.current = [];
     targetDayRef.current = date;
     targetMondayRef.current = getWeekMonday(date);
@@ -2063,9 +2069,9 @@ export default function Home() {
       setSelectedDay(date);
       setIsDayView(true);
     }
-  };
+  }, [isDayView, selectedDay]);
 
-  const handlePickDate = (pickedDate) => {
+  const handlePickDate = useCallback((pickedDate) => {
     pendingNavQueueRef.current = [];
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
@@ -2092,7 +2098,44 @@ export default function Home() {
         setCurrentMonday(getWeekMonday(date));
       }
     }
-  };
+  }, [isDayView, combinedTimetable]);
+
+  const displayedWeekDates = useMemo(
+    () => (isDayView && selectedDay ? [selectedDay] : weekDates),
+    [isDayView, selectedDay, weekDates]
+  );
+
+  const academicBounds = useMemo(() => getAcademicYearBounds(), []);
+  const handleNavPrev = useCallback(() => handleNavClick('prev'), [handleNavClick]);
+  const handleNavNext = useCallback(() => handleNavClick('next'), [handleNavClick]);
+  const handleSwipeLeft = useCallback(() => handleSwipeCommit('next'), [handleSwipeCommit]);
+  const handleSwipeRight = useCallback(() => handleSwipeCommit('prev'), [handleSwipeCommit]);
+
+  // Precargar chunks de modales en tiempo ocioso tras el arranque para eliminar lag en la primera apertura
+  useEffect(() => {
+    if (!initDone || typeof window === 'undefined') return;
+    let cancelled = false;
+    const warmModals = () => {
+      if (cancelled) return;
+      preloadLessonModal();
+      preloadCustomEventDetailModal();
+      preloadEditLessonModal();
+      preloadCustomEventModal();
+      preloadSwapLessonModal();
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(warmModals, { timeout: 1500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(idleId);
+      };
+    }
+    const timerId = window.setTimeout(warmModals, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [initDone]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
@@ -2115,13 +2158,13 @@ export default function Home() {
             selectedDay={selectedDay}
             isDayView={isDayView}
             onSelectDay={handleSelectDay}
-            onPrevWeek={() => handleNavClick('prev')}
-            onNextWeek={() => handleNavClick('next')}
-            onPrevDay={() => handleNavClick('prev')}
-            onNextDay={() => handleNavClick('next')}
+            onPrevWeek={handleNavPrev}
+            onNextWeek={handleNavNext}
+            onPrevDay={handleNavPrev}
+            onNextDay={handleNavNext}
             onPickDate={handlePickDate}
-            minDate={getAcademicYearBounds().minDate}
-            maxDate={getAcademicYearBounds().maxDate}
+            minDate={academicBounds.minDate}
+            maxDate={academicBounds.maxDate}
           />
 
           {calendarSwapOrigin && (() => {
@@ -2216,7 +2259,7 @@ export default function Home() {
               lessons={combinedTimetable}
               customColors={activeConfig.customColors}
               onLessonClick={handleLessonClick}
-              weekDates={isDayView && selectedDay ? [selectedDay] : weekDates}
+              weekDates={displayedWeekDates}
               isDayView={isDayView}
               selectedDay={selectedDay}
               fullWeekDates={weekDates}
@@ -2225,8 +2268,8 @@ export default function Home() {
               isDark={isDark}
               canSwipeNext={canSwipeNext}
               canSwipePrev={canSwipePrev}
-              onSwipeLeft={() => handleSwipeCommit('next')}
-              onSwipeRight={() => handleSwipeCommit('prev')}
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
               onCellDoubleClick={handleCellDoubleClick}
               swapOriginLesson={calendarSwapOrigin}
             />
@@ -2235,6 +2278,8 @@ export default function Home() {
           {/* Floating Action Button (FAB) para crear eventos personales */}
           <button
             className="fab-add-event"
+            onPointerEnter={preloadCustomEventModal}
+            onTouchStart={preloadCustomEventModal}
             onClick={() => handleOpenNewEventModal()}
             aria-label="Añadir evento personal"
             title="Añadir evento personal"

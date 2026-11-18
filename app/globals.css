@@ -439,8 +439,10 @@ html, body {
   color: var(--text-muted);
 }
 
-.week-day-btn.is-past:not(.today):not(.selected):hover {
-  opacity: 0.75;
+@media (hover: hover) and (pointer: fine) {
+  .week-day-btn.is-past:not(.today):not(.selected):hover {
+    opacity: 0.75;
+  }
 }
 
 
@@ -744,21 +746,9 @@ html, body {
   filter: grayscale(0.28);
 }
 
-.lesson-block.is-past:not(.is-dimmed):hover,
-.lesson-block.is-past:not(.is-dimmed):active {
-  opacity: 0.92;
-  filter: grayscale(0);
-}
-
 .dark .lesson-block.is-past:not(.is-dimmed) {
   opacity: 0.52;
   filter: grayscale(0.32);
-}
-
-.dark .lesson-block.is-past:not(.is-dimmed):hover,
-.dark .lesson-block.is-past:not(.is-dimmed):active {
-  opacity: 0.95;
-  filter: grayscale(0);
 }
 
 .lesson-block.is-dimmed {
@@ -768,9 +758,22 @@ html, body {
   box-shadow: none !important;
 }
 
-.lesson-block.is-dimmed:hover {
-  opacity: 0.85 !important;
-  filter: grayscale(0.2) !important;
+/* Hover brightening only on true hover/fine-pointer devices to prevent sticky-hover flash on touch */
+@media (hover: hover) and (pointer: fine) {
+  .lesson-block.is-past:not(.is-dimmed):hover {
+    opacity: 0.92;
+    filter: grayscale(0);
+  }
+
+  .dark .lesson-block.is-past:not(.is-dimmed):hover {
+    opacity: 0.95;
+    filter: grayscale(0);
+  }
+
+  .lesson-block.is-dimmed:hover {
+    opacity: 0.85 !important;
+    filter: grayscale(0.2) !important;
+  }
 }
 
 .lesson-block-name {
@@ -2318,12 +2321,14 @@ html, body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.lesson-block.is-custom-event:hover {
-  filter: brightness(0.96);
-}
+@media (hover: hover) and (pointer: fine) {
+  .lesson-block.is-custom-event:hover {
+    filter: brightness(0.96);
+  }
 
-.dark .lesson-block.is-custom-event:hover {
-  filter: brightness(1.08);
+  .dark .lesson-block.is-custom-event:hover {
+    filter: brightness(1.08);
+  }
 }
 
 /* Botón Flotante (FAB) para añadir evento */
@@ -3187,11 +3192,13 @@ html, body {
   transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-.lesson-block.is-swap-candidate:hover {
-  transform: scale(1.02);
-  filter: brightness(1.08);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
-  z-index: 10;
+@media (hover: hover) and (pointer: fine) {
+  .lesson-block.is-swap-candidate:hover {
+    transform: scale(1.02);
+    filter: brightness(1.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    z-index: 10;
+  }
 }
 
 /* ─── Settings Segmented Nav Tabs ─────────────────────────────────── */
