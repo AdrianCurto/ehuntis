@@ -111,6 +111,7 @@ export function CalendarView({
   const monthInputRef = React.useRef(null);
   const yearInputRef = React.useRef(null);
   const freshEntryRef = React.useRef(null); // 'day' | 'month' | 'year' | null
+  const skipBlurPadRef = React.useRef(null); // 'day' | 'month' | null
 
   const parsedValueKey = parsedValue
     ? `${parsedValue.year}-${parsedValue.month}-${parsedValue.day}`
@@ -200,6 +201,7 @@ export function CalendarView({
     tryApplyTypedDate(nextVal, monthInput, yearInput);
 
     if (nextVal.length === 2) {
+      skipBlurPadRef.current = 'day';
       focusAndSelect(monthInputRef, 'month');
     }
   };
@@ -213,6 +215,7 @@ export function CalendarView({
     tryApplyTypedDate(dayInput, nextVal, yearInput);
 
     if (nextVal.length === 2) {
+      skipBlurPadRef.current = 'month';
       focusAndSelect(yearInputRef, 'year');
     }
   };
@@ -345,6 +348,10 @@ export function CalendarView({
           }}
           onBlur={() => {
             if (freshEntryRef.current === 'day') freshEntryRef.current = null;
+            if (skipBlurPadRef.current === 'day') {
+              skipBlurPadRef.current = null;
+              return;
+            }
             if (dayInput.length === 1 && Number(dayInput) >= 1) {
               const padded = `0${dayInput}`;
               setDayInput(padded);
@@ -390,6 +397,10 @@ export function CalendarView({
           }}
           onBlur={() => {
             if (freshEntryRef.current === 'month') freshEntryRef.current = null;
+            if (skipBlurPadRef.current === 'month') {
+              skipBlurPadRef.current = null;
+              return;
+            }
             if (monthInput.length === 1 && Number(monthInput) >= 1) {
               const padded = `0${monthInput}`;
               setMonthInput(padded);
