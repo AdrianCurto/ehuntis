@@ -381,7 +381,7 @@ export function TimePicker({
           onClick={handleSetCurrentTime}
           className="rounded-lg font-semibold"
         >
-          Ahora
+          Hora actual
         </Button>
         <Button
           type="button"
