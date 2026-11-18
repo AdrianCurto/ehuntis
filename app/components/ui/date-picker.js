@@ -16,6 +16,7 @@ import {
 } from 'react-aria-components';
 import { Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
+import { Dialog, DialogContent, DialogTitle } from './dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './sheet';
 import { Button } from './button';
 import { cn } from '@/app/utils/cn';
@@ -28,6 +29,7 @@ import {
   buildValidCalendarDate,
   clampDayToMonth,
   resolveDateSegmentInput,
+  computePopoverPlacement,
 } from '@/app/utils/dateTimeUtils';
 
 export { parseValueToCalendarDate };
@@ -616,7 +618,31 @@ export function DatePicker({
   const [uncontrolledDate, setUncontrolledDate] = React.useState(() => parsedValue);
   const calendarDate = value !== undefined ? parsedValue : uncontrolledDate;
   const [isOpen, setIsOpen] = React.useState(false);
+  const [placement, setPlacement] = React.useState({ mode: 'popover', side: 'bottom', align: 'start' });
+  const triggerRef = React.useRef(null);
   const isDesktop = useIsDesktop();
+
+  const openPicker = () => {
+    if (disabled) return;
+    if (isDesktop && typeof window !== 'undefined' && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPlacement(
+        computePopoverPlacement(rect, {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        })
+      );
+    }
+    setIsOpen(true);
+  };
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      openPicker();
+    } else {
+      setIsOpen(false);
+    }
+  };
 
   const handleDateChange = (newDate) => {
     if (value === undefined) setUncontrolledDate(newDate);
@@ -636,6 +662,7 @@ export function DatePicker({
 
   const triggerContent = (
     <div
+      ref={triggerRef}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
@@ -646,12 +673,14 @@ export function DatePicker({
         }
       }}
       onClick={() => {
-        if (!disabled) setIsOpen(true);
+        if (!disabled && (!isDesktop || placement.mode === 'dialog')) {
+          openPicker();
+        }
       }}
       onKeyDown={(e) => {
-        if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+        if (!disabled && (e.key === 'Enter' || e.key === ' ') && (!isDesktop || placement.mode === 'dialog')) {
           e.preventDefault();
-          setIsOpen(true);
+          openPicker();
         }
       }}
       className={cn(
@@ -690,22 +719,46 @@ export function DatePicker({
   return (
     <div className={cn('relative flex items-center w-full', className)} {...props}>
       {isDesktop ? (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-          <PopoverTrigger asChild>
+        placement.mode === 'dialog' ? (
+          <>
             {triggerContent}
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-auto p-2"
-            align="start"
-            onOpenAutoFocus={(e) => e.preventDefault()}
-          >
-            <CalendarView
-              value={calendarDate}
-              onSelect={handleCalendarSelect}
-              ariaLabel={ariaLabel}
-            />
-          </PopoverContent>
-        </Popover>
+            <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+              <DialogContent
+                showCloseButton={false}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="w-auto max-w-[calc(100vw-24px)] p-3"
+              >
+                <DialogTitle className="sr-only">Seleccionar fecha</DialogTitle>
+                <CalendarView
+                  value={calendarDate}
+                  onSelect={handleCalendarSelect}
+                  ariaLabel={ariaLabel}
+                />
+              </DialogContent>
+            </Dialog>
+          </>
+        ) : (
+          <Popover open={isOpen} onOpenChange={handleOpenChange}>
+            <PopoverTrigger asChild>
+              {triggerContent}
+            </PopoverTrigger>
+            <PopoverContent
+              side={placement.side}
+              align={placement.align}
+              sideOffset={6}
+              collisionPadding={12}
+              sticky="always"
+              className="w-auto p-2 max-h-[calc(100dvh-24px)] overflow-y-auto"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <CalendarView
+                value={calendarDate}
+                onSelect={handleCalendarSelect}
+                ariaLabel={ariaLabel}
+              />
+            </PopoverContent>
+          </Popover>
+        )
       ) : (
         <>
           {triggerContent}

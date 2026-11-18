@@ -51,6 +51,7 @@ import {
   ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { InfoToggletip } from './ui/tooltip';
 import { Switch } from './ui/switch';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -733,32 +734,34 @@ export default function SettingsView({
 
                   return (
                     <div key={key} className="settings-card" style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'all 0.2s ease' }}>
-                      {/* Group row: 2 clean lines (code + right controls on line 1, subtitle + count pill on line 2) */}
+                      {/* Group row: linea 1 codigo + icono info para nombre completo; linea 2 contador de asignaturas activas */}
                       <div
-                        className="settings-row !items-start !px-4 !py-3.5"
+                        className="settings-row !items-center !px-4 !py-3.5"
                         style={{ cursor: 'pointer', gap: '10px' }}
                         onClick={() => toggleExpanded(key)}
                       >
-                        <span className="mt-0.5 text-[var(--text-muted)] shrink-0">
+                        <span className="text-[var(--text-muted)] shrink-0">
                           <ChevronIcon open={isExpanded} />
                         </span>
 
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-[15px] leading-snug text-[var(--text-primary)] truncate">
-                            {g.name}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-bold text-[15px] leading-snug text-[var(--text-primary)] truncate">
+                              {g.name}
+                            </span>
+                            {g.longName && g.longName.trim() !== (g.name || '').trim() && (
+                              <InfoToggletip
+                                content={g.longName}
+                                ariaLabel={`Ver nombre completo de ${g.name}`}
+                              />
+                            )}
                           </div>
-                          {(g.longName || subjectsForGroup.length > 0) && (
-                            <div className="mt-1 flex items-center gap-2 min-w-0">
-                              {g.longName && (
-                                <span className="text-xs text-[var(--text-secondary)] truncate min-w-0">
-                                  {g.longName}
-                                </span>
-                              )}
-                              {subjectsForGroup.length > 0 && (
-                                <span className="inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--accent-light)] text-[var(--accent)] border border-[var(--accent)]/20 tabular-nums">
-                                  {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length} activas
-                                </span>
-                              )}
+                          {subjectsForGroup.length > 0 && (
+                            <div className="mt-1 flex items-center">
+                              <span className="inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[var(--accent-light)] text-[var(--accent)] border border-[var(--accent)]/20 tabular-nums">
+                                {subjectsForGroup.filter(s => !disabledForGroup.includes(s.id)).length}/{subjectsForGroup.length}{' '}
+                                {subjectsForGroup.length === 1 ? 'asignatura activa' : 'asignaturas activas'}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -1054,7 +1057,7 @@ export default function SettingsView({
             )}
 
             {selectedGroups.length > 0 && (
-              <div style={{ marginTop: 4 }}>
+              <div className="mt-4">
                 <button
                   type="button"
                   className="settings-btn-primary"

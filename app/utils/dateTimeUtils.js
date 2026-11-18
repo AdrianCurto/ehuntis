@@ -122,3 +122,48 @@ export function formatMonthYearHeading(year, month) {
   const monthName = SPANISH_MONTHS[month - 1] || '';
   return `${monthName} ${year}`;
 }
+
+/**
+ * Calcula la mejor colocación para un popover grande (p. ej. calendario) en escritorio
+ * garantizando que quepa completo en pantalla sin recortarse:
+ * bottom -> top -> right -> left -> dialog centrado.
+ *
+ * @param {{ top: number, bottom: number, left: number, right: number }} triggerRect
+ * @param {{ width: number, height: number }} viewport
+ * @param {{ width: number, height: number }} [popoverSize]
+ * @param {number} [margin]
+ * @returns {{ mode: 'popover' | 'dialog', side: 'bottom' | 'top' | 'right' | 'left', align: 'start' | 'center' }}
+ */
+export function computePopoverPlacement(
+  triggerRect,
+  viewport,
+  popoverSize = { width: 304, height: 425 },
+  margin = 12
+) {
+  if (!triggerRect || !viewport) {
+    return { mode: 'popover', side: 'bottom', align: 'start' };
+  }
+
+  const gap = 8;
+  const neededH = popoverSize.height + gap + margin;
+  const neededW = popoverSize.width + gap + margin;
+
+  const spaceBelow = viewport.height - triggerRect.bottom;
+  const spaceAbove = triggerRect.top;
+  const spaceRight = viewport.width - triggerRect.right;
+  const spaceLeft = triggerRect.left;
+
+  if (spaceBelow >= neededH) {
+    return { mode: 'popover', side: 'bottom', align: 'start' };
+  }
+  if (spaceAbove >= neededH) {
+    return { mode: 'popover', side: 'top', align: 'start' };
+  }
+  if (spaceRight >= neededW) {
+    return { mode: 'popover', side: 'right', align: 'center' };
+  }
+  if (spaceLeft >= neededW) {
+    return { mode: 'popover', side: 'left', align: 'center' };
+  }
+  return { mode: 'dialog', side: 'bottom', align: 'center' };
+}

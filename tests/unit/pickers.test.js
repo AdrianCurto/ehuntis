@@ -12,6 +12,7 @@ import {
   clampDayToMonth,
   buildValidCalendarDate,
   resolveDateSegmentInput,
+  computePopoverPlacement,
 } from '../../app/utils/dateTimeUtils.js';
 
 describe('Pickers unit suite (DatePicker & TimePicker)', () => {
@@ -162,6 +163,48 @@ describe('Pickers unit suite (DatePicker & TimePicker)', () => {
       assert.equal(formatTime(new Date(2026, 10, 17, 9, 5)), '09:05');
       assert.equal(formatTime(null), '');
       assert.equal(formatTime('invalid'), '');
+    });
+  });
+
+  describe('computePopoverPlacement (viewport-safe DatePicker positioning)', () => {
+    test('uses bottom when enough space exists below trigger', () => {
+      const res = computePopoverPlacement(
+        { top: 150, bottom: 190, left: 500, right: 800 },
+        { width: 1440, height: 900 }
+      );
+      assert.deepEqual(res, { mode: 'popover', side: 'bottom', align: 'start' });
+    });
+
+    test('flips to top when bottom overflows but top fits', () => {
+      const res = computePopoverPlacement(
+        { top: 550, bottom: 590, left: 500, right: 800 },
+        { width: 1440, height: 800 }
+      );
+      assert.deepEqual(res, { mode: 'popover', side: 'top', align: 'start' });
+    });
+
+    test('moves to right side when trigger is vertically centered on laptop screen', () => {
+      const res = computePopoverPlacement(
+        { top: 360, bottom: 400, left: 480, right: 880 },
+        { width: 1366, height: 768 }
+      );
+      assert.deepEqual(res, { mode: 'popover', side: 'right', align: 'center' });
+    });
+
+    test('moves to left side when neither vertical nor right fits', () => {
+      const res = computePopoverPlacement(
+        { top: 360, bottom: 400, left: 420, right: 820 },
+        { width: 1000, height: 768 }
+      );
+      assert.deepEqual(res, { mode: 'popover', side: 'left', align: 'center' });
+    });
+
+    test('falls back to centered dialog on tight split-screen desktop viewports', () => {
+      const res = computePopoverPlacement(
+        { top: 340, bottom: 380, left: 180, right: 540 },
+        { width: 720, height: 720 }
+      );
+      assert.deepEqual(res, { mode: 'dialog', side: 'bottom', align: 'center' });
     });
   });
 });
