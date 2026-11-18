@@ -103,4 +103,46 @@ describe('resolveStatusIndicatorPlacement (always top-right corner tab, progress
       'corner-sm'
     );
   });
+
+  test('supports dual swapped and edited indicators stacked vertically with matching size', () => {
+    // Cuando está tanto intercambiada como editada, ocupa horizontalmente solo 1 unidad
+    // dejando espacio simétrico al badge de subgrupo
+    assert.equal(
+      resolveStatusIndicatorPlacement({
+        isSwapped: true,
+        isEdited: true,
+        hasBadge: true,
+        badgeWidth: 46,
+        blockWidth: 185,
+        blockHeight: 80,
+      }),
+      'corner-lg'
+    );
+
+    // En bloques cortos (altura < 48px), la doble pila se reduce a corner-md para no invadir el texto
+    assert.equal(
+      resolveStatusIndicatorPlacement({
+        isSwapped: true,
+        isEdited: true,
+        hasBadge: true,
+        badgeWidth: 20,
+        blockWidth: 62,
+        blockHeight: 40,
+      }),
+      'corner-md'
+    );
+
+    // En bloques muy comprimidos (altura < 36px), la doble pila se reduce a corner-xs
+    assert.equal(
+      resolveStatusIndicatorPlacement({
+        isSwapped: true,
+        isEdited: true,
+        hasBadge: true,
+        badgeWidth: 20,
+        blockWidth: 62,
+        blockHeight: 30,
+      }),
+      'corner-xs'
+    );
+  });
 });

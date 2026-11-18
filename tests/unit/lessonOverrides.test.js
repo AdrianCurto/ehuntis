@@ -20,6 +20,7 @@ const {
   unswapLessons,
   hasLessonOverrideChanges,
   hasNonCancellationOverrideChanges,
+  hasNonSwapOverrides,
   shouldShowLessonResetButton,
   areRoomsEqual,
   cleanObsoleteLessonOverrides,
@@ -1376,6 +1377,8 @@ describe('lessonOverrides utility suite', () => {
       assert.equal(appliedB1.startTime, 900);
       assert.equal(shouldShowLessonResetButton(appliedA1), false);
       assert.equal(shouldShowLessonResetButton(appliedB1), false);
+      assert.equal(hasNonSwapOverrides(appliedA1), false);
+      assert.equal(hasNonSwapOverrides(appliedB1), false);
 
       const unswapped1 = unswapLessons(swappedNoRooms, appliedA1);
       assert.deepEqual(unswapped1, {});
@@ -1414,6 +1417,8 @@ describe('lessonOverrides utility suite', () => {
       // A has notes + manual room -> Restablecer MUST show; B only has swap + cancellation -> Restablecer hidden
       assert.equal(shouldShowLessonResetButton(finalSwappedA), true);
       assert.equal(shouldShowLessonResetButton(finalSwappedB), false);
+      assert.equal(hasNonSwapOverrides(finalSwappedA), true);
+      assert.equal(hasNonSwapOverrides(finalSwappedB), false);
 
       const unswapped = unswapLessons(overrides, finalSwappedA);
       const [afterA, afterB] = applyLessonOverrides([lessonA, lessonB], unswapped);
@@ -1447,6 +1452,8 @@ describe('lessonOverrides utility suite', () => {
 
       assert.equal(shouldShowLessonResetButton(postEditedA), true);
       assert.equal(shouldShowLessonResetButton(swappedB), false);
+      assert.equal(hasNonSwapOverrides(postEditedA), true);
+      assert.equal(hasNonSwapOverrides(swappedB), false);
 
       const unswapped = unswapLessons(overrides, postEditedA);
       const [afterA, afterB] = applyLessonOverrides([lessonA, lessonB], unswapped);

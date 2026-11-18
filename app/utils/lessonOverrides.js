@@ -1479,36 +1479,31 @@ function unswapLessons(currentOverrides = {}, lessonOrKey) {
 }
 
 /**
- * Determina si debe mostrarse el botón "Restablecer" en LessonModal.
- * Oculta el botón cuando sería redundante:
- * - Si la clase solo está cancelada manualmente (ya existe "Reactivar clase").
- * - Si la clase está intercambiada (con o sin cancelación manual) y NO tiene otras
- *   ediciones independientes (notas personales, aula modificada aparte, ediciones previas
- *   al intercambio o edición manual posterior sobre fecha/hora), ya que "Deshacer intercambio"
- *   la devuelve directamente al estado oficial.
+ * Determina si una lección tiene personalizaciones o ediciones del usuario
+ * más allá del intercambio de horario (si está intercambiada).
  *
  * @param {Object} lesson Lección enriquecida por applyLessonOverrides
  * @returns {boolean}
  */
-function shouldShowLessonResetButton(lesson) {
+function hasNonSwapOverrides(lesson) {
   if (!lesson || typeof lesson !== 'object' || !lesson.isOverridden) {
     return false;
   }
 
-  // Sin intercambio: mantener la regla existente (ocultar si solo está cancelada manualmente)
+  // Sin intercambio: comprobar cualquier cambio manual (salvo solo cancelación)
   if (!lesson.swappedWith) {
-    return !lesson.isUserCancelled || hasNonCancellationOverrideChanges(lesson);
+    return hasNonCancellationOverrideChanges(lesson);
   }
 
   const ov = lesson.overrideData && typeof lesson.overrideData === 'object' ? lesson.overrideData : null;
   const sw = lesson.swappedWith;
 
-  // Notas personales o ignorar cancelación oficial -> requiere Restablecer
+  // Notas personales o ignorar cancelación oficial -> personalización del usuario
   const notes = typeof lesson.notes === 'string' ? lesson.notes : (typeof ov?.customNotes === 'string' ? ov.customNotes : '');
   if (notes.trim() !== '') return true;
   if (lesson.ignoresOfficialCancellation || ov?.ignoreOfficialCancellation) return true;
 
-  // Si ya había ediciones personalizadas antes del swap (prevState), deshacer el swap no vuelve a oficial -> mostrar Restablecer
+  // Si ya había ediciones personalizadas antes del swap (prevState)
   if (sw.prevState && typeof sw.prevState === 'object' && Object.keys(sw.prevState).length > 0) {
     return true;
   }
@@ -1531,13 +1526,38 @@ function shouldShowLessonResetButton(lesson) {
       return true;
     }
   } else {
-    // Swaps legacy sin flag swapRooms: si tiene customRooms explícito, mantener Restablecer por seguridad
+    // Swaps legacy sin flag swapRooms: si tiene customRooms explícito, mantener por seguridad
     if (ov && Array.isArray(ov.customRooms) && !areRoomsEqual(ov.customRooms, officialRooms)) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Determina si debe mostrarse el botón "Restablecer" en LessonModal.
+ * Oculta el botón cuando sería redundante:
+ * - Si la clase solo está cancelada manualmente (ya existe "Reactivar clase").
+ * - Si la clase está intercambiada (con o sin cancelación manual) y NO tiene otras
+ *   ediciones independientes (notas personales, aula modificada aparte, ediciones previas
+ *   al intercambio o edición manual posterior sobre fecha/hora), ya que "Deshacer intercambio"
+ *   la devuelve directamente al estado oficial.
+ *
+ * @param {Object} lesson Lección enriquecida por applyLessonOverrides
+ * @returns {boolean}
+ */
+function shouldShowLessonResetButton(lesson) {
+  if (!lesson || typeof lesson !== 'object' || !lesson.isOverridden) {
+    return false;
+  }
+
+  // Sin intercambio: mantener la regla existente (ocultar si solo está cancelada manualmente)
+  if (!lesson.swappedWith) {
+    return !lesson.isUserCancelled || hasNonCancellationOverrideChanges(lesson);
+  }
+
+  return hasNonSwapOverrides(lesson);
 }
 
 /**
@@ -1723,6 +1743,7 @@ module.exports = {
   unswapLessons,
   hasLessonOverrideChanges,
   hasNonCancellationOverrideChanges,
+  hasNonSwapOverrides,
   shouldShowLessonResetButton,
   normalizeRooms,
   areRoomsEqual,

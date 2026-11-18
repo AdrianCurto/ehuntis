@@ -9,6 +9,7 @@ import {
   resolveStatusIndicatorPlacement,
   getMaxCenteredBadgeWidthForCorner,
 } from '../utils/statusBadgeLayout';
+import { hasNonSwapOverrides } from '../utils/lessonOverrides';
 
 import {
   PALETTE,
@@ -349,9 +350,13 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   // intentamos primero un tamaño de fuente de BADGE_STYLES que deje hueco simétrico a la pestaña sin abreviar.
   const badgeAvailWidth = availWidth;
   const hasDrift = Boolean(lesson.hasRemoteDrift);
-  const showEditedIcon = !isCancelled && Boolean(lesson.isOverridden) && !hasDrift;
+  const isSwapped = !isCancelled && Boolean(lesson.swappedWith) && !hasDrift;
+  const isEdited = !isCancelled && (lesson.swappedWith ? hasNonSwapOverrides(lesson) : Boolean(lesson.isOverridden)) && !hasDrift;
+  const showEditedIcon = isSwapped || isEdited;
   const maxBadgeWidthForCorner = getMaxCenteredBadgeWidthForCorner({
     showEditedIcon,
+    isSwapped,
+    isEdited,
     hasDrift,
     blockWidth,
   });
@@ -680,10 +685,13 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
           const usedHeight = curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight;
           const statusPlacement = resolveStatusIndicatorPlacement({
             showEditedIcon,
+            isSwapped,
+            isEdited,
             hasDrift,
             hasBadge: !curBadge.hide,
             badgeWidth: curBadge.width || 0,
             blockWidth,
+            blockHeight,
           });
           return {
             padding,
@@ -729,10 +737,13 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
 
   const fallbackStatusPlacement = resolveStatusIndicatorPlacement({
     showEditedIcon,
+    isSwapped,
+    isEdited,
     hasDrift,
     hasBadge: !fallbackBadge.hide,
     badgeWidth: fallbackBadge.width || 0,
     blockWidth,
+    blockHeight,
   });
 
   return {
@@ -1948,7 +1959,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const isSwapTargetCandidate = Boolean(swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent);
               const isCancelledLesson = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
               const hasDrift = Boolean(lesson.hasRemoteDrift);
-              const showEditedIcon = !isSwapOrigin && !isCancelledLesson && Boolean(lesson.isOverridden) && !hasDrift;
+              const isSwapped = !isSwapOrigin && !isCancelledLesson && Boolean(lesson.swappedWith) && !hasDrift;
+              const isEdited = !isSwapOrigin && !isCancelledLesson && (lesson.swappedWith ? hasNonSwapOverrides(lesson) : Boolean(lesson.isOverridden)) && !hasDrift;
+              const showEditedIcon = isSwapped || isEdited;
               const isCompactBlock = height < 34;
 
               // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge
@@ -1962,10 +1975,13 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                   totalHeight: nextTotalHeight,
                   statusPlacement: resolveStatusIndicatorPlacement({
                     showEditedIcon,
+                    isSwapped,
+                    isEdited,
                     hasDrift,
                     hasBadge: false,
                     badgeWidth: 0,
                     blockWidth: fit.blockWidth || blockWidth,
+                    blockHeight: height,
                   }),
                 };
               }
@@ -1988,10 +2004,14 @@ const WeekCalendar = forwardRef(function WeekCalendar({
 
               const statusTooltip = hasDrift
                 ? 'WebUntis ha actualizado esta clase'
-                : (lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Clase personalizada');
+                : (isSwapped && isEdited
+                  ? `Horario intercambiado con ${lesson.swappedWith?.subjectName || ''} · Clase personalizada`
+                  : (isSwapped
+                    ? `Horario intercambiado con ${lesson.swappedWith?.subjectName || ''}`
+                    : 'Clase personalizada'));
 
               const renderStatusIcons = (mode) => {
-                if (!showEditedIcon && !hasDrift) return null;
+                if (!isSwapped && !isEdited && !hasDrift) return null;
                 const cfg =
                   mode === 'corner-lg'
                     ? { box: 13, icon: 8, driftFont: 8, radius: '0 0 0 5px' }
@@ -2001,29 +2021,36 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         ? { box: 9, icon: 6, driftFont: 6.5, radius: '0 0 0 3px' }
                         : { box: 8, icon: 5.5, driftFont: 6, radius: '0 0 0 3px' };
 
+                const tabStyle = {
+                  width: cfg.box,
+                  height: cfg.box,
+                  borderRadius: cfg.radius,
+                  background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)',
+                  color: color.text,
+                  opacity: 0.92,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                };
+
                 return (
                   <>
-                    {showEditedIcon && (
+                    {isSwapped && (
                       <div
-                        style={{
-                          width: cfg.box,
-                          height: cfg.box,
-                          borderRadius: cfg.radius,
-                          background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)',
-                          color: color.text,
-                          opacity: 0.92,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                        title={statusTooltip}
+                        style={tabStyle}
+                        title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Horario intercambiado'}
                       >
-                        {lesson.swappedWith ? (
-                          <ArrowUpDown size={cfg.icon} strokeWidth={2.5} />
-                        ) : (
-                          <Pencil size={cfg.icon} strokeWidth={2.5} />
-                        )}
+                        <ArrowUpDown size={cfg.icon} strokeWidth={2.5} />
+                      </div>
+                    )}
+
+                    {isEdited && (
+                      <div
+                        style={tabStyle}
+                        title="Clase personalizada"
+                      >
+                        <Pencil size={cfg.icon} strokeWidth={2.5} />
                       </div>
                     )}
 
@@ -2092,7 +2119,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         top: 0,
                         right: 0,
                         display: 'inline-flex',
-                        alignItems: 'center',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
                         gap: 1,
                         pointerEvents: 'none',
                         zIndex: 2,
