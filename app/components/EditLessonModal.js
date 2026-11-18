@@ -14,9 +14,14 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { TimePicker } from './ui/time-picker';
 import { DatePicker } from './ui/date-picker';
+import { ConfirmDialog } from './ui/confirm-dialog';
 import { subjectColor } from './WeekCalendar';
 import { formatRoom, formatRooms } from '../utils/subgroups';
-import { areRoomsEqual, getOfficialDiffSummaryParts } from '../utils/lessonOverrides';
+import {
+  areRoomsEqual,
+  getOfficialDiffSummaryParts,
+  isEditLessonFormDirty,
+} from '../utils/lessonOverrides';
 import { formatTime } from '../utils/dateTimeUtils';
 
 function timeNumberToString(t) {
@@ -63,11 +68,19 @@ export default function EditLessonModal({
   onClose,
   isDark = false,
 }) {
+  const [initialFormSnapshot] = useState(() => ({
+    date: lesson?.date,
+    startTime: timeStringToNumber(timeNumberToString(lesson?.startTime)),
+    endTime: timeStringToNumber(timeNumberToString(lesson?.endTime)),
+    rooms: lesson?.rooms,
+    notes: lesson?.notes || '',
+  }));
   const [dateStr, setDateStr] = useState(() => dateNumberToString(lesson?.date));
   const [startTimeStr, setStartTimeStr] = useState(() => timeNumberToString(lesson?.startTime));
   const [endTimeStr, setEndTimeStr] = useState(() => timeNumberToString(lesson?.endTime));
   const [roomsStr, setRoomsStr] = useState(() => formatRooms(lesson?.rooms));
   const [notes, setNotes] = useState(() => lesson?.notes || '');
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState(null); // 'time' | 'date' | null
 
@@ -109,6 +122,24 @@ export default function EditLessonModal({
     officialRooms,
     currentRooms: roomsStr,
   });
+
+  const isDirty = isEditLessonFormDirty(initialFormSnapshot, {
+    date: selectedDateNum,
+    startTime: currentStartNum,
+    endTime: currentEndNum,
+    rooms: roomsStr,
+    notes,
+  });
+
+  const handleRequestClose = () => {
+    if (confirmDiscardOpen) return false;
+    if (isDirty) {
+      setConfirmDiscardOpen(true);
+      return false;
+    }
+    onClose();
+    return true;
+  };
 
   const handleStartTimeChange = (newStart) => {
     setStartTimeStr(newStart);
@@ -172,11 +203,13 @@ export default function EditLessonModal({
   };
 
   return (
-    <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <ResponsiveModalContent
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
-      >
+    <>
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) handleRequestClose(); }}>
+        <ResponsiveModalContent
+          onBeforeDismiss={handleRequestClose}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
+        >
         <ResponsiveModalHeader className="mb-3 pr-8">
           <ResponsiveModalTitle className="text-base font-bold">
             Personalizar clase
@@ -340,7 +373,7 @@ export default function EditLessonModal({
               type="button"
               variant="secondary"
               size="md"
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="flex-1 sm:flex-initial justify-center"
             >
               Cancelar
@@ -355,7 +388,22 @@ export default function EditLessonModal({
             </Button>
           </ResponsiveModalFooter>
         </form>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+        </ResponsiveModalContent>
+      </ResponsiveModal>
+
+      <ConfirmDialog
+        open={confirmDiscardOpen}
+        onOpenChange={setConfirmDiscardOpen}
+        title="¿Salir sin guardar?"
+        description="Tienes cambios sin guardar. Si sales ahora, se perderán."
+        cancelText="Seguir editando"
+        confirmText="Descartar cambios"
+        variant="destructive"
+        onConfirm={() => {
+          setConfirmDiscardOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

@@ -43,6 +43,7 @@ import {
   getDefaultEventTimes,
   timeNumberToString,
   timeStringToNumber,
+  isCustomEventFormDirty,
 } from '../utils/customEvents';
 import { toDateNumber, parseDateNumber, getAcademicYearBounds } from '../utils/dayLogic';
 import { useIsDesktop } from '../utils/useMediaQuery';
@@ -109,80 +110,105 @@ export default function CustomEventModal({
   const targetDateNum = toDateNumber(initialDate);
   const currentDayOfWeek = initialDate.getDay();
 
-  // Form State
-  const [title, setTitle] = useState(rawEvent.title || event?.subjects?.[0] || '');
-  const [category, setCategory] = useState(rawEvent.category || event?.category || '');
-  const [customCategories, setCustomCategories] = useState(() => getStoredCustomCategories());
-
-  const [startTimeStr, setStartTimeStr] = useState(() => {
-    if (isEditing) {
-      const s = rawEvent.startTime || event?.startTime;
-      if (s) return timeNumberToString(s);
-    }
-    if (initialStartTimeStr) return initialStartTimeStr;
-    return defaultTimes.startStr;
-  });
-
-  const [endTimeStr, setEndTimeStr] = useState(() => {
-    if (isEditing) {
-      const e = rawEvent.endTime || event?.endTime;
-      if (e) return timeNumberToString(e);
-    }
-    if (initialEndTimeStr) return initialEndTimeStr;
-    return defaultTimes.endStr;
-  });
-
-  const [recurrenceType, setRecurrenceType] = useState(() => {
-    if (rawEvent.recurrence?.type) return rawEvent.recurrence.type;
-    return 'none';
-  });
-
-  const [singleDateStr, setSingleDateStr] = useState(() => {
-    if (isEditing && rawEvent.recurrence?.date) {
-      return formatDateForInput(parseDateNumber(rawEvent.recurrence.date));
-    }
-    if (isEditing && event?.date) {
-      return formatDateForInput(parseDateNumber(event.date));
-    }
-    return formatDateForInput(initialDate);
-  });
-
-  const [daysOfWeek, setDaysOfWeek] = useState(() => {
-    if (Array.isArray(rawEvent.recurrence?.daysOfWeek) && rawEvent.recurrence.daysOfWeek.length > 0) {
-      return rawEvent.recurrence.daysOfWeek;
-    }
-    return [currentDayOfWeek];
-  });
-
   const bounds = getAcademicYearBounds(initialDate);
   const defaultEndOfYearStr = formatDateForInput(bounds.end);
 
-  const [hasNoEndDate, setHasNoEndDate] = useState(() => {
-    if (isEditing && rawEvent.recurrence?.type === 'weekly') {
-      return rawEvent.recurrence.endDate === null || rawEvent.recurrence.endDate === undefined;
-    }
-    return false;
+  const [initialFormSnapshot] = useState(() => {
+    const initStart =
+      isEditing && (rawEvent.startTime || event?.startTime)
+        ? timeNumberToString(rawEvent.startTime || event?.startTime)
+        : initialStartTimeStr || defaultTimes.startStr;
+    const initEnd =
+      isEditing && (rawEvent.endTime || event?.endTime)
+        ? timeNumberToString(rawEvent.endTime || event?.endTime)
+        : initialEndTimeStr || defaultTimes.endStr;
+    const initSingleDate =
+      isEditing && rawEvent.recurrence?.date
+        ? formatDateForInput(parseDateNumber(rawEvent.recurrence.date))
+        : isEditing && event?.date
+          ? formatDateForInput(parseDateNumber(event.date))
+          : formatDateForInput(initialDate);
+    const initDays =
+      Array.isArray(rawEvent.recurrence?.daysOfWeek) && rawEvent.recurrence.daysOfWeek.length > 0
+        ? rawEvent.recurrence.daysOfWeek
+        : [currentDayOfWeek];
+    const initNoEnd =
+      isEditing && rawEvent.recurrence?.type === 'weekly'
+        ? rawEvent.recurrence.endDate === null || rawEvent.recurrence.endDate === undefined
+        : false;
+    const initEndDate = rawEvent.recurrence?.endDate
+      ? formatDateForInput(parseDateNumber(rawEvent.recurrence.endDate))
+      : defaultEndOfYearStr;
+    const initColor =
+      typeof rawEvent.colorIndex === 'number'
+        ? rawEvent.colorIndex
+        : typeof event?.colorIndex === 'number'
+          ? event.colorIndex
+          : suggestedColor;
+
+    return {
+      title: rawEvent.title || event?.subjects?.[0] || '',
+      category: rawEvent.category || event?.category || '',
+      startTimeStr: initStart,
+      endTimeStr: initEnd,
+      recurrenceType: rawEvent.recurrence?.type || 'none',
+      singleDateStr: initSingleDate,
+      daysOfWeek: initDays,
+      hasNoEndDate: initNoEnd,
+      customEndDateStr: initEndDate,
+      location: rawEvent.location || event?.rooms?.[0] || '',
+      notes: rawEvent.notes || '',
+      selectedColor: initColor,
+    };
   });
 
-  const [customEndDateStr, setCustomEndDateStr] = useState(() => {
-    if (rawEvent.recurrence?.endDate) return formatDateForInput(parseDateNumber(rawEvent.recurrence.endDate));
-    return defaultEndOfYearStr;
-  });
-
-  const [location, setLocation] = useState(rawEvent.location || event?.rooms?.[0] || '');
-  const [notes, setNotes] = useState(rawEvent.notes || '');
-  const [selectedColor, setSelectedColor] = useState(() => {
-    if (typeof rawEvent.colorIndex === 'number') return rawEvent.colorIndex;
-    if (typeof event?.colorIndex === 'number') return event.colorIndex;
-    return suggestedColor;
-  });
+  // Form State
+  const [title, setTitle] = useState(initialFormSnapshot.title);
+  const [category, setCategory] = useState(initialFormSnapshot.category);
+  const [customCategories, setCustomCategories] = useState(() => getStoredCustomCategories());
+  const [startTimeStr, setStartTimeStr] = useState(initialFormSnapshot.startTimeStr);
+  const [endTimeStr, setEndTimeStr] = useState(initialFormSnapshot.endTimeStr);
+  const [recurrenceType, setRecurrenceType] = useState(initialFormSnapshot.recurrenceType);
+  const [singleDateStr, setSingleDateStr] = useState(initialFormSnapshot.singleDateStr);
+  const [daysOfWeek, setDaysOfWeek] = useState(initialFormSnapshot.daysOfWeek);
+  const [hasNoEndDate, setHasNoEndDate] = useState(initialFormSnapshot.hasNoEndDate);
+  const [customEndDateStr, setCustomEndDateStr] = useState(initialFormSnapshot.customEndDateStr);
+  const [location, setLocation] = useState(initialFormSnapshot.location);
+  const [notes, setNotes] = useState(initialFormSnapshot.notes);
+  const [selectedColor, setSelectedColor] = useState(initialFormSnapshot.selectedColor);
 
   // Sub-paso interno para alcance de repeticion: 'form' | 'scope-save' | 'scope-delete'
   const [viewStep, setViewStep] = useState('form');
   const [confirmSingleDeleteOpen, setConfirmSingleDeleteOpen] = useState(false);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const errorBannerRef = useRef(null);
+
+  const isDirty = isCustomEventFormDirty(initialFormSnapshot, {
+    title,
+    category,
+    startTimeStr,
+    endTimeStr,
+    recurrenceType,
+    singleDateStr,
+    daysOfWeek,
+    hasNoEndDate,
+    customEndDateStr,
+    location,
+    notes,
+    selectedColor,
+  });
+
+  const handleRequestClose = () => {
+    if (confirmDiscardOpen || confirmSingleDeleteOpen) return false;
+    if (isDirty) {
+      setConfirmDiscardOpen(true);
+      return false;
+    }
+    onClose();
+    return true;
+  };
 
   const isRecurringEvent = rawEvent.recurrence?.type === 'weekly' || (isEditing && event?.recurrenceType === 'weekly');
 
@@ -359,8 +385,9 @@ export default function CustomEventModal({
 
   return (
     <>
-      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) handleRequestClose(); }}>
         <ResponsiveModalContent
+          onBeforeDismiss={handleRequestClose}
           className="max-w-md p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
         >
 
@@ -799,7 +826,7 @@ export default function CustomEventModal({
                   type="button"
                   variant="secondary"
                   size="md"
-                  onClick={onClose}
+                  onClick={handleRequestClose}
                   className="flex-1 sm:flex-initial justify-center"
                 >
                   Cancelar
@@ -828,6 +855,21 @@ export default function CustomEventModal({
         variant="destructive"
         onConfirm={() => {
           onDelete(rawEvent.id, targetDateNum, 'series');
+          onClose();
+        }}
+      />
+
+      {/* Confirmacion para salir con cambios sin guardar */}
+      <ConfirmDialog
+        open={confirmDiscardOpen}
+        onOpenChange={setConfirmDiscardOpen}
+        title="¿Salir sin guardar?"
+        description="Tienes cambios sin guardar. Si sales ahora, se perderán."
+        cancelText="Seguir editando"
+        confirmText="Descartar cambios"
+        variant="destructive"
+        onConfirm={() => {
+          setConfirmDiscardOpen(false);
           onClose();
         }}
       />

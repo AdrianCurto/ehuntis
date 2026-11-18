@@ -44,7 +44,7 @@ export function ResponsiveModal({
   );
 }
 
-export function ResponsiveModalContent({ className, children, ...props }) {
+export function ResponsiveModalContent({ className, children, onBeforeDismiss, ...props }) {
   const isDesktop = useIsDesktop();
 
   if (isDesktop) {
@@ -56,7 +56,7 @@ export function ResponsiveModalContent({ className, children, ...props }) {
   }
 
   return (
-    <SheetContent className={className} {...props}>
+    <SheetContent className={className} onBeforeDismiss={onBeforeDismiss} {...props}>
       {children}
     </SheetContent>
   );

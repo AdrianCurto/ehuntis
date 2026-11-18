@@ -341,6 +341,50 @@ function saveCustomEventInstance(events, updatedFields, targetDateNum, mode = 's
   ];
 }
 
+function normalizeDaysOfWeek(days) {
+  if (!Array.isArray(days)) return [];
+  return [...new Set(days.map(Number).filter((d) => !Number.isNaN(d)))].sort((a, b) => a - b);
+}
+
+/**
+ * Comprueba si el formulario de creación/edición de evento tiene cambios sin guardar
+ * respecto a la instantánea inicial con la que se abrió el modal.
+ *
+ * @param {Object} initial Instantánea inicial del formulario
+ * @param {Object} current Estado actual del formulario
+ * @returns {boolean}
+ */
+function isCustomEventFormDirty(initial, current) {
+  if (!initial || !current) return false;
+
+  if ((current.title || '').trim() !== (initial.title || '').trim()) return true;
+  if ((current.category || '').trim() !== (initial.category || '').trim()) return true;
+  if ((current.startTimeStr || '') !== (initial.startTimeStr || '')) return true;
+  if ((current.endTimeStr || '') !== (initial.endTimeStr || '')) return true;
+  if ((current.recurrenceType || 'none') !== (initial.recurrenceType || 'none')) return true;
+  if ((current.location || '').trim() !== (initial.location || '').trim()) return true;
+  if ((current.notes || '').trim() !== (initial.notes || '').trim()) return true;
+  if (current.selectedColor !== initial.selectedColor) return true;
+
+  if ((current.recurrenceType || 'none') === 'none') {
+    if ((current.singleDateStr || '') !== (initial.singleDateStr || '')) return true;
+  } else {
+    const initDays = normalizeDaysOfWeek(initial.daysOfWeek);
+    const currDays = normalizeDaysOfWeek(current.daysOfWeek);
+    if (initDays.length !== currDays.length || initDays.some((d, i) => d !== currDays[i])) {
+      return true;
+    }
+    const initNoEnd = Boolean(initial.hasNoEndDate);
+    const currNoEnd = Boolean(current.hasNoEndDate);
+    if (currNoEnd !== initNoEnd) return true;
+    if (!currNoEnd && (current.customEndDateStr || '') !== (initial.customEndDateStr || '')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 module.exports = {
   CUSTOM_EVENTS_STORAGE_KEY,
   CUSTOM_CATEGORIES_STORAGE_KEY,
@@ -356,4 +400,5 @@ module.exports = {
   expandCustomEventsForDates,
   deleteCustomEventInstance,
   saveCustomEventInstance,
+  isCustomEventFormDirty,
 };

@@ -5,6 +5,7 @@ const {
   LESSON_OVERRIDES_STORAGE_KEY,
   formatTime,
   getOfficialDiffSummaryParts,
+  isEditLessonFormDirty,
   getLessonKey,
   getStoredLessonOverrides,
   saveStoredLessonOverrides,
@@ -1309,6 +1310,37 @@ describe('lessonOverrides utility suite', () => {
         }),
         ['18/11/2026', '09:00–11:00', 'P2G3A']
       );
+    });
+  });
+
+  describe('isEditLessonFormDirty (detección de cambios sin guardar en EditLessonModal)', () => {
+    const initial = {
+      date: 20261118,
+      startTime: 900,
+      endTime: 1100,
+      rooms: ['P2 G3A'],
+      notes: 'Traer calculadora',
+    };
+
+    test('returns false when unchanged or equivalent formatting (even for an already overridden lesson)', () => {
+      assert.equal(
+        isEditLessonFormDirty(initial, {
+          date: 20261118,
+          startTime: 900,
+          endTime: 1100,
+          rooms: 'p2g3a',
+          notes: '  Traer calculadora  ',
+        }),
+        false
+      );
+    });
+
+    test('returns true when any editable field changes relative to modal open snapshot', () => {
+      assert.equal(isEditLessonFormDirty(initial, { ...initial, date: 20261119 }), true);
+      assert.equal(isEditLessonFormDirty(initial, { ...initial, startTime: 930 }), true);
+      assert.equal(isEditLessonFormDirty(initial, { ...initial, endTime: 1130 }), true);
+      assert.equal(isEditLessonFormDirty(initial, { ...initial, rooms: 'Lab 2' }), true);
+      assert.equal(isEditLessonFormDirty(initial, { ...initial, notes: '' }), true);
     });
   });
 

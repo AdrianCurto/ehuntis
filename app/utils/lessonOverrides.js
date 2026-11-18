@@ -1443,11 +1443,32 @@ function getOfficialDiffSummaryParts({
   return parts;
 }
 
+/**
+ * Comprueba si el formulario de edición de clase tiene cambios sin guardar
+ * respecto a los valores con los que se abrió el modal (no respecto a WebUntis oficial).
+ *
+ * @param {Object} initial
+ * @param {Object} current
+ * @returns {boolean}
+ */
+function isEditLessonFormDirty(initial, current) {
+  if (!initial || !current) return false;
+
+  if (Number(current.date) !== Number(initial.date)) return true;
+  if (Number(current.startTime) !== Number(initial.startTime)) return true;
+  if (Number(current.endTime) !== Number(initial.endTime)) return true;
+  if (!areRoomsEqual(current.rooms, initial.rooms)) return true;
+  if ((current.notes || '').trim() !== (initial.notes || '').trim()) return true;
+
+  return false;
+}
+
 module.exports = {
   LESSON_OVERRIDES_STORAGE_KEY,
   formatTime,
   formatDateDisplay,
   getOfficialDiffSummaryParts,
+  isEditLessonFormDirty,
   buildCanonicalLessonKey,
   getLessonKey,
   findOverrideEntry,

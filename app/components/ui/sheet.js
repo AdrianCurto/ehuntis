@@ -28,11 +28,16 @@ export const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
 SheetOverlay.displayName = 'SheetOverlay';
 
 export const SheetContent = React.forwardRef(
-  ({ className, children, showCloseButton = true, showHandle = true, onOpenAutoFocus, style, ...props }, ref) => {
+  ({ className, children, showCloseButton = true, showHandle = true, onOpenAutoFocus, onBeforeDismiss, style, ...props }, ref) => {
     const contentRef = React.useRef(null);
     const overlayRef = React.useRef(null);
+    const onBeforeDismissRef = React.useRef(onBeforeDismiss);
     const [mountSeq, setMountSeq] = React.useState(0);
     const settleTimerRef = React.useRef(null);
+
+    React.useEffect(() => {
+      onBeforeDismissRef.current = onBeforeDismiss;
+    }, [onBeforeDismiss]);
     const dragRef = React.useRef({
       active: false,
       dragging: false,
@@ -303,7 +308,11 @@ export const SheetContent = React.forwardRef(
         const overlayEl = overlayRef.current;
         const sheetHeight = contentEl.offsetHeight || 400;
 
-        if (shouldDismissSheet(offsetY, sheetHeight, velocityY)) {
+        const shouldDismiss =
+          shouldDismissSheet(offsetY, sheetHeight, velocityY) &&
+          onBeforeDismissRef.current?.() !== false;
+
+        if (shouldDismiss) {
           drag.closing = true;
           const durationMs = getSheetExitDurationMs(offsetY, sheetHeight, velocityY);
           contentEl.style.transition = `transform ${durationMs}ms cubic-bezier(0.32, 0.72, 0, 1)`;

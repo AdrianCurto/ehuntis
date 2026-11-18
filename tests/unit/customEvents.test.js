@@ -16,6 +16,7 @@ const {
   expandCustomEventsForDates,
   deleteCustomEventInstance,
   saveCustomEventInstance,
+  isCustomEventFormDirty,
 } = require('../../app/utils/customEvents');
 
 describe('customEvents utility suite', () => {
@@ -376,6 +377,88 @@ describe('customEvents utility suite', () => {
       assert.equal(detached.endTime, 2100);
       assert.equal(detached.recurrence.type, 'none');
       assert.equal(detached.recurrence.date, 20261109);
+    });
+  });
+
+  describe('isCustomEventFormDirty (detección de cambios sin guardar)', () => {
+    const baseSnapshot = {
+      title: '',
+      category: '',
+      startTimeStr: '09:00',
+      endTimeStr: '10:00',
+      recurrenceType: 'none',
+      singleDateStr: '2026-11-18',
+      daysOfWeek: [3],
+      hasNoEndDate: false,
+      customEndDateStr: '2027-06-30',
+      location: '',
+      notes: '',
+      selectedColor: 4,
+    };
+
+    test('returns false when pristine or only padded with whitespace', () => {
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot }), false);
+      assert.equal(
+        isCustomEventFormDirty(baseSnapshot, {
+          ...baseSnapshot,
+          title: '   ',
+          location: '  ',
+          notes: '\n ',
+        }),
+        false
+      );
+    });
+
+    test('detects modifications across text, time, date, category and color fields', () => {
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, title: 'Tutoría' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, category: 'Estudio' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, startTimeStr: '09:30' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, endTimeStr: '11:00' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, singleDateStr: '2026-11-19' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, location: 'Biblioteca' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, notes: 'Llevar apuntes' }), true);
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, selectedColor: 7 }), true);
+    });
+
+    test('handles weekly recurrence fields and ignores inactive recurrence fields', () => {
+      // Changing recurrenceType from none to weekly is dirty
+      assert.equal(isCustomEventFormDirty(baseSnapshot, { ...baseSnapshot, recurrenceType: 'weekly' }), true);
+
+      // Weekly snapshot checks daysOfWeek order-insensitively and endDate only when hasNoEndDate is false
+      const weeklySnapshot = {
+        ...baseSnapshot,
+        title: 'Gimnasio',
+        recurrenceType: 'weekly',
+        daysOfWeek: [1, 3, 5],
+        hasNoEndDate: false,
+        customEndDateStr: '2027-06-30',
+      };
+      assert.equal(
+        isCustomEventFormDirty(weeklySnapshot, {
+          ...weeklySnapshot,
+          daysOfWeek: [5, 1, 3],
+          singleDateStr: '2026-12-01', // ignored while weekly
+        }),
+        false
+      );
+      assert.equal(
+        isCustomEventFormDirty(weeklySnapshot, { ...weeklySnapshot, daysOfWeek: [1, 3] }),
+        true
+      );
+      assert.equal(
+        isCustomEventFormDirty(weeklySnapshot, { ...weeklySnapshot, hasNoEndDate: true }),
+        true
+      );
+      assert.equal(
+        isCustomEventFormDirty(weeklySnapshot, { ...weeklySnapshot, customEndDateStr: '2027-05-01' }),
+        true
+      );
+
+      const noEndSnapshot = { ...weeklySnapshot, hasNoEndDate: true };
+      assert.equal(
+        isCustomEventFormDirty(noEndSnapshot, { ...noEndSnapshot, customEndDateStr: '2027-01-01' }),
+        false
+      );
     });
   });
 
