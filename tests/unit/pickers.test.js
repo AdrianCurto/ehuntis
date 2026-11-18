@@ -7,6 +7,10 @@ import {
   formatMonthYearHeading,
   formatTime,
   SPANISH_MONTHS,
+  SPANISH_MONTHS_SHORT,
+  getDaysInMonth,
+  clampDayToMonth,
+  buildValidCalendarDate,
 } from '../../app/utils/dateTimeUtils.js';
 
 describe('Pickers unit suite (DatePicker & TimePicker)', () => {
@@ -65,6 +69,39 @@ describe('Pickers unit suite (DatePicker & TimePicker)', () => {
         assert.ok(!heading.includes(' de '), `La cabecera no debe contener "de": ${heading}`);
         assert.match(heading, /^[A-Z][a-z]+ 2026$/);
       }
+      assert.equal(SPANISH_MONTHS.length, 12);
+      assert.equal(SPANISH_MONTHS_SHORT.length, 12);
+    });
+
+    test('buildValidCalendarDate validates real calendar dates including leap years', () => {
+      const valid = buildValidCalendarDate('18', '11', '2026');
+      assert.ok(valid);
+      assert.equal(valid.year, 2026);
+      assert.equal(valid.month, 11);
+      assert.equal(valid.day, 18);
+
+      const leapValid = buildValidCalendarDate(29, 2, 2028);
+      assert.ok(leapValid);
+      assert.equal(leapValid.day, 29);
+
+      assert.equal(buildValidCalendarDate(29, 2, 2026), null);
+      assert.equal(buildValidCalendarDate(31, 4, 2026), null);
+      assert.equal(buildValidCalendarDate(0, 5, 2026), null);
+      assert.equal(buildValidCalendarDate(15, 13, 2026), null);
+      assert.equal(buildValidCalendarDate(15, 5, 1899), null);
+      assert.equal(buildValidCalendarDate('', '11', '2026'), null);
+    });
+
+    test('getDaysInMonth and clampDayToMonth clamp month transitions safely', () => {
+      assert.equal(getDaysInMonth(2026, 2), 28);
+      assert.equal(getDaysInMonth(2028, 2), 29);
+      assert.equal(getDaysInMonth(2026, 4), 30);
+      assert.equal(getDaysInMonth(2026, 13), 0);
+
+      assert.equal(clampDayToMonth(31, 2, 2026), 28);
+      assert.equal(clampDayToMonth(31, 2, 2028), 29);
+      assert.equal(clampDayToMonth(31, 4, 2026), 30);
+      assert.equal(clampDayToMonth(0, 6, 2026), 1);
     });
   });
 

@@ -8,6 +8,36 @@ export const SPANISH_MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+export const SPANISH_MONTHS_SHORT = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+];
+
+export function getDaysInMonth(year, month) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return 0;
+  }
+  return new Date(year, month, 0).getDate();
+}
+
+export function clampDayToMonth(day, month, year) {
+  const maxDay = getDaysInMonth(year, month);
+  if (maxDay === 0) return 1;
+  return Math.min(maxDay, Math.max(1, day));
+}
+
+export function buildValidCalendarDate(day, month, year) {
+  const d = Number(day);
+  const m = Number(month);
+  const y = Number(year);
+  if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y)) return null;
+  if (y < 1900 || y > 2100) return null;
+  if (m < 1 || m > 12) return null;
+  const maxDay = getDaysInMonth(y, m);
+  if (d < 1 || d > maxDay) return null;
+  return new CalendarDate(y, m, d);
+}
+
 export function parseValueToCalendarDate(val) {
   if (!val) return null;
   if (typeof val === 'number') {
