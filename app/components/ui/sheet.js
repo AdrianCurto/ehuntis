@@ -18,8 +18,11 @@ export const SheetPortal = SheetPrimitive.Portal;
 export const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     ref={ref}
+    onAnimationEnd={(e) => {
+      e.currentTarget.style.animation = 'none';
+    }}
     className={cn(
-      'fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] transition-opacity duration-200 animate-[fadeIn_0.15s_ease] motion-reduce:animate-none',
+      'fixed inset-0 z-50 bg-black/55 will-change-[opacity] animate-[fadeIn_0.15s_ease] motion-reduce:animate-none',
       className
     )}
     {...props}
@@ -90,14 +93,11 @@ export const SheetContent = React.forwardRef(
       return false;
     };
 
-    const resetInlineMotion = () => {
+    const clearInlineTransitions = () => {
       if (contentRef.current) {
-        contentRef.current.style.transform = '';
         contentRef.current.style.transition = '';
-        contentRef.current.style.willChange = '';
       }
       if (overlayRef.current) {
-        overlayRef.current.style.opacity = '';
         overlayRef.current.style.transition = '';
       }
     };
@@ -160,10 +160,6 @@ export const SheetContent = React.forwardRef(
           return;
         }
         drag.dragging = true;
-        if (contentRef.current) {
-          contentRef.current.style.animation = 'none';
-          contentRef.current.style.willChange = 'transform';
-        }
       }
 
       const offsetY = Math.max(0, deltaY - SHEET_DRAG_DEADZONE_PX);
@@ -217,7 +213,7 @@ export const SheetContent = React.forwardRef(
         const durationMs = getSheetExitDurationMs(offsetY, sheetHeight, velocityY);
         if (contentEl) {
           contentEl.style.transition = `transform ${durationMs}ms cubic-bezier(0.32, 0.72, 0, 1)`;
-          contentEl.style.transform = 'translate3d(0, 100%, 0)';
+          contentEl.style.transform = `translate3d(0, ${sheetHeight + 64}px, 0)`;
         }
         if (overlayEl) {
           overlayEl.style.transition = `opacity ${durationMs}ms ease-out`;
@@ -238,7 +234,7 @@ export const SheetContent = React.forwardRef(
         }
         settleTimerRef.current = setTimeout(() => {
           settleTimerRef.current = null;
-          resetInlineMotion();
+          clearInlineTransitions();
         }, 270);
       }
     };
@@ -249,13 +245,18 @@ export const SheetContent = React.forwardRef(
         <SheetPrimitive.Content
           ref={mergedRef}
           onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget) {
+              e.currentTarget.style.animation = 'none';
+            }
+          }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchEnd}
           style={style}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-1rem)] flex-col rounded-t-[22px] border-t border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl dark:shadow-[0_-16px_48px_rgba(0,0,0,0.75)] outline-none overflow-y-auto overscroll-contain animate-[slideUp_0.22s_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none',
+            'fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-1rem)] flex-col rounded-t-[22px] border-t border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl dark:shadow-[0_-16px_48px_rgba(0,0,0,0.75)] outline-none overflow-y-auto overscroll-contain will-change-transform [transform:translate3d(0,0,0)] animate-[slideUp_0.22s_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none',
             className
           )}
           {...props}
