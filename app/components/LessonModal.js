@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   MapPin,
   User,
@@ -12,12 +12,14 @@ import {
   RotateCcw,
   AlertTriangle,
   FileText,
+  MoreVertical,
 } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
   ResponsiveModalTitle,
 } from './ui/responsive-modal';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
@@ -48,6 +50,8 @@ export default function LessonModal({
   onResetOverride,
   onResolveDrift,
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
     preloadEditLessonModal();
     preloadSwapLessonModal();
@@ -76,6 +80,23 @@ export default function LessonModal({
 
   const modalBorderColor = `color-mix(in oklab, ${color.text} 28%, transparent)`;
 
+  const handleMenuKeyDown = (e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const items = Array.from(e.currentTarget.querySelectorAll('button[role="menuitem"]:not(:disabled)'));
+    if (items.length === 0) return;
+    const currentIdx = items.indexOf(document.activeElement);
+    e.preventDefault();
+    if (e.key === 'Home') {
+      items[0].focus();
+    } else if (e.key === 'End') {
+      items[items.length - 1].focus();
+    } else {
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      const nextIdx = currentIdx < 0 ? 0 : (currentIdx + delta + items.length) % items.length;
+      items[nextIdx].focus();
+    }
+  };
+
   const handleToggleCancelClick = () => {
     onToggleCancelled?.(lesson);
   };
@@ -97,13 +118,135 @@ export default function LessonModal({
           className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
           style={{
             background: color.bg,
+            color: color.text,
             borderColor: modalBorderColor,
             '--card-bg': color.bg,
             '--card-ink': color.text,
           }}
         >
+          {/* Boton de opciones (3 puntos verticales) en la esquina superior izquierda */}
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="touch-target-44 absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-current transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
+                aria-label="Más acciones de la clase"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title="Más acciones"
+                onPointerEnter={() => {
+                  preloadEditLessonModal();
+                  preloadSwapLessonModal();
+                }}
+                onTouchStart={() => {
+                  preloadEditLessonModal();
+                  preloadSwapLessonModal();
+                }}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              sideOffset={6}
+              className="w-56 p-1.5"
+              role="menu"
+              aria-label="Acciones de la clase"
+              onKeyDown={handleMenuKeyDown}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenEdit?.(lesson);
+                }}
+                onPointerEnter={preloadEditLessonModal}
+                onTouchStart={preloadEditLessonModal}
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+              >
+                <Pencil className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                <span>Editar clase</span>
+              </button>
+
+              {isSwapped ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleUnswapClick();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                >
+                  <Undo2 className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                  <span>Deshacer intercambio</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenSwap?.(lesson);
+                  }}
+                  onPointerEnter={preloadSwapLessonModal}
+                  onTouchStart={preloadSwapLessonModal}
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                >
+                  <ArrowUpDown className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                  <span>Intercambiar horario</span>
+                </button>
+              )}
+
+              {showResetButton && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleResetClick();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                  <span>Restablecer</span>
+                </button>
+              )}
+
+              <hr className="my-1 border-0 border-t border-[var(--border)]" />
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleToggleCancelClick();
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium focus:outline-none transition-colors cursor-pointer',
+                  isUserCancelled
+                    ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10'
+                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10'
+                )}
+              >
+                {isUserCancelled ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Reactivar clase</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                    <span>Cancelar clase</span>
+                  </>
+                )}
+              </button>
+            </PopoverContent>
+          </Popover>
+
           {/* Cabecera: Asignatura primero, fecha y hora como subtitulo, todo centrado */}
-          <div className="px-8 mb-3 flex flex-col items-center text-center">
+          <div className="px-12 sm:px-14 mb-3 flex flex-col items-center text-center">
             {subgroupStr && (
               <div className="text-[11px] font-semibold uppercase tracking-wider mb-1 opacity-75 text-center" style={{ color: color.text }}>
                 {subgroupStr}
@@ -253,87 +396,6 @@ export default function LessonModal({
               <div className="text-pretty">{lesson.notes}</div>
             </div>
           )}
-
-          {/* Botones de accion: jerarquia tonal integrada y contraste garantizado en cualquier tarjeta */}
-          <div
-            className="space-y-2 pt-3.5 border-t"
-            style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
-          >
-            {/* Primario: Editar clase */}
-            <Button
-              variant="ghost"
-              size="md"
-              className="lesson-card-btn-primary w-full font-semibold shadow-xs transition-all duration-150"
-              onPointerEnter={preloadEditLessonModal}
-              onTouchStart={preloadEditLessonModal}
-              onClick={() => onOpenEdit?.(lesson)}
-            >
-              <Pencil className="w-4 h-4 mr-1.5" />
-              <span>Editar clase</span>
-            </Button>
-
-            {/* Secundario neutro: Intercambiar horario o Deshacer intercambio */}
-            {isSwapped ? (
-              <Button
-                variant="ghost"
-                size="md"
-                className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
-                onClick={handleUnswapClick}
-              >
-                <Undo2 className="w-4 h-4 mr-1.5 opacity-85" />
-                <span>Deshacer intercambio</span>
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="md"
-                className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
-                onPointerEnter={preloadSwapLessonModal}
-                onTouchStart={preloadSwapLessonModal}
-                onClick={() => onOpenSwap?.(lesson)}
-              >
-                <ArrowUpDown className="w-4 h-4 mr-1.5 opacity-85" />
-                <span>Intercambiar horario</span>
-              </Button>
-            )}
-
-            {/* Accion destructiva / de estado: superficie propia de alto contraste */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-0.5">
-              <Button
-                variant="ghost"
-                size="md"
-                onClick={handleToggleCancelClick}
-                className={cn(
-                  'w-full font-semibold transition-all duration-150',
-                  isUserCancelled ? 'lesson-card-btn-success' : 'lesson-card-btn-danger'
-                )}
-              >
-                {isUserCancelled ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                    <span>Reactivar clase</span>
-                  </>
-                ) : (
-                  <>
-                    <Ban className="w-4 h-4 mr-1.5" />
-                    <span>Cancelar clase</span>
-                  </>
-                )}
-              </Button>
-
-              {showResetButton && (
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className="lesson-card-btn-secondary w-full font-medium transition-all duration-150"
-                  onClick={handleResetClick}
-                >
-                  <RotateCcw className="w-4 h-4 mr-1.5" />
-                  <span>Restablecer</span>
-                </Button>
-              )}
-            </div>
-          </div>
         </ResponsiveModalContent>
       </ResponsiveModal>
   );

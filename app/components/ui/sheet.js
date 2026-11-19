@@ -469,7 +469,7 @@ export const SheetContent = React.forwardRef(
           {showCloseButton ? (
             <SheetPrimitive.Close
               data-sheet-close="true"
-              className="touch-target-44 absolute right-4 top-4 z-20 rounded-full p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
+              className="touch-target-44 absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-[var(--card-ink,var(--text-secondary))] hover:text-[var(--card-ink,var(--text-primary))] transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
               aria-label="Cerrar"
             >
               <X className="h-4 w-4" />

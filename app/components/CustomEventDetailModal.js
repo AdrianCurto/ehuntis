@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft, FileText } from 'lucide-react';
+import { Pencil, MapPin, Calendar, CalendarRange, Trash2, ArrowLeft, FileText, MoreVertical } from 'lucide-react';
 import {
   ResponsiveModal,
   ResponsiveModalContent,
   ResponsiveModalTitle,
 } from './ui/responsive-modal';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Button } from './ui/button';
 import { ConfirmDialog } from './ui/confirm-dialog';
 import { getSubjectColorStyle } from '../utils/colorLogic';
@@ -27,6 +28,24 @@ export default function CustomEventDetailModal({
 }) {
   const [viewMode, setViewMode] = useState('detail'); // 'detail' | 'scope-delete'
   const [confirmSingleDeleteOpen, setConfirmSingleDeleteOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleMenuKeyDown = (e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const items = Array.from(e.currentTarget.querySelectorAll('button[role="menuitem"]:not(:disabled)'));
+    if (items.length === 0) return;
+    const currentIdx = items.indexOf(document.activeElement);
+    e.preventDefault();
+    if (e.key === 'Home') {
+      items[0].focus();
+    } else if (e.key === 'End') {
+      items[items.length - 1].focus();
+    } else {
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      const nextIdx = currentIdx < 0 ? 0 : (currentIdx + delta + items.length) % items.length;
+      items[nextIdx].focus();
+    }
+  };
 
   useEffect(() => {
     preloadCustomEventModal();
@@ -78,11 +97,69 @@ export default function CustomEventDetailModal({
           className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
           style={{
             background: color.bg,
+            color: color.text,
             borderColor: modalBorderColor,
             '--card-bg': color.bg,
             '--card-ink': color.text,
           }}
         >
+          {viewMode === 'detail' && (
+            <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="touch-target-44 absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-current transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
+                  aria-label="Más acciones del evento"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  title="Más acciones"
+                  onPointerEnter={preloadCustomEventModal}
+                  onTouchStart={preloadCustomEventModal}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="w-52 p-1.5"
+                role="menu"
+                aria-label="Acciones del evento"
+                onKeyDown={handleMenuKeyDown}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit?.();
+                  }}
+                  onPointerEnter={preloadCustomEventModal}
+                  onTouchStart={preloadCustomEventModal}
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                  <span>Editar evento</span>
+                </button>
+
+                <hr className="my-1 border-0 border-t border-[var(--border)]" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleDeleteClick();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:outline-none transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4 shrink-0" />
+                  <span>Eliminar evento</span>
+                </button>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {viewMode === 'scope-delete' ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 pr-8">
@@ -159,7 +236,7 @@ export default function CustomEventDetailModal({
           ) : (
             <div className="space-y-4 text-center">
               {/* Cabecera: Categoria opcional + Titulo primero + Fecha y hora como subtitulo, todo centrado */}
-              <div className="px-8 flex flex-col items-center text-center space-y-1.5">
+              <div className="px-12 sm:px-14 flex flex-col items-center text-center space-y-1.5">
                 {category && (
                   <div
                     className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
@@ -236,34 +313,6 @@ export default function CustomEventDetailModal({
                   <div className="text-pretty">{notes}</div>
                 </div>
               )}
-
-              {/* Pie con acciones ocupando toda la fila y misma estetica que LessonModal */}
-              <div
-                className="pt-3.5 flex items-center gap-2.5 border-t"
-                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
-              >
-                <Button
-                  variant="ghost"
-                  size="md"
-                  onClick={handleDeleteClick}
-                  className="lesson-card-btn-danger flex-1 font-semibold transition-all duration-150"
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  <span>Eliminar</span>
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="md"
-                  onClick={onEdit}
-                  onPointerEnter={preloadCustomEventModal}
-                  onTouchStart={preloadCustomEventModal}
-                  className="lesson-card-btn-primary flex-1 font-semibold shadow-xs transition-all duration-150"
-                >
-                  <Pencil className="w-4 h-4 mr-1.5" />
-                  <span>Editar</span>
-                </Button>
-              </div>
             </div>
           )}
         </ResponsiveModalContent>
