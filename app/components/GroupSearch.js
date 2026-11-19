@@ -7,6 +7,7 @@ import {
   ResponsiveModalContent,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
+  ResponsiveModalBody,
 } from './ui/responsive-modal';
 import { useIsDesktop } from '@/app/utils/useMediaQuery';
 
@@ -51,51 +52,53 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
           }
         }}
       >
-        <ResponsiveModalHeader className="px-12 pt-4 sm:pt-5 pb-3 mb-0 shrink-0">
-          <ResponsiveModalTitle className="text-base font-bold text-center">
-            Seleccionar grupo o titulación
-          </ResponsiveModalTitle>
+        <ResponsiveModalHeader className="px-0 py-0 shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] mb-0">
+          <div className="flex items-center justify-center min-h-[52px] sm:min-h-[56px] px-5 sm:px-6 pr-14 border-b border-[var(--border-light)]">
+            <ResponsiveModalTitle className="text-base font-bold text-center">
+              Seleccionar grupo o titulación
+            </ResponsiveModalTitle>
+          </div>
+
+          <div className="px-4 sm:px-5 py-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                searchInputRef.current?.blur();
+              }}
+              className="search-icon-wrap"
+            >
+              <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
+                <Search size={16} />
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="group-search-input"
+                placeholder="Buscar titulación, grado, GII..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                enterKeyHint="search"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="group-search-clear-btn"
+                  onClick={() => setQuery('')}
+                  aria-label="Borrar búsqueda"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </form>
+          </div>
         </ResponsiveModalHeader>
 
-        <div className="group-picker-search">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              searchInputRef.current?.blur();
-            }}
-            className="search-icon-wrap"
-          >
-            <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
-              <Search size={16} />
-            </span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="group-search-input"
-              placeholder="Buscar titulación, grado, GII..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
-              }}
-              enterKeyHint="search"
-            />
-            {query && (
-              <button
-                type="button"
-                className="group-search-clear-btn"
-                onClick={() => setQuery('')}
-                aria-label="Borrar búsqueda"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </form>
-        </div>
-
-        <div className="group-picker-list" data-sheet-scroll="true">
+        <ResponsiveModalBody className="p-0 group-picker-list overflow-y-auto overscroll-contain">
           {query.length < 2 && (
             <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
               Escribe al menos 2 caracteres para buscar tu grupo
@@ -125,7 +128,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
               )}
             </div>
           ))}
-        </div>
+        </ResponsiveModalBody>
       </ResponsiveModalContent>
     </ResponsiveModal>
   );
