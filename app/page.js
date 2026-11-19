@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { showUndoToast } from './components/ui/undo-toast';
-import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
+import { extractSubgroupNumber, extractSubgroupKey, formatRooms } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
 import {
   hasLocalCustomData,
@@ -2174,34 +2174,11 @@ export default function Home() {
             return (
               <div className="swap-banner-wrap" aria-live="polite">
                 <div className="swap-banner">
-                  <div className="swap-banner-info">
+                  <div className="swap-banner-header">
                     <div className="swap-banner-badge">
                       <ArrowUpDown size={12} />
                       <span>Modo intercambio</span>
                     </div>
-                    <div className="swap-banner-text">
-                      Pulsa en una clase del horario para intercambiar con:
-                    </div>
-                    <div className="swap-banner-origin">
-                      <span
-                        className="swap-banner-dot"
-                        style={{
-                          background: originColor.bg,
-                          border: `1px solid ${originColor.border || 'currentColor'}`,
-                        }}
-                      />
-                      <strong>{calendarSwapOrigin.subjects?.[0] || 'Clase'}</strong>
-                      {calendarSwapOrigin.type && (
-                        <span className="text-[11px] font-normal opacity-80 ml-1">
-                          ({calendarSwapOrigin.type})
-                        </span>
-                      )}
-                      <span className="swap-banner-meta">
-                        ({dayName ? `${dayName} ` : ''}{formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)})
-                      </span>
-                    </div>
-                  </div>
-                  <div className="swap-banner-actions">
                     <button
                       type="button"
                       className="swap-banner-btn cancel-btn"
@@ -2211,9 +2188,43 @@ export default function Home() {
                       }}
                       title="Cancelar intercambio"
                     >
-                      <X size={14} />
+                      <X size={13} />
                       <span>Cancelar</span>
                     </button>
+                  </div>
+
+                  <div className="swap-banner-text">
+                    Pulsa en una clase del horario para intercambiar con:
+                  </div>
+
+                  <div className="swap-banner-origin-card">
+                    <span
+                      className="swap-banner-dot"
+                      style={{
+                        background: originColor.bg,
+                        border: `1.5px solid ${originColor.border || 'currentColor'}`,
+                      }}
+                    />
+                    <div className="swap-banner-origin-content">
+                      <div className="swap-banner-origin-title">
+                        {calendarSwapOrigin.subjects?.[0] || 'Clase'}
+                      </div>
+                      <div className="swap-banner-origin-meta">
+                        {calendarSwapOrigin.type && (
+                          <span className="swap-banner-type-tag">
+                            {calendarSwapOrigin.type}
+                          </span>
+                        )}
+                        <span className="swap-banner-time-tag">
+                          {dayName ? `${dayName} ` : ''}{formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)}
+                        </span>
+                        {calendarSwapOrigin.rooms && calendarSwapOrigin.rooms.length > 0 && (
+                          <span className="swap-banner-room-tag">
+                            · {formatRooms(calendarSwapOrigin.rooms)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
