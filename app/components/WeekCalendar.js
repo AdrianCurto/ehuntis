@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef, memo } from 'react';
-import { ArrowUpDown, Pencil, Ban } from 'lucide-react';
+import { ArrowUpDown, Pencil, Ban, BookOpen, Dumbbell, Briefcase, Coffee, User } from 'lucide-react';
 import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
 import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
@@ -20,6 +20,14 @@ import {
 } from '../utils/colorLogic';
 
 export { PALETTE, PALETTE_DARK, getSubjectColorStyle };
+
+const CATEGORY_ICONS = {
+  estudio: BookOpen,
+  deporte: Dumbbell,
+  trabajo: Briefcase,
+  ocio: Coffee,
+  personal: User,
+};
 
 // Helper to assign a color index dynamically based on a semester-aware unique list of subjects and customColors
 let subjectColorIndexMap = new Map();
@@ -432,6 +440,21 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
           height,
           width: Math.ceil(badgeWidth),
         });
+      } else {
+        const catKey = lesson.category.toLowerCase().trim();
+        if (CATEGORY_ICONS[catKey] && badgeAvailWidth >= 13) {
+          badgeCandidates.push({
+            hide: false,
+            text: '',
+            category: catKey,
+            iconOnly: true,
+            font: 8,
+            padding: '1px 2px',
+            lineHeight: 1.1,
+            height: 14,
+            width: 14,
+          });
+        }
       }
     }
   } else if (lesson.type && lesson.type.trim()) {
@@ -567,7 +590,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   // Control de visibilidad física para asegurar legibilidad
   const canTeacher = Boolean(validTeacherCandidates.length > 0 && blockHeight >= 44);
   const canRoom = validRoomCandidates.length > 0 && blockHeight >= (isDayView ? 24 : 20);
-  const canBadge = Boolean(bestBadge && blockHeight >= (isCancelled ? 14 : (isMagistral ? (isDayView ? 55 : 45) : 18)));
+  const canBadge = Boolean(bestBadge && blockHeight >= (isCancelled ? 14 : (isMagistral ? (isDayView ? 55 : 45) : (bestBadge.iconOnly ? 14 : 18))));
 
   const attempts = [];
   if (isMagistral && !isCancelled) {
@@ -1843,9 +1866,11 @@ const WeekCalendar = forwardRef(function WeekCalendar({
 
               const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
               const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
+              const isIconOnlyCategoryBadge = lesson.isCustomEvent && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
               const hasVisibleHeaderBadge =
                 hasTextBadge ||
-                (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock));
+                (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock)) ||
+                isIconOnlyCategoryBadge;
 
               const effectiveStatusPlacement = isSwapOrigin
                 ? (hasDrift ? 'corner-sm' : 'none')
@@ -2079,6 +2104,32 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                             <Ban size={8} strokeWidth={2.8} />
                           </div>
                         );
+                      }
+
+                      if (lesson.isCustomEvent && isIconOnlyCategoryBadge) {
+                        const CatIcon = CATEGORY_ICONS[fit.badge?.category];
+                        if (CatIcon) {
+                          return (
+                            <div
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 3,
+                                background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)',
+                                color: isDark ? '#FFFFFF' : 'inherit',
+                                border: isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                textDecoration: 'none',
+                              }}
+                              title={lesson.category}
+                            >
+                              <CatIcon size={9} strokeWidth={2.5} />
+                            </div>
+                          );
+                        }
                       }
 
                       return null;

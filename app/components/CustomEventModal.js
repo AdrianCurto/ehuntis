@@ -778,7 +778,7 @@ export default function CustomEventModal({
                           style={{ background: cStyle.bg, borderColor: isSelected ? 'var(--accent)' : cStyle.border }}
                           className={cn(
                             'touch-target-44 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform cursor-pointer active:scale-95 shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2',
-                            isSelected && 'scale-110 ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--surface-elevated)]'
+                            isSelected && 'scale-110'
                           )}
                           aria-label={`Color ${idx + 1}`}
                           aria-pressed={isSelected}
