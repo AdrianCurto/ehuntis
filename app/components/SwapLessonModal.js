@@ -99,14 +99,9 @@ export default function SwapLessonModal({
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] shrink-0">
               <ArrowUpDown className="w-4 h-4" />
             </span>
-            <div>
-              <ResponsiveModalTitle className="text-base font-bold">
-                Confirmar intercambio
-              </ResponsiveModalTitle>
-              <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Revisa cómo se reubicará cada clase antes de aplicar el cambio
-              </div>
-            </div>
+            <ResponsiveModalTitle className="text-base font-bold">
+              Confirmar intercambio
+            </ResponsiveModalTitle>
           </div>
         </ResponsiveModalHeader>
 
@@ -280,14 +275,7 @@ export default function SwapLessonModal({
                   Intercambiar también las aulas
                 </div>
                 <div className="text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                  {swapRooms ? (
-                    <>
-                      • <strong>{originSubject}</strong> pasará a <strong>{targetRoom}</strong><br />
-                      • <strong>{targetSubject}</strong> pasará a <strong>{originRoom}</strong>
-                    </>
-                  ) : (
-                    `Por defecto cada clase permanece en su aula habitual (${originSubject} en ${originRoom}, ${targetSubject} en ${targetRoom}).`
-                  )}
+                  Por defecto cada clase permanece en su aula habitual.
                 </div>
               </div>
             </Checkbox>
