@@ -125,6 +125,7 @@ export default function CustomEventDetailModal({
                 className="w-52 p-1.5"
                 role="menu"
                 aria-label="Acciones del evento"
+                onOpenAutoFocus={(e) => e.preventDefault()}
                 onKeyDown={handleMenuKeyDown}
               >
                 <button
@@ -136,7 +137,7 @@ export default function CustomEventDetailModal({
                   }}
                   onPointerEnter={preloadCustomEventModal}
                   onTouchStart={preloadCustomEventModal}
-                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                 >
                   <Pencil className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                   <span>Editar evento</span>
@@ -151,7 +152,7 @@ export default function CustomEventDetailModal({
                     setMenuOpen(false);
                     handleDeleteClick();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:outline-none transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus-visible:bg-rose-500/10 focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4 shrink-0" />
                   <span>Eliminar evento</span>

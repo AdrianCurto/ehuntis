@@ -25,7 +25,7 @@ import { subjectColor } from './WeekCalendar';
 import { formatTeacher } from '../utils/teachers';
 import { formatTime } from '../utils/dateTimeUtils';
 import { formatRooms } from '../utils/subgroups';
-import { shouldShowLessonResetButton } from '../utils/lessonOverrides';
+import { shouldShowLessonResetButton, hasNonSwapOverrides } from '../utils/lessonOverrides';
 import { preloadEditLessonModal, preloadSwapLessonModal } from '../utils/modalPreload';
 import { cn } from '../utils/cn';
 
@@ -75,6 +75,7 @@ export default function LessonModal({
   const isWebUntisCancelled = lesson.code === 'cancelled' && !isUserCancelled;
   const isOverridden = Boolean(lesson.isOverridden);
   const isSwapped = Boolean(lesson.swappedWith);
+  const isEdited = !isUserCancelled && (lesson.swappedWith ? hasNonSwapOverrides(lesson) : isOverridden);
   const showResetButton = shouldShowLessonResetButton(lesson);
   const hasDrift = Boolean(lesson.hasRemoteDrift && lesson.driftChanges && lesson.driftChanges.length > 0);
 
@@ -152,6 +153,7 @@ export default function LessonModal({
               className="w-56 p-1.5"
               role="menu"
               aria-label="Acciones de la clase"
+              onOpenAutoFocus={(e) => e.preventDefault()}
               onKeyDown={handleMenuKeyDown}
             >
               <button
@@ -163,7 +165,7 @@ export default function LessonModal({
                 }}
                 onPointerEnter={preloadEditLessonModal}
                 onTouchStart={preloadEditLessonModal}
-                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
               >
                 <Pencil className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                 <span>Editar clase</span>
@@ -177,7 +179,7 @@ export default function LessonModal({
                     setMenuOpen(false);
                     handleUnswapClick();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                 >
                   <Undo2 className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                   <span>Deshacer intercambio</span>
@@ -192,7 +194,7 @@ export default function LessonModal({
                   }}
                   onPointerEnter={preloadSwapLessonModal}
                   onTouchStart={preloadSwapLessonModal}
-                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                 >
                   <ArrowUpDown className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                   <span>Intercambiar horario</span>
@@ -207,7 +209,7 @@ export default function LessonModal({
                     setMenuOpen(false);
                     handleResetClick();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                  className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                   <span>Restablecer</span>
@@ -224,10 +226,10 @@ export default function LessonModal({
                   handleToggleCancelClick();
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium focus:outline-none transition-colors cursor-pointer',
+                  'flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium focus:outline-none focus-visible:outline-none transition-colors cursor-pointer',
                   isUserCancelled
-                    ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10'
-                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10'
+                    ? 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10 focus-visible:bg-emerald-500/10'
+                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus-visible:bg-rose-500/10'
                 )}
               >
                 {isUserCancelled ? (
@@ -316,8 +318,8 @@ export default function LessonModal({
           )}
 
           {/* Badges de estado / Swap */}
-          {(isUserCancelled || isWebUntisCancelled || lesson.swappedWith || isOverridden) && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+          {(isUserCancelled || isWebUntisCancelled || lesson.swappedWith || isEdited) && (
+            <div className="flex flex-col items-center justify-center gap-1.5 mb-3">
               {isUserCancelled && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/18 text-rose-800 dark:text-rose-200 border border-rose-500/30">
                   <Ban className="w-3.5 h-3.5" /> Cancelada por ti
@@ -336,7 +338,7 @@ export default function LessonModal({
                 </span>
               )}
 
-              {isOverridden && !isUserCancelled && !lesson.swappedWith && (
+              {isEdited && !isWebUntisCancelled && (
                 <span
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
                   style={{
