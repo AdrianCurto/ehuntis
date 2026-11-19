@@ -15,6 +15,7 @@ import {
   ResponsiveModalContent,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
+  ResponsiveModalBody,
   ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
@@ -92,9 +93,9 @@ export default function SwapLessonModal({
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        className="max-w-lg p-5 sm:p-6 overflow-y-auto overscroll-contain"
+        className="max-w-lg p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
       >
-        <ResponsiveModalHeader className="mb-4 pr-8">
+        <ResponsiveModalHeader className="px-5 sm:px-6 min-h-[52px] sm:min-h-[56px] justify-center shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] pr-14 mb-0">
           <div className="flex items-center gap-2.5">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] shrink-0">
               <ArrowUpDown className="w-4 h-4" />
@@ -105,12 +106,13 @@ export default function SwapLessonModal({
           </div>
         </ResponsiveModalHeader>
 
-        {isDifferentDay && (
-          <div className="flex items-center gap-2 p-2.5 rounded-[var(--radius-md)] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/50 text-xs font-semibold mb-3">
-            <CalendarIcon className="w-4 h-4 shrink-0" />
-            <span>Intercambio entre días distintos ({originDayName} ⇄ {targetDayName})</span>
-          </div>
-        )}
+        <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
+          {isDifferentDay && (
+            <div className="flex items-center gap-2 p-2.5 rounded-[var(--radius-md)] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-900/50 text-xs font-semibold">
+              <CalendarIcon className="w-4 h-4 shrink-0" />
+              <span>Intercambio entre días distintos ({originDayName} ⇄ {targetDayName})</span>
+            </div>
+          )}
 
         {/* Comparativa visual de las dos clases (Antes → Después) */}
         <div className="space-y-2 mb-4">
@@ -308,33 +310,34 @@ export default function SwapLessonModal({
             </Checkbox>
           </div>
         )}
+      </ResponsiveModalBody>
 
-        <ResponsiveModalFooter className="flex flex-row justify-end gap-2.5 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-0">
-          <Button
-            variant="secondary"
-            size="md"
-            className="flex-1 sm:flex-initial justify-center"
-            onClick={() => {
-              if (onSelectAnother) {
-                onSelectAnother();
-              } else {
-                onClose();
-              }
-            }}
-          >
-            Elegir otra clase
-          </Button>
-          <Button
-            variant="default"
-            size="md"
-            className="flex-[2] sm:flex-initial justify-center"
-            onClick={handleConfirm}
-          >
-            <Check className="w-4 h-4 mr-1.5" />
-            Confirmar intercambio
-          </Button>
-        </ResponsiveModalFooter>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+      <ResponsiveModalFooter className="flex flex-row items-center justify-end gap-2.5 px-5 sm:px-6 py-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:py-3.5 border-t border-[var(--border-light)] bg-[var(--surface-elevated)] shrink-0 z-10 mt-auto">
+        <Button
+          variant="secondary"
+          size="md"
+          className="flex-1 sm:flex-initial justify-center"
+          onClick={() => {
+            if (onSelectAnother) {
+              onSelectAnother();
+            } else {
+              onClose();
+            }
+          }}
+        >
+          Elegir otra clase
+        </Button>
+        <Button
+          variant="default"
+          size="md"
+          className="flex-[2] sm:flex-initial sm:min-w-[132px] justify-center"
+          onClick={handleConfirm}
+        >
+          <Check className="w-4 h-4 mr-1.5" />
+          Confirmar intercambio
+        </Button>
+      </ResponsiveModalFooter>
+    </ResponsiveModalContent>
+  </ResponsiveModal>
   );
 }
