@@ -8,6 +8,7 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
 } from './ui/responsive-modal';
+import { useIsDesktop } from '@/app/utils/useMediaQuery';
 
 function normalizeStr(str) {
   if (!str) return '';
@@ -17,6 +18,7 @@ function normalizeStr(str) {
 export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemove, onClose }) {
   const [query, setQuery] = useState('');
   const searchInputRef = useRef(null);
+  const isDesktop = useIsDesktop();
 
   const results = useMemo(() => {
     if (query.length < 2) return [];
@@ -43,7 +45,9 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
         className="p-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-0 h-[88dvh] max-h-[92dvh] sm:h-[78vh] sm:max-h-[600px] sm:max-w-[560px] overflow-hidden flex flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
-          searchInputRef.current?.focus({ preventScroll: true });
+          if (isDesktop) {
+            searchInputRef.current?.focus({ preventScroll: true });
+          }
         }}
       >
         <ResponsiveModalHeader className="px-12 pt-1 sm:pt-5 pb-3 mb-0 shrink-0">

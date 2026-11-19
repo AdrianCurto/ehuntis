@@ -69,12 +69,12 @@ import EditLessonModal from './components/EditLessonModal';
 import SwapLessonModal from './components/SwapLessonModal';
 import CustomEventModal from './components/CustomEventModal';
 import CustomEventDetailModal from './components/CustomEventDetailModal';
+import GroupSearch from './components/GroupSearch';
+import WeekHeader from './components/WeekHeader';
+import SettingsView from './components/SettingsView';
+import ProfileView from './components/ProfileView';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
-const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
-const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
-const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
-const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
 const LAST_TIMETABLE_CACHE_KEY = 'ehuntis_timetable_last_v3';
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
