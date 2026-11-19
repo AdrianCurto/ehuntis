@@ -18,7 +18,7 @@ export const PopoverContent = React.forwardRef(
         collisionPadding={collisionPadding}
         sticky={sticky}
         className={cn(
-          'z-50 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--text-primary)] shadow-xl outline-none transition-all duration-150',
+          'z-50 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--text-primary)] shadow-xl outline-none',
           className
         )}
         {...props}

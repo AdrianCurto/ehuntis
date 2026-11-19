@@ -248,11 +248,16 @@ export default function LessonModal({
           </Popover>
 
           {/* Cabecera: Asignatura primero, fecha y hora como subtitulo, todo centrado */}
-          <div className="px-12 sm:px-14 mb-3 flex flex-col items-center text-center">
-            {subgroupStr && (
-              <div className="text-[11px] font-semibold uppercase tracking-wider mb-1 opacity-75 text-center" style={{ color: color.text }}>
-                {subgroupStr}
-                {lesson.type ? ` · ${lesson.type}` : ''}
+          <div className="px-12 sm:px-14 -mt-1 sm:-mt-2 mb-3.5 flex flex-col items-center text-center">
+            {(subgroupStr || lesson.type) && (
+              <div
+                className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold mb-2 sm:mb-2.5 text-center"
+                style={{
+                  color: color.text,
+                  background: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
+                }}
+              >
+                {subgroupStr ? `${subgroupStr}${lesson.type ? ` · ${lesson.type}` : ''}` : lesson.type}
               </div>
             )}
             <ResponsiveModalTitle
@@ -261,11 +266,6 @@ export default function LessonModal({
             >
               {subjectName}
             </ResponsiveModalTitle>
-            {!subgroupStr && lesson.type && (
-              <div className="text-xs font-medium opacity-80 mt-0.5 text-center" style={{ color: color.text }}>
-                {lesson.type}
-              </div>
-            )}
             <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums text-center" style={{ color: color.text, opacity: 0.85 }}>
               <span>{dayName} {dateStr}</span>
               <span aria-hidden="true">·</span>

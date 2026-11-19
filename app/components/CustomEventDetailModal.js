@@ -237,10 +237,10 @@ export default function CustomEventDetailModal({
           ) : (
             <div className="space-y-4 text-center">
               {/* Cabecera: Categoria opcional + Titulo primero + Fecha y hora como subtitulo, todo centrado */}
-              <div className="px-12 sm:px-14 flex flex-col items-center text-center space-y-1.5">
+              <div className="px-12 sm:px-14 -mt-1 sm:-mt-2 mb-3.5 flex flex-col items-center text-center">
                 {category && (
                   <div
-                    className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                    className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold mb-2 sm:mb-2.5 text-center"
                     style={{
                       color: color.text,
                       background: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',
@@ -258,7 +258,7 @@ export default function CustomEventDetailModal({
                 </ResponsiveModalTitle>
 
                 <div
-                  className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums text-center"
+                  className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm font-medium tabular-nums text-center"
                   style={{ color: color.text, opacity: 0.85 }}
                 >
                   <span>{dayName} {dateStr}</span>
