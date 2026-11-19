@@ -51,7 +51,7 @@ export function Checkbox({
             ) : null}
           </span>
           {children && (
-            <span className="leading-snug">{children}</span>
+            <div className="flex-1 min-w-0 leading-snug">{children}</div>
           )}
         </>
       )}

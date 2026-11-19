@@ -150,7 +150,7 @@ export default function SwapLessonModal({
               </div>
 
               {/* Aula */}
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 min-h-[20px]">
                 <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   <span>Aula:</span>
@@ -163,9 +163,9 @@ export default function SwapLessonModal({
                       <strong className="text-[var(--text-primary)]">{targetRoom}</strong>
                     </span>
                   ) : (
-                    <span>
+                    <span className="flex items-center gap-1">
                       <strong className="text-[var(--text-primary)]">{originRoom}</strong>
-                      {diffRooms && <span className="text-[var(--text-muted)] text-[11px] ml-1">(se mantiene)</span>}
+                      {diffRooms && <span className="text-[var(--text-muted)] text-[11px]">(se mantiene)</span>}
                     </span>
                   )}
                 </span>
@@ -227,7 +227,7 @@ export default function SwapLessonModal({
               </div>
 
               {/* Aula */}
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 min-h-[20px]">
                 <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   <span>Aula:</span>
@@ -240,9 +240,9 @@ export default function SwapLessonModal({
                       <strong className="text-[var(--text-primary)]">{originRoom}</strong>
                     </span>
                   ) : (
-                    <span>
+                    <span className="flex items-center gap-1">
                       <strong className="text-[var(--text-primary)]">{targetRoom}</strong>
-                      {diffRooms && <span className="text-[var(--text-muted)] text-[11px] ml-1">(se mantiene)</span>}
+                      {diffRooms && <span className="text-[var(--text-muted)] text-[11px]">(se mantiene)</span>}
                     </span>
                   )}
                 </span>
@@ -271,10 +271,10 @@ export default function SwapLessonModal({
               className="items-start w-full"
             >
               <div className="flex-1 text-xs">
-                <div className="font-semibold text-[var(--text-primary)]">
+                <div className="font-semibold text-[var(--text-primary)] leading-normal">
                   Intercambiar también las aulas
                 </div>
-                <div className="text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+                <div className="text-[var(--text-secondary)] mt-0.5 leading-normal">
                   Por defecto cada clase permanece en su aula habitual.
                 </div>
               </div>
