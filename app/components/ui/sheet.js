@@ -19,7 +19,7 @@ export const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-black/55 will-change-[opacity]',
+      'fixed inset-0 z-50 bg-black/55 will-change-[opacity] cursor-pointer select-none touch-manipulation',
       className
     )}
     {...props}
@@ -356,16 +356,95 @@ export const SheetContent = React.forwardRef(
       };
     }, [mountSeq, clearInlineTransitions, triggerClose]);
 
+    const lastOverlayDismissTimeRef = React.useRef(0);
+    const overlayTouchStartRef = React.useRef({ x: 0, y: 0, time: 0 });
+
+    const handleOverlayDismiss = React.useCallback(
+      (e) => {
+        if (dragRef.current.dragging || dragRef.current.closing) return;
+
+        const now = performance.now();
+        if (now - lastOverlayDismissTimeRef.current < 400) return;
+        lastOverlayDismissTimeRef.current = now;
+
+        if (onBeforeDismissRef.current?.() === false) {
+          e?.preventDefault?.();
+          return;
+        }
+
+        // En iOS Safari, desenfocar el elemento activo inmediatamente para que el teclado virtual
+        // no bloquee la salida ni retenga el foco.
+        if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+
+        triggerClose();
+      },
+      [triggerClose]
+    );
+
+    const handleOverlayTouchStart = React.useCallback((e) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        overlayTouchStartRef.current = {
+          x: touch.clientX,
+          y: touch.clientY,
+          time: performance.now(),
+        };
+      }
+    }, []);
+
+    const handleOverlayTouchEnd = React.useCallback(
+      (e) => {
+        if (dragRef.current.dragging || dragRef.current.closing) return;
+
+        const start = overlayTouchStartRef.current;
+        const touch = e.changedTouches?.[0];
+        if (touch && start.time > 0) {
+          const dist = Math.hypot(touch.clientX - start.x, touch.clientY - start.y);
+          if (dist > 12) {
+            return;
+          }
+        }
+
+        // Cancelar el evento para evitar 'ghost clicks' en los elementos del calendario bajo el overlay
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        handleOverlayDismiss(e);
+      },
+      [handleOverlayDismiss]
+    );
+
+    const handleOverlayClick = React.useCallback(
+      (e) => {
+        handleOverlayDismiss(e);
+      },
+      [handleOverlayDismiss]
+    );
+
     const stopReactTouchBubbling = (e) => {
       e.stopPropagation();
     };
 
     return (
       <SheetPortal>
-        <SheetOverlay ref={handleOverlayRef} />
+        <SheetOverlay
+          ref={handleOverlayRef}
+          onClick={handleOverlayClick}
+          onTouchStart={handleOverlayTouchStart}
+          onTouchEnd={handleOverlayTouchEnd}
+        />
         <SheetPrimitive.Content
           ref={mergedRef}
           onOpenAutoFocus={onOpenAutoFocus ?? ((e) => e.preventDefault())}
+          onPointerDownOutside={(e) => {
+            if (onBeforeDismissRef.current?.() === false) {
+              e.preventDefault();
+            }
+            props.onPointerDownOutside?.(e);
+          }}
           onTouchStart={stopReactTouchBubbling}
           onTouchMove={stopReactTouchBubbling}
           onTouchEnd={stopReactTouchBubbling}
@@ -387,7 +466,7 @@ export const SheetContent = React.forwardRef(
             </div>
           )}
           {children}
-          {showCloseButton && (
+          {showCloseButton ? (
             <SheetPrimitive.Close
               data-sheet-close="true"
               className="touch-target-44 absolute right-4 top-4 z-20 rounded-full p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
@@ -395,6 +474,13 @@ export const SheetContent = React.forwardRef(
             >
               <X className="h-4 w-4" />
             </SheetPrimitive.Close>
+          ) : (
+            <SheetPrimitive.Close
+              data-sheet-close="true"
+              className="sr-only pointer-events-none"
+              tabIndex={-1}
+              aria-hidden="true"
+            />
           )}
         </SheetPrimitive.Content>
       </SheetPortal>
