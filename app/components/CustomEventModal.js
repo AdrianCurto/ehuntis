@@ -20,6 +20,7 @@ import {
   ResponsiveModalContent,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
+  ResponsiveModalBody,
   ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
@@ -393,32 +394,36 @@ export default function CustomEventModal({
 
           {/* Sub-paso: Seleccionar alcance para Guardar o Eliminar */}
           {viewStep === 'scope-save' || viewStep === 'scope-delete' ? (
-            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto overscroll-contain">
-              <div className="flex items-center gap-2 pr-8">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewStep('form')}
-                  className="touch-target-44 px-2"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  <span>Atrás</span>
-                </Button>
-                <ResponsiveModalTitle className="text-base font-bold">
-                  {viewStep === 'scope-delete' ? 'Eliminar repeticiones' : 'Modificar repeticiones'}
-                </ResponsiveModalTitle>
-              </div>
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <ResponsiveModalHeader className="px-5 sm:px-6 min-h-[52px] sm:min-h-[56px] justify-center shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] pr-14 mb-0">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setViewStep('form')}
+                    className="touch-target-44 px-2"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-1" />
+                    <span>Atrás</span>
+                  </Button>
+                  <ResponsiveModalTitle className="text-base font-bold">
+                    {viewStep === 'scope-delete' ? 'Eliminar repeticiones' : 'Modificar repeticiones'}
+                  </ResponsiveModalTitle>
+                </div>
+              </ResponsiveModalHeader>
 
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed text-pretty">
-                {viewStep === 'scope-delete'
-                  ? 'Este evento se repite semanalmente. Elige qué instancias deseas eliminar:'
-                  : 'Este evento se repite semanalmente. Elige el alcance de tus cambios:'}
-              </p>
+              <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed text-pretty">
+                  {viewStep === 'scope-delete'
+                    ? 'Este evento se repite semanalmente. Elige qué instancias deseas eliminar:'
+                    : 'Este evento se repite semanalmente. Elige el alcance de tus cambios:'}
+                </p>
 
-              <div className="flex flex-col gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() =>
+                <div className="flex flex-col gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() =>
                     viewStep === 'scope-delete' ? handleConfirmDelete('single') : handleConfirmSave('single')
                   }
                   className={cn(
@@ -484,27 +489,25 @@ export default function CustomEventModal({
                   </div>
                 </button>
               </div>
+            </ResponsiveModalBody>
 
-              <div className="pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex justify-end">
-                <Button variant="secondary" size="md" className="w-full sm:w-auto" onClick={() => setViewStep('form')}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          ) : (
-            /* Vista del Formulario Principal con cuerpo scrollable y pie fijo */
-            <form onSubmit={handleSaveClick} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
-              <ResponsiveModalHeader className="px-5 sm:px-6 pt-1 sm:pt-5 pb-2 mb-0 pr-12 shrink-0">
-                <ResponsiveModalTitle className="text-base font-bold">
-                  {isEditing ? 'Editar evento' : 'Nuevo evento'}
-                </ResponsiveModalTitle>
-              </ResponsiveModalHeader>
+            <ResponsiveModalFooter className="flex flex-row items-center justify-end gap-2.5 px-5 sm:px-6 py-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:py-3.5 border-t border-[var(--border-light)] bg-[var(--surface-elevated)] shrink-0 z-10 mt-auto">
+              <Button variant="secondary" size="md" className="w-full sm:w-auto" onClick={() => setViewStep('form')}>
+                Cancelar
+              </Button>
+            </ResponsiveModalFooter>
+          </div>
+        ) : (
+          /* Vista del Formulario Principal con cuerpo scrollable y pie fijo */
+          <form onSubmit={handleSaveClick} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
+            <ResponsiveModalHeader className="px-5 sm:px-6 min-h-[52px] sm:min-h-[56px] justify-center shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] pr-14 mb-0">
+              <ResponsiveModalTitle className="text-base font-bold">
+                {isEditing ? 'Editar evento' : 'Nuevo evento'}
+              </ResponsiveModalTitle>
+            </ResponsiveModalHeader>
 
-              {/* Cuerpo del formulario con scroll independiente */}
-              <div
-                data-sheet-scroll="true"
-                className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-2 pb-4 space-y-4"
-              >
+            {/* Cuerpo del formulario con scroll independiente */}
+            <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
                 {/* Titulo */}
                 <div className="space-y-1.5">
                   <label
@@ -817,7 +820,7 @@ export default function CustomEventModal({
                     </Button>
                   </div>
                 )}
-              </div>
+              </ResponsiveModalBody>
 
               {/* Pie de Acciones fijo con solo Cancelar y Guardar (Guardar con flex-[2] en movil) */}
               <ResponsiveModalFooter className="flex flex-row items-center justify-end gap-2.5 px-5 sm:px-6 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:py-3.5 border-t border-[var(--border-light)] bg-[var(--surface-elevated)] shrink-0 z-10 mt-auto">

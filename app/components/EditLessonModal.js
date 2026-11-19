@@ -7,6 +7,7 @@ import {
   ResponsiveModalContent,
   ResponsiveModalHeader,
   ResponsiveModalTitle,
+  ResponsiveModalBody,
   ResponsiveModalFooter,
 } from './ui/responsive-modal';
 import { Button } from './ui/button';
@@ -52,14 +53,6 @@ function dateStringToNumber(str) {
   return null;
 }
 
-function parseDate(dateNum) {
-  const y = Math.floor(dateNum / 10000);
-  const m = Math.floor((dateNum % 10000) / 100) - 1;
-  const d = dateNum % 100;
-  return new Date(y, m, d);
-}
-
-const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export default function EditLessonModal({
   lesson,
@@ -87,9 +80,6 @@ export default function EditLessonModal({
   if (!lesson) return null;
 
   const selectedDateNum = dateStringToNumber(dateStr) || lesson.date;
-  const date = parseDate(selectedDateNum);
-  const dayName = DAYS_LONG[date.getDay()];
-  const dateFormatted = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
   const color = subjectColor(lesson.subjectIds?.[0] || 0, isDark);
   const subjectName = lesson.subjects?.[0] || 'Clase';
@@ -208,186 +198,185 @@ export default function EditLessonModal({
         <ResponsiveModalContent
           onBeforeDismiss={handleRequestClose}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="max-w-md p-5 sm:p-6 overflow-y-auto overscroll-contain"
+          className="max-w-md p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col"
         >
-        <ResponsiveModalHeader className="mb-3 pr-8">
-          <ResponsiveModalTitle className="text-base font-bold">
-            Personalizar clase
-          </ResponsiveModalTitle>
-          <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
-            {dayName} {dateFormatted}
-          </div>
-        </ResponsiveModalHeader>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
+            <ResponsiveModalHeader className="px-5 sm:px-6 min-h-[52px] sm:min-h-[56px] justify-center shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] pr-14 mb-0">
+              <ResponsiveModalTitle className="text-base font-bold">
+                Personalizar clase
+              </ResponsiveModalTitle>
+            </ResponsiveModalHeader>
 
-        {/* Tarjeta de asignatura (porta el color oficial sin barra arqueada superior) */}
-        <div
-          className="flex items-center justify-between p-3 rounded-[var(--radius-md)] text-sm font-bold mb-3"
-          style={{ background: color.bg, color: color.text }}
-        >
-          <span>{subjectName}</span>
-          {lesson.type && (
-            <span className="text-xs font-normal opacity-85">
-              {lesson.type}
-            </span>
-          )}
-        </div>
-
-        {/* Indicador respecto a WebUntis cuando la clase esta modificada */}
-        {hasAnyDiffFromOfficial && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs">
-            <div className="text-[var(--text-secondary)] tabular-nums">
-              {officialSummaryParts.length > 0 ? (
-                <>
-                  <span className="font-semibold text-[var(--text-primary)]">Oficial:</span>{' '}
-                  {officialSummaryParts.join(' · ')}
-                </>
-              ) : (
-                <span>
-                  {isNotesModified
-                    ? 'Solo notas personales'
-                    : lesson.isUserCancelled
-                      ? 'Clase cancelada por ti'
-                      : 'Sin diferencias con el horario oficial'}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handleResetToOfficial}
-              className="inline-flex items-center gap-1 font-semibold text-[var(--accent)] hover:underline cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 rounded"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>Restablecer esta clase</span>
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          {/* Horas de Inicio y Fin */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-                <span>Inicio</span>
-                {currentStartNum !== officialStartNum && (
-                  <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+            <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
+              {/* Tarjeta de asignatura (porta el color oficial sin barra arqueada superior) */}
+              <div
+                className="flex items-center justify-between p-3 rounded-[var(--radius-md)] text-sm font-bold"
+                style={{ background: color.bg, color: color.text }}
+              >
+                <span>{subjectName}</span>
+                {lesson.type && (
+                  <span className="text-xs font-normal opacity-85">
+                    {lesson.type}
+                  </span>
                 )}
-              </label>
-              <TimePicker
-                value={startTimeStr}
-                step={30}
-                error={errorField === 'time'}
-                onChange={(str) => handleStartTimeChange(str)}
-                ariaLabel="Hora de inicio"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-                <span>Fin</span>
-                {currentEndNum !== officialEndNum && (
-                  <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
-                )}
-              </label>
-              <TimePicker
-                value={endTimeStr}
-                step={30}
-                error={errorField === 'time'}
-                onChange={(str) => {
-                  setEndTimeStr(str);
-                  setError('');
-                  setErrorField(null);
-                }}
-                ariaLabel="Hora de fin"
-              />
-            </div>
-          </div>
+              </div>
 
-          {/* Fecha de la clase */}
-          <div className="space-y-1.5">
-            <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
-              <span>Fecha</span>
-              {isDateModified && (
-                <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+              {/* Indicador respecto a WebUntis cuando la clase esta modificada */}
+              {hasAnyDiffFromOfficial && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-xs">
+                  <div className="text-[var(--text-secondary)] tabular-nums">
+                    {officialSummaryParts.length > 0 ? (
+                      <>
+                        <span className="font-semibold text-[var(--text-primary)]">Oficial:</span>{' '}
+                        {officialSummaryParts.join(' · ')}
+                      </>
+                    ) : (
+                      <span>
+                        {isNotesModified
+                          ? 'Solo notas personales'
+                          : lesson.isUserCancelled
+                            ? 'Clase cancelada por ti'
+                            : 'Sin diferencias con el horario oficial'}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetToOfficial}
+                    className="inline-flex items-center gap-1 font-semibold text-[var(--accent)] hover:underline cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 rounded"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Restablecer esta clase</span>
+                  </button>
+                </div>
               )}
-            </label>
-            <DatePicker
-              value={dateStr}
-              error={errorField === 'date'}
-              onChange={(newDate) => {
-                setDateStr(newDate);
-                setError('');
-                setErrorField(null);
-              }}
-              ariaLabel="Fecha de la clase"
-            />
-          </div>
 
-          {/* Aula */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="edit-lesson-room"
-              className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]"
-            >
-              <span>Aula</span>
-              {isRoomModified && (
-                <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+              {/* Horas de Inicio y Fin */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
+                    <span>Inicio</span>
+                    {currentStartNum !== officialStartNum && (
+                      <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+                    )}
+                  </label>
+                  <TimePicker
+                    value={startTimeStr}
+                    step={30}
+                    error={errorField === 'time'}
+                    onChange={(str) => handleStartTimeChange(str)}
+                    ariaLabel="Hora de inicio"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
+                    <span>Fin</span>
+                    {currentEndNum !== officialEndNum && (
+                      <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+                    )}
+                  </label>
+                  <TimePicker
+                    value={endTimeStr}
+                    step={30}
+                    error={errorField === 'time'}
+                    onChange={(str) => {
+                      setEndTimeStr(str);
+                      setError('');
+                      setErrorField(null);
+                    }}
+                    ariaLabel="Hora de fin"
+                  />
+                </div>
+              </div>
+
+              {/* Fecha de la clase */}
+              <div className="space-y-1.5">
+                <label className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]">
+                  <span>Fecha</span>
+                  {isDateModified && (
+                    <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+                  )}
+                </label>
+                <DatePicker
+                  value={dateStr}
+                  error={errorField === 'date'}
+                  onChange={(newDate) => {
+                    setDateStr(newDate);
+                    setError('');
+                    setErrorField(null);
+                  }}
+                  ariaLabel="Fecha de la clase"
+                />
+              </div>
+
+              {/* Aula */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="edit-lesson-room"
+                  className="flex items-center justify-between text-[13px] font-medium text-[var(--text-primary)]"
+                >
+                  <span>Aula</span>
+                  {isRoomModified && (
+                    <span className="text-[11px] font-medium text-[var(--accent)]">Modificado</span>
+                  )}
+                </label>
+                <Input
+                  id="edit-lesson-room"
+                  placeholder="Aula"
+                  value={roomsStr}
+                  onChange={(e) => setRoomsStr(e.target.value)}
+                />
+              </div>
+
+              {/* Notas personales */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="edit-lesson-notes"
+                  className="flex items-center text-[13px] font-medium text-[var(--text-primary)]"
+                >
+                  <span>Notas personales</span>
+                </label>
+                <Textarea
+                  id="edit-lesson-notes"
+                  placeholder="Detalles, enlaces o recordatorios..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Error banner */}
+              {error && (
+                <div
+                  role="alert"
+                  className="p-3 rounded-[var(--radius-md)] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 flex items-center gap-2 text-xs font-medium"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
-            </label>
-            <Input
-              id="edit-lesson-room"
-              placeholder="Aula"
-              value={roomsStr}
-              onChange={(e) => setRoomsStr(e.target.value)}
-            />
-          </div>
+            </ResponsiveModalBody>
 
-          {/* Notas personales */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="edit-lesson-notes"
-              className="flex items-center text-[13px] font-medium text-[var(--text-primary)]"
-            >
-              <span>Notas personales</span>
-            </label>
-            <Textarea
-              id="edit-lesson-notes"
-              placeholder="Detalles, enlaces o recordatorios..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          {/* Error banner */}
-          {error && (
-            <div
-              role="alert"
-              className="p-3 rounded-[var(--radius-md)] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 flex items-center gap-2 text-xs font-medium"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Botones de accion */}
-          <ResponsiveModalFooter className="flex flex-row justify-end gap-2.5 pt-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-0">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              onClick={handleRequestClose}
-              className="flex-1 sm:flex-initial justify-center"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="default"
-              size="md"
-              className="flex-[2] sm:flex-initial justify-center"
-            >
-              Guardar cambios
-            </Button>
-          </ResponsiveModalFooter>
-        </form>
+            {/* Botones de accion fijos */}
+            <ResponsiveModalFooter className="flex flex-row items-center justify-end gap-2.5 px-5 sm:px-6 py-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:py-3.5 border-t border-[var(--border-light)] bg-[var(--surface-elevated)] shrink-0 z-10 mt-auto">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={handleRequestClose}
+                className="flex-1 sm:flex-initial justify-center"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="default"
+                size="md"
+                className="flex-[2] sm:flex-initial sm:min-w-[132px] justify-center"
+              >
+                Guardar cambios
+              </Button>
+            </ResponsiveModalFooter>
+          </form>
         </ResponsiveModalContent>
       </ResponsiveModal>
 

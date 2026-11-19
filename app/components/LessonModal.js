@@ -130,7 +130,7 @@ export default function LessonModal({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="touch-target-44 absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 active:bg-black/15 dark:bg-white/10 dark:hover:bg-white/20 dark:active:bg-white/25 text-current transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
+                className="touch-target-44 absolute left-4 top-3.5 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 active:bg-black/15 dark:bg-white/10 dark:hover:bg-white/20 dark:active:bg-white/25 text-current transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
                 aria-label="Más acciones de la clase"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
