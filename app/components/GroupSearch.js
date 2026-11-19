@@ -42,6 +42,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
+        showHandle={false}
         className="p-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-0 h-[88dvh] max-h-[92dvh] sm:h-[78vh] sm:max-h-[600px] sm:max-w-[560px] overflow-hidden flex flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
@@ -50,7 +51,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
           }
         }}
       >
-        <ResponsiveModalHeader className="px-12 pt-1 sm:pt-5 pb-3 mb-0 shrink-0">
+        <ResponsiveModalHeader className="px-12 pt-4 sm:pt-5 pb-3 mb-0 shrink-0">
           <ResponsiveModalTitle className="text-base font-bold text-center">
             Seleccionar grupo o titulación
           </ResponsiveModalTitle>

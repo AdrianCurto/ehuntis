@@ -452,14 +452,15 @@ export const SheetContent = React.forwardRef(
           style={style}
           className={cn(
             'fixed inset-x-0 bottom-0 z-50 flex max-h-[calc(100dvh-1rem)] flex-col rounded-t-[22px] border-t border-[var(--border)] dark:border-t-white/10 bg-[var(--surface-elevated)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl dark:shadow-[0_-16px_48px_rgba(0,0,0,0.75)] outline-none overflow-y-auto overscroll-contain will-change-transform [transform:translate3d(0,0,0)]',
-            className
+            className,
+            showHandle && 'pt-2'
           )}
           {...props}
         >
           {showHandle && (
             <div
               data-sheet-handle="true"
-              className="flex w-full shrink-0 items-center justify-center -mt-2.5 pt-1 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
+              className="flex w-full shrink-0 items-center justify-center pt-0 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
               aria-hidden="true"
             >
               <div className="h-1.5 w-11 rounded-full bg-current opacity-20" />

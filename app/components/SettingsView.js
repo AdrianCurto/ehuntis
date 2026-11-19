@@ -1513,7 +1513,9 @@ export default function SettingsView({
       ══════════════════════════════════════════════════════════════════════ */}
       <TabsContent value="appearance">
         <div className="settings-section !gap-0">
-          <div className="settings-section-label mb-2.5">Tema de la interfaz</div>
+          <div className="flex items-center justify-between gap-3 mb-2.5 px-1">
+            <div className="settings-section-label !p-0">Tema de la interfaz</div>
+          </div>
           
           <div className="theme-cards-grid" role="radiogroup" aria-label="Seleccionar tema">
             <div
