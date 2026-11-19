@@ -264,11 +264,11 @@ export default function SwapLessonModal({
 
         {/* Opción: cambiar también las aulas */}
         {diffRooms && (
-          <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-3">
+          <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-3 flex flex-col justify-center">
             <Checkbox
               checked={swapRooms}
               onChange={setSwapRooms}
-              className="items-start w-full"
+              className="flex items-start w-full"
             >
               <div className="flex-1 text-xs">
                 <div className="font-semibold text-[var(--text-primary)] leading-normal">
@@ -284,11 +284,11 @@ export default function SwapLessonModal({
 
         {/* Opción: mantener duración original */}
         {diffDuration && (
-          <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-4">
+          <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] mb-4 flex flex-col justify-center">
             <Checkbox
               checked={keepDuration}
               onChange={setKeepDuration}
-              className="items-start w-full"
+              className="flex items-start w-full"
             >
               <div className="flex-1 text-xs">
                 <div className="font-semibold text-[var(--text-primary)]">

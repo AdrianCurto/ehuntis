@@ -533,7 +533,6 @@ export default function CustomEventModal({
                 <div className="space-y-1.5">
                   <label className="flex items-center text-[13px] font-medium text-[var(--text-primary)]">
                     <span>Etiqueta</span>
-                    <span className="ml-1 font-normal text-[var(--text-muted)]">(opcional)</span>
                   </label>
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     <button
