@@ -130,7 +130,7 @@ export default function LessonModal({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="touch-target-44 absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-current transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
+                className="touch-target-44 absolute left-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-current/15 bg-black/5 hover:bg-black/10 active:bg-black/15 dark:bg-white/10 dark:hover:bg-white/20 dark:active:bg-white/25 text-current transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 cursor-pointer"
                 aria-label="Más acciones de la clase"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
@@ -248,10 +248,10 @@ export default function LessonModal({
           </Popover>
 
           {/* Cabecera: Asignatura primero, fecha y hora como subtitulo, todo centrado */}
-          <div className="px-12 sm:px-14 -mt-1 sm:-mt-2 mb-3.5 flex flex-col items-center text-center">
+          <div className="px-12 sm:px-14 pt-1 sm:pt-0 sm:-mt-3 mb-3.5 flex flex-col items-center text-center">
             {(subgroupStr || lesson.type) && (
               <div
-                className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold mb-2 sm:mb-2.5 text-center"
+                className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold mb-3 sm:mb-3.5 text-center"
                 style={{
                   color: color.text,
                   background: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)',

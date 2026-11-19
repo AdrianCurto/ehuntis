@@ -4259,4 +4259,11 @@ html, body {
   height: 100%;
 }
 
+/* ─── Radix Popper Floating Wrapper Stabilization ──────── */
+[data-radix-popper-content-wrapper] {
+  transition: none !important;
+  animation: none !important;
+}
+
+
 

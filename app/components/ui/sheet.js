@@ -459,7 +459,7 @@ export const SheetContent = React.forwardRef(
           {showHandle && (
             <div
               data-sheet-handle="true"
-              className="flex w-full shrink-0 items-center justify-center pt-2 pb-2.5 cursor-grab active:cursor-grabbing select-none touch-none"
+              className="flex w-full shrink-0 items-center justify-center -mt-2.5 pt-1 pb-2 cursor-grab active:cursor-grabbing select-none touch-none"
               aria-hidden="true"
             >
               <div className="h-1.5 w-11 rounded-full bg-current opacity-20" />
