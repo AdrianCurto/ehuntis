@@ -45,6 +45,9 @@ next-env.d.ts
 .gradle/
 .kotlin/
 local.properties
+key.properties
+*.jks
+*.keystore
 *.apk
 *.aab
 android/build/
@@ -52,6 +55,9 @@ android/app/build/
 android/.gradle/
 android/.kotlin/
 android/local.properties
+android/key.properties
+android/*.jks
+android/*.keystore
 android/*.apk
 android/*.aab
 

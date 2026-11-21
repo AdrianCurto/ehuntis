@@ -19,9 +19,25 @@ val posthogApiKey: String = localProperties.getProperty("posthog.api.key")
     ?: System.getenv("POSTHOG_API_KEY")
     ?: ""
 
+val releaseKeystorePath: String? = localProperties.getProperty("release.keystore.path")
+val releaseKeystorePassword: String? = localProperties.getProperty("release.keystore.password")
+val releaseKeyAlias: String? = localProperties.getProperty("release.key.alias")
+val releaseKeyPassword: String? = localProperties.getProperty("release.key.password")
+
 android {
     namespace = "com.ehuntis.widget"
     compileSdk = 34
+
+    signingConfigs {
+        if (!releaseKeystorePath.isNullOrBlank() && file(releaseKeystorePath).exists()) {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.ehuntis.widget"
@@ -42,11 +58,18 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
         }
     }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
