@@ -140,14 +140,15 @@ export default function ProfileView({
 }) {
   // Which auth panel is open: null | 'register' | 'login'
   const [authPanel, setAuthPanel] = useState(initialAuthPanel);
-  const [submitting, setSubmitting] = useState(false);
-  const [actionError, setActionError] = useState(null);
-
-  useEffect(() => {
+  const [prevInitialAuthPanel, setPrevInitialAuthPanel] = useState(initialAuthPanel);
+  if (initialAuthPanel !== prevInitialAuthPanel) {
+    setPrevInitialAuthPanel(initialAuthPanel);
     if (initialAuthPanel) {
       setAuthPanel(initialAuthPanel);
     }
-  }, [initialAuthPanel]);
+  }
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   // Conflict resolution state: null or { username, cloudConfigs, cloudActiveId, cloudCustomEvents, cloudCustomCategories, localConfigs, localCustomEvents }
   const [conflictData, setConflictData] = useState(null);
