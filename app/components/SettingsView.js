@@ -605,6 +605,7 @@ export default function SettingsView({
                     className="w-52 p-1.5"
                     role="menu"
                     aria-label="Acciones de la configuración activa"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
                     onKeyDown={handleConfigMenuKeyDown}
                   >
                     <button
@@ -614,7 +615,7 @@ export default function SettingsView({
                         setConfigActionsOpen(false);
                         openRenameModal();
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                     >
                       <Edit2 size={14} className="shrink-0 text-[var(--text-secondary)]" />
                       <span>Renombrar</span>
@@ -627,7 +628,7 @@ export default function SettingsView({
                         setConfigActionsOpen(false);
                         onDuplicateConfig(activeConfig.id);
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                      className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                     >
                       <Copy size={14} className="shrink-0 text-[var(--text-secondary)]" />
                       <span>Duplicar</span>
@@ -641,7 +642,7 @@ export default function SettingsView({
                           setConfigActionsOpen(false);
                           onResetSubjectColors?.();
                         }}
-                        className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus:bg-[var(--bg-secondary)] focus:outline-none transition-colors cursor-pointer"
+                        className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] focus-visible:bg-[var(--bg-secondary)] focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                       >
                         <RotateCcw size={14} className="shrink-0 text-[var(--text-secondary)]" />
                         <span>Restablecer colores</span>
@@ -658,7 +659,7 @@ export default function SettingsView({
                             setConfigActionsOpen(false);
                             handleDeleteClick();
                           }}
-                          className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:outline-none transition-colors cursor-pointer"
+                          className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[13px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 focus-visible:bg-rose-500/10 focus:outline-none focus-visible:outline-none transition-colors cursor-pointer"
                         >
                           <Trash2 size={14} className="shrink-0" />
                           <span>Eliminar</span>
