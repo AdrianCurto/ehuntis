@@ -869,14 +869,12 @@ html, body {
   will-change: transform, opacity;
 }
 
-/* Ocultar barra de pestañas y FAB en móvil/touch EXCLUSIVAMENTE cuando el teclado virtual está desplegado */
-@media (hover: none) and (pointer: coarse) {
-  html[data-keyboard-open="true"] .tab-bar,
-  html[data-keyboard-open="true"] .fab-add-event {
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transform: translateY(calc(100% + 40px)) !important;
-  }
+/* Ocultar barra de pestañas y FAB cuando el teclado virtual está desplegado */
+[data-keyboard-open="true"] .tab-bar,
+[data-keyboard-open="true"] .fab-add-event {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(calc(100% + 40px)) !important;
 }
 
 .dark .tab-bar {

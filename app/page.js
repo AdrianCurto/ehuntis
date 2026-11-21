@@ -752,20 +752,18 @@ export default function Home() {
         baselineHeight = currentH;
       }
 
-      // Comprobación de si el teclado está físicamente desplegado
-      let isKeyboardOpen = false;
-      if ('virtualKeyboard' in navigator && typeof navigator.virtualKeyboard?.boundingRect?.height === 'number') {
-        isKeyboardOpen = navigator.virtualKeyboard.boundingRect.height > 50;
-      } else {
-        const diff = baselineHeight - currentH;
-        isKeyboardOpen = diff > 140;
-      }
+      // Comprobación de si el teclado está físicamente desplegado:
+      // La contracción de altura por teclado virtual en móvil siempre es > 140px
+      const diff = baselineHeight - currentH;
+      const isKeyboardOpen = diff > 140;
 
       if (isKeyboardOpen) {
         document.documentElement.setAttribute('data-keyboard-open', 'true');
+        document.body?.setAttribute('data-keyboard-open', 'true');
         keyboardWasOpen = true;
       } else {
         document.documentElement.removeAttribute('data-keyboard-open');
+        document.body?.removeAttribute('data-keyboard-open');
         // Si el teclado se acaba de cerrar (p. ej. botón atrás o gesto de cerrar teclado en Android):
         if (keyboardWasOpen) {
           keyboardWasOpen = false;
@@ -785,9 +783,21 @@ export default function Home() {
     }
     window.addEventListener('resize', updateKeyboardState);
 
-    if ('virtualKeyboard' in navigator && navigator.virtualKeyboard) {
-      navigator.virtualKeyboard.addEventListener('geometrychange', updateKeyboardState);
-    }
+    const handleFocusIn = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
+        setTimeout(updateKeyboardState, 150);
+        setTimeout(updateKeyboardState, 350);
+      }
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(updateKeyboardState, 100);
+      setTimeout(updateKeyboardState, 300);
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
 
     return () => {
       if (window.visualViewport) {
@@ -795,9 +805,8 @@ export default function Home() {
         window.visualViewport.removeEventListener('scroll', updateKeyboardState);
       }
       window.removeEventListener('resize', updateKeyboardState);
-      if ('virtualKeyboard' in navigator && navigator.virtualKeyboard) {
-        navigator.virtualKeyboard.removeEventListener('geometrychange', updateKeyboardState);
-      }
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
 
