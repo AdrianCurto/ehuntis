@@ -865,7 +865,40 @@ html, body {
   right: 0;
   z-index: 30;
   padding: 4px;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+  will-change: transform, opacity;
+}
+
+/* Ocultar barra de pestañas y FAB en móvil/touch cuando el teclado virtual o un input de texto está activo */
+@media (hover: none) and (pointer: coarse) {
+  body:has(
+    input[type="text"]:focus,
+    input[type="search"]:focus,
+    input[type="password"]:focus,
+    input[type="email"]:focus,
+    input[type="number"]:focus,
+    input[type="tel"]:focus,
+    input[type="url"]:focus,
+    input:not([type]):focus,
+    textarea:focus
+  ) .tab-bar,
+  html[data-keyboard-open="true"] .tab-bar,
+  body:has(
+    input[type="text"]:focus,
+    input[type="search"]:focus,
+    input[type="password"]:focus,
+    input[type="email"]:focus,
+    input[type="number"]:focus,
+    input[type="tel"]:focus,
+    input[type="url"]:focus,
+    input:not([type]):focus,
+    textarea:focus
+  ) .fab-add-event,
+  html[data-keyboard-open="true"] .fab-add-event {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(calc(100% + 40px)) !important;
+  }
 }
 
 .dark .tab-bar {
@@ -2549,7 +2582,8 @@ html, body {
   justify-content: center;
   cursor: pointer;
   z-index: 25;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background-color 0.15s ease;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, background-color 0.15s ease, opacity 0.15s ease;
+  will-change: transform, opacity;
   outline: none;
 }
 

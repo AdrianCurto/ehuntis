@@ -727,6 +727,29 @@ export default function Home() {
     };
   }, []);
 
+  // ── Detección de teclado virtual en móviles (Android / iOS) ────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleViewportChange = () => {
+      // Si la altura del visualViewport se reduce más de 140px respecto a la ventana,
+      // significa que el teclado virtual está desplegado en pantalla
+      const isKeyboardOpen = window.innerHeight - window.visualViewport.height > 140;
+      if (isKeyboardOpen) {
+        document.documentElement.setAttribute('data-keyboard-open', 'true');
+      } else {
+        document.documentElement.removeAttribute('data-keyboard-open');
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
+    return () => {
+      window.visualViewport.removeEventListener('resize', handleViewportChange);
+      window.visualViewport.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
+
   // Stale-while-revalidate on mount: load cloud configs if user is logged in
   useEffect(() => {
     if (!username) return;
