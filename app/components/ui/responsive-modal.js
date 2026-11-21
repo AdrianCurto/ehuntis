@@ -93,7 +93,7 @@ export function ResponsiveModalHeader({ className, children, ...props }) {
   const isDesktop = useIsDesktop();
   const headerClass = cn(
     'transition-shadow duration-150',
-    isScrolledTop && 'shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]',
+    isScrolledTop && 'shadow-[0_4px_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_16px_-8px_rgba(0,0,0,0.45)]',
     className
   );
 
@@ -205,7 +205,7 @@ export function ResponsiveModalFooter({ className, children, ...props }) {
   const isDesktop = useIsDesktop();
   const footerClass = cn(
     'transition-shadow duration-150',
-    isScrolledBottom && 'shadow-[0_-2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.35)]',
+    isScrolledBottom && 'shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_-8px_16px_-8px_rgba(0,0,0,0.45)]',
     className
   );
 

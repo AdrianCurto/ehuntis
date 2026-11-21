@@ -193,17 +193,20 @@ export const SheetContent = React.forwardRef(
         if (drag.closing || e.touches.length !== 1) return;
 
         const fromHandle = Boolean(e.target?.closest?.('[data-sheet-handle]'));
-        if (!fromHandle && isInsideScrollableOrNoDrag(e.target)) {
+        const scrollable = contentEl.querySelector('[data-sheet-scroll]') || contentEl;
+        const isInsideScrollable = Boolean(e.target?.closest?.('[data-sheet-scroll]'));
+        const isHeaderOrHandle = fromHandle || !isInsideScrollable;
+
+        if (!isHeaderOrHandle && isInsideScrollableOrNoDrag(e.target)) {
           drag.active = false;
           drag.dragging = false;
           drag.scrollableEl = null;
           return;
         }
 
-        const scrollable = contentEl.querySelector('[data-sheet-scroll]') || contentEl;
         const scrollTop = scrollable ? scrollable.scrollTop : 0;
 
-        if (fromHandle || scrollTop <= 0) {
+        if (isHeaderOrHandle || scrollTop <= 0) {
           if (settleTimerRef.current) {
             clearTimeout(settleTimerRef.current);
             settleTimerRef.current = null;
@@ -211,7 +214,7 @@ export const SheetContent = React.forwardRef(
           const touch = e.touches[0];
           drag.active = true;
           drag.dragging = false;
-          drag.fromHandle = fromHandle;
+          drag.fromHandle = isHeaderOrHandle;
           drag.scrollableEl = scrollable;
           drag.startX = touch.clientX;
           drag.startY = touch.clientY;
@@ -255,6 +258,9 @@ export const SheetContent = React.forwardRef(
             return;
           }
           drag.dragging = true;
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
         }
 
         // Bloquear scroll nativo del contenedor interno durante todo el resto del gesto de arrastre
