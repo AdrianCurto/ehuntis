@@ -873,8 +873,10 @@ html, body {
 [data-keyboard-open="true"] .tab-bar,
 [data-keyboard-open="true"] .fab-add-event {
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
   transform: translateY(calc(100% + 40px)) !important;
+  transition: none !important;
 }
 
 .dark .tab-bar {

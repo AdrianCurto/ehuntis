@@ -786,8 +786,28 @@ export default function Home() {
     const handleFocusIn = (e) => {
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
-        setTimeout(updateKeyboardState, 150);
-        setTimeout(updateKeyboardState, 350);
+        // En móviles o dispositivos táctiles, ocultar la barra sincrónicamente al instante (0ms)
+        // para evitar el microparpadeo mientras el teclado virtual se despliega
+        const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+          (('ontouchstart' in window) && !window.matchMedia('(hover: hover)').matches);
+
+        if (isTouch) {
+          document.documentElement.setAttribute('data-keyboard-open', 'true');
+          document.body?.setAttribute('data-keyboard-open', 'true');
+          keyboardWasOpen = true;
+
+          // Si tras 450ms no ha habido contracción física del viewport (p. ej. teclado físico bluetooth), restaurar
+          setTimeout(() => {
+            const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            if (baselineHeight - currentH < 100) {
+              document.documentElement.removeAttribute('data-keyboard-open');
+              document.body?.removeAttribute('data-keyboard-open');
+              keyboardWasOpen = false;
+            }
+          }, 450);
+        } else {
+          setTimeout(updateKeyboardState, 150);
+        }
       }
     };
 
