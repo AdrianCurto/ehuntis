@@ -43,7 +43,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
   return (
     <ResponsiveModal open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
       <ResponsiveModalContent
-        showHandle={false}
+        showHandle={true}
         className="p-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-0 h-[88dvh] max-h-[92dvh] sm:h-[78vh] sm:max-h-[600px] sm:max-w-[560px] overflow-hidden flex flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
@@ -52,9 +52,9 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
           }
         }}
       >
-        <ResponsiveModalHeader className="px-0 py-0 shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] mb-0">
-          <div className="flex items-center justify-center min-h-[52px] sm:min-h-[56px] px-5 sm:px-6 pr-14 border-b border-[var(--border-light)]">
-            <ResponsiveModalTitle className="text-base font-bold text-center">
+        <ResponsiveModalHeader className="relative z-10 px-0 py-0 shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] mb-0">
+          <div className="flex items-center justify-center min-h-[52px] sm:min-h-[56px] px-12 sm:px-14 border-b border-[var(--border-light)]">
+            <ResponsiveModalTitle className="text-base font-bold text-center text-balance">
               Seleccionar grupo o titulación
             </ResponsiveModalTitle>
           </div>
@@ -74,7 +74,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
                 ref={searchInputRef}
                 type="text"
                 className="group-search-input"
-                placeholder="Buscar titulación, grado, GII..."
+                placeholder="Buscar titulación, grado o grupo..."
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -98,7 +98,7 @@ export default function GroupSearch({ allClasses, selectedGroups, onAdd, onRemov
           </div>
         </ResponsiveModalHeader>
 
-        <ResponsiveModalBody className="p-0 group-picker-list overflow-y-auto overscroll-contain">
+        <ResponsiveModalBody className="p-0 pb-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] group-picker-list overflow-y-auto overscroll-contain">
           {query.length < 2 && (
             <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
               Escribe al menos 2 caracteres para buscar tu grupo
