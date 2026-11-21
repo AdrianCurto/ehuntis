@@ -58,6 +58,10 @@ import { Input } from './ui/input';
 import { formatRooms } from '../utils/subgroups';
 import { formatTime, hasLessonOverrideChanges } from '../utils/lessonOverrides';
 import { toDateNumber } from '../utils/dayLogic';
+import {
+  loadStoredEventsViewPrefs,
+  saveStoredEventsViewPrefs,
+} from '../utils/eventsViewPrefs';
 
 function parseDateNumber(dateNum) {
   if (!dateNum) return new Date();
@@ -149,14 +153,18 @@ export default function SettingsView({
   // Filters & State for Custom Events and Overrides Manager
   const [typeFilter, setTypeFilter] = useState('all');     // 'all' | 'cancelled' | 'swapped' | 'edited' | 'custom'
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date-asc');       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
+  const [sortBy, setSortBy] = useState(() => loadStoredEventsViewPrefs().sortBy);       // 'date-asc' | 'date-desc' | 'title-asc' | 'type'
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [configActionsOpen, setConfigActionsOpen] = useState(false);
-  const [hidePast, setHidePast] = useState(false);        // 'Ocultar pasadas' toggle
+  const [hidePast, setHidePast] = useState(() => loadStoredEventsViewPrefs().hidePast);        // 'Ocultar pasadas' toggle
   const [visibleLimit, setVisibleLimit] = useState(25);
   const sortDropdownRef = useRef(null);
   const configDropdownRef = useRef(null);
+
+  useEffect(() => {
+    saveStoredEventsViewPrefs({ sortBy, hidePast });
+  }, [sortBy, hidePast]);
 
   const handleConfigMenuKeyDown = (e) => {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
@@ -1230,7 +1238,7 @@ export default function SettingsView({
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.45 }}>
                 {searchQuery
                   ? 'Prueba a buscar con otro término o limpia los filtros activos.'
-                  : 'Cualquier evento personalizado que crees, o clase que canceles, edites o intercambies en el horario aparecerá aquí organizada cronológicamente.'}
+                  : 'Cualquier evento personalizado que crees, o clase que canceles, edites o intercambies en el horario aparecerá aquí.'}
               </div>
               <button
                 type="button"
