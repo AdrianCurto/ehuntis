@@ -257,17 +257,12 @@ fun WidgetConfigScreen(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
                         onClick = {
                             try {
-                                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
                                 batterySettingsLauncher.launch(intent)
                             } catch (e: Exception) {
-                                try {
-                                    val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
-                                    batterySettingsLauncher.launch(fallbackIntent)
-                                } catch (ignored: Exception) {
-                                    e.printStackTrace()
-                                }
+                                e.printStackTrace()
                             }
                         }
                     ) {
