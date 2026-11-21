@@ -52,7 +52,7 @@ import {
   getPrevDayContextual,
 } from './utils/dayLogic';
 import { resolveSubjectColors, swapSubjectColor, getSubjectColorStyle } from './utils/colorLogic';
-import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, X } from 'lucide-react';
+import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, X, Layers } from 'lucide-react';
 import posthog from 'posthog-js';
 import {
   getStoredCustomEvents,
@@ -73,6 +73,7 @@ import GroupSearch from './components/GroupSearch';
 import WeekHeader from './components/WeekHeader';
 import SettingsView from './components/SettingsView';
 import ProfileView from './components/ProfileView';
+import WelcomeView from './components/WelcomeView';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const LAST_TIMETABLE_CACHE_KEY = 'ehuntis_timetable_last_v3';
@@ -2239,25 +2240,53 @@ export default function Home() {
           )}
 
           {!loadingTimetable && activeGroups.length === 0 && customEvents.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
-                <CalendarSearch size={48} strokeWidth={1.5} />
+            selectedGroups.length === 0 ? (
+              <WelcomeView
+                onAddGroup={() => setShowGroupSearch(true)}
+                onLoginClick={() => setActiveTab('info')}
+                onCreateEvent={() => handleOpenNewEventModal()}
+                isDark={isDark}
+              />
+            ) : (
+              <div className="disabled-groups-state">
+                <div className="disabled-groups-card">
+                  <div style={{ color: 'var(--text-muted)', marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+                    <Layers size={38} strokeWidth={1.5} />
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                    Todos tus grupos están desactivados
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                    Tienes {selectedGroups.length} {selectedGroups.length === 1 ? 'grupo configurado' : 'grupos configurados'}, pero están apagados en Ajustes.
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+                    <button
+                      type="button"
+                      className="welcome-btn-primary"
+                      onClick={() => {
+                        updateActiveConfig(cfg => ({ ...cfg, disabledGroupIds: [] }));
+                      }}
+                    >
+                      Reactivar todos los grupos
+                    </button>
+                    <button
+                      type="button"
+                      className="welcome-btn-secondary"
+                      onClick={() => setActiveTab('ajustes')}
+                    >
+                      Gestionar en Ajustes
+                    </button>
+                    <button
+                      type="button"
+                      className="welcome-btn-ghost"
+                      onClick={() => handleOpenNewEventModal()}
+                    >
+                      + Crear evento personal
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="empty-state-title">Tu horario aquí</div>
-              <div className="empty-state-body">
-                {selectedGroups.length === 0 
-                  ? 'Ve a ajustes para añadir tus grupos y asignaturas, o usa el botón "+" para crear eventos personales.' 
-                  : 'Todos tus grupos están ocultos. Ve a ajustes para activarlos o usa el botón "+" para eventos personales.'}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
-                  Ir a Ajustes
-                </button>
-                <button className="empty-cta-btn" onClick={() => handleOpenNewEventModal()} style={{ background: 'var(--accent)', color: '#fff' }}>
-                  + Añadir evento
-                </button>
-              </div>
-            </div>
+            )
           )}
 
           {(activeGroups.length > 0 || customEvents.length > 0) && (

@@ -1788,6 +1788,308 @@ html, body {
 }
 .empty-cta-btn:active { filter: brightness(0.92); }
 
+/* ─── Welcome View (Antigravity 3D Spatial Presentation) ─── */
+.welcome-view-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px 48px;
+  text-align: center;
+  flex: 1;
+  min-height: calc(100dvh - 120px);
+  overflow: hidden;
+}
+
+.welcome-stage {
+  position: relative;
+  width: 320px;
+  height: 200px;
+  margin: 0 auto 32px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.welcome-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.16;
+  filter: blur(36px);
+  pointer-events: none;
+  z-index: 0;
+}
+.dark .welcome-glow {
+  opacity: 0.28;
+}
+
+.welcome-card {
+  position: absolute;
+  width: 215px;
+  border-radius: 14px;
+  padding: 11px 13px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.08), 0 3px 8px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(10px);
+  will-change: transform;
+  user-select: none;
+  pointer-events: none;
+}
+
+.dark .welcome-card {
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.welcome-card-1 {
+  top: 0;
+  left: 0;
+  transform: translate3d(0, 0, -10px) rotate(-4deg);
+  z-index: 1;
+}
+
+.welcome-card-2 {
+  top: 44px;
+  left: 52px;
+  transform: translate3d(0, 0, 24px) rotate(2deg);
+  z-index: 3;
+  box-shadow: 0 18px 40px -6px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.dark .welcome-card-2 {
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.welcome-card-3 {
+  top: 88px;
+  right: 0;
+  transform: translate3d(0, 0, 8px) rotate(-2deg);
+  z-index: 2;
+}
+
+.welcome-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
+.welcome-badge-blue {
+  background: rgba(59, 130, 246, 0.14);
+  color: #2563eb;
+}
+.dark .welcome-badge-blue {
+  background: rgba(59, 130, 246, 0.22);
+  color: #60a5fa;
+}
+
+.welcome-badge-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+}
+.dark .welcome-badge-emerald {
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+}
+
+.welcome-badge-purple {
+  background: rgba(139, 92, 246, 0.14);
+  color: #7c3aed;
+}
+.dark .welcome-badge-purple {
+  background: rgba(139, 92, 246, 0.22);
+  color: #a78bfa;
+}
+
+.welcome-time {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.welcome-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.welcome-card-footer {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.welcome-dot {
+  opacity: 0.6;
+}
+
+.welcome-content {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.welcome-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+@media (min-width: 640px) {
+  .welcome-title {
+    font-size: 30px;
+  }
+}
+
+.welcome-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 24px;
+  text-wrap: balance;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 320px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.welcome-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 13px 24px;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.welcome-btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.welcome-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.welcome-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.welcome-btn-secondary:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+.welcome-btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.welcome-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  margin-top: 2px;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.welcome-btn-ghost:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-stage {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ─── Grupos Desactivados (Contextual Empty State) ────────── */
+.disabled-groups-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+  flex: 1;
+}
+
+.disabled-groups-card {
+  max-width: 360px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 24px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 /* ─── Loading Spinner ────────────────────────────────────── */
 .spinner-wrap {
   display: flex;
