@@ -590,7 +590,7 @@ export default function SettingsView({
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="h-[38px] w-[38px] shrink-0"
+                      className="h-[38px] w-[38px] shrink-0 transition-colors active:scale-100"
                       aria-label="Más acciones de la configuración"
                       aria-haspopup="menu"
                       aria-expanded={configActionsOpen}
