@@ -218,6 +218,7 @@ export default function Home() {
   const isDark = resolvedTheme === 'dark';
 
   const [activeTab, setActiveTab] = useState('horarios');
+  const [profileInitialAuthPanel, setProfileInitialAuthPanel] = useState(null);
   const [allClasses, setAllClasses] = useState([]);
 
   // Configurations (profiles) state
@@ -988,6 +989,9 @@ export default function Home() {
   }, [username]);
 
   const handleTabChange = useCallback((newTab) => {
+    if (newTab !== 'info') {
+      setProfileInitialAuthPanel(null);
+    }
     setActiveTab(newTab);
     try {
       if (typeof window !== 'undefined' && posthog) {
@@ -2144,21 +2148,23 @@ export default function Home() {
       {/* Content */}
       {activeTab === 'horarios' && (
         <>
-          <WeekHeader
-            weekDates={weekDates}
-            prevWeekDates={prevWeekDates}
-            nextWeekDates={nextWeekDates}
-            selectedDay={selectedDay}
-            isDayView={isDayView}
-            onSelectDay={handleSelectDay}
-            onPrevWeek={handleNavPrev}
-            onNextWeek={handleNavNext}
-            onPrevDay={handleNavPrev}
-            onNextDay={handleNavNext}
-            onPickDate={handlePickDate}
-            minDate={academicBounds.minDate}
-            maxDate={academicBounds.maxDate}
-          />
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
+            <WeekHeader
+              weekDates={weekDates}
+              prevWeekDates={prevWeekDates}
+              nextWeekDates={nextWeekDates}
+              selectedDay={selectedDay}
+              isDayView={isDayView}
+              onSelectDay={handleSelectDay}
+              onPrevWeek={handleNavPrev}
+              onNextWeek={handleNavNext}
+              onPrevDay={handleNavPrev}
+              onNextDay={handleNavNext}
+              onPickDate={handlePickDate}
+              minDate={academicBounds.minDate}
+              maxDate={academicBounds.maxDate}
+            />
+          )}
 
           {calendarSwapOrigin && (() => {
             const originColorIdx = resolvedSubjectColors?.[calendarSwapOrigin.subjectIds?.[0]] ?? 0;
@@ -2243,9 +2249,11 @@ export default function Home() {
             selectedGroups.length === 0 ? (
               <WelcomeView
                 onAddGroup={() => setShowGroupSearch(true)}
-                onLoginClick={() => setActiveTab('info')}
+                onLoginClick={() => {
+                  setProfileInitialAuthPanel('login');
+                  setActiveTab('info');
+                }}
                 onCreateEvent={() => handleOpenNewEventModal()}
-                isDark={isDark}
               />
             ) : (
               <div className="disabled-groups-state">
@@ -2312,14 +2320,16 @@ export default function Home() {
           )}
 
           {/* Floating Action Button (FAB) para crear eventos personales */}
-          <button
-            className="fab-add-event"
-            onClick={() => handleOpenNewEventModal()}
-            aria-label="Añadir evento personal"
-            title="Añadir evento personal"
-          >
-            <Plus size={24} strokeWidth={2.5} />
-          </button>
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
+            <button
+              className="fab-add-event"
+              onClick={() => handleOpenNewEventModal()}
+              aria-label="Añadir evento personal"
+              title="Añadir evento personal"
+            >
+              <Plus size={24} strokeWidth={2.5} />
+            </button>
+          )}
         </>
       )}
 
@@ -2381,6 +2391,8 @@ export default function Home() {
           onRegister={handleRegister}
           onLogin={handleLogin}
           onLogout={handleLogout}
+          initialAuthPanel={profileInitialAuthPanel}
+          onLoginSuccess={() => setActiveTab('horarios')}
         />
       )}
 

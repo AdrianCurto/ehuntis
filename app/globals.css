@@ -1794,12 +1794,13 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px 48px;
-  text-align: center;
-  flex: 1;
-  min-height: calc(100dvh - 140px);
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
+  flex: 1;
+  padding: 24px 20px calc(var(--tab-bar-h, 72px) + 20px + 24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .welcome-badge-container {
@@ -1968,9 +1969,11 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 56px 24px;
-  text-align: center;
+  width: 100%;
   flex: 1;
+  padding: 24px 24px calc(var(--tab-bar-h, 72px) + 20px + 24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .disabled-groups-card {

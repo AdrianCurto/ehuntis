@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import posthog from 'posthog-js';
 import {
   GraduationCap,
@@ -34,6 +34,10 @@ function AuthForm({ mode, onSubmit, loading }) {
   const [value, setValue] = useState('');
   const [validationError, setValidationError] = useState(null);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const isRegister = mode === 'register';
 
@@ -131,11 +135,19 @@ export default function ProfileView({
   onRegister,
   onLogin,
   onLogout,
+  initialAuthPanel = null,
+  onLoginSuccess,
 }) {
   // Which auth panel is open: null | 'register' | 'login'
-  const [authPanel, setAuthPanel] = useState(null);
+  const [authPanel, setAuthPanel] = useState(initialAuthPanel);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState(null);
+
+  useEffect(() => {
+    if (initialAuthPanel) {
+      setAuthPanel(initialAuthPanel);
+    }
+  }, [initialAuthPanel]);
 
   // Conflict resolution state: null or { username, cloudConfigs, cloudActiveId, cloudCustomEvents, cloudCustomCategories, localConfigs, localCustomEvents }
   const [conflictData, setConflictData] = useState(null);
@@ -155,6 +167,9 @@ export default function ProfileView({
           setConflictData(res);
         } else {
           setAuthPanel(null);
+          if (onLoginSuccess) {
+            onLoginSuccess();
+          }
         }
       }
     } catch (err) {
@@ -179,6 +194,9 @@ export default function ProfileView({
       });
       setConflictData(null);
       setAuthPanel(null);
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
     } catch (err) {
       setActionError(err.message || 'Error al resolver el conflicto.');
     } finally {
