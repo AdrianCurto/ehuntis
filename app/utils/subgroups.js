@@ -114,3 +114,48 @@ export function isMagistralType(lstext) {
   ) && subNum === null;
 }
 
+/**
+ * Normalizes and formats classroom codes.
+ * Removes internal spaces in alphanumeric codes such as "P2 G3A" -> "P2G3A", "P1 I2S" -> "P1I2S", "S1 A8A" -> "S1A8A".
+ * Preserves descriptive room names such as "Aula 1.4", "Lab Física", "Despacho 2.14".
+ * 
+ * @param {string} rawRoom 
+ * @returns {string} Formatted room string
+ */
+export function formatRoom(rawRoom) {
+  if (!rawRoom || typeof rawRoom !== 'string') return '';
+  const trimmed = rawRoom.trim();
+  // Strip trailing _id suffix if present (e.g. from WebUntis internals)
+  const clean = trimmed.replace(/_\d+$/, '');
+  
+  // If it's a code with letters and numbers (like P2G3A, P2 G3A, P1 I2S, S1 A8A, P 2 G 3 A)
+  // without descriptive words like "Aula", "Lab", "Despacho", "Sala", "Seminario", "Auditorio"
+  const words = clean.split(/\s+/);
+  const hasLetters = /[A-Za-z]/.test(clean);
+  const hasDigits = /[0-9]/.test(clean);
+  const isAlphaNumOnly = /^[A-Za-z0-9\s]+$/.test(clean);
+  
+  if (hasLetters && hasDigits && isAlphaNumOnly) {
+    const isDescriptive = words.some(w => /^(aula|lab|laboratorio|despacho|sala|seminario|taller|auditorio)$/i.test(w));
+    if (!isDescriptive) {
+      return clean.replace(/\s+/g, '');
+    }
+  }
+  return clean;
+}
+
+/**
+ * Formats a list of rooms or a single room string into a clean string.
+ * 
+ * @param {string[]|string} rooms 
+ * @returns {string}
+ */
+export function formatRooms(rooms) {
+  if (!rooms) return '';
+  if (Array.isArray(rooms)) {
+    return rooms.map(formatRoom).filter(Boolean).join(', ');
+  }
+  return formatRoom(String(rooms));
+}
+
+

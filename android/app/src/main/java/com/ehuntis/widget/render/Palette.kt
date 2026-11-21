@@ -188,4 +188,12 @@ object Palette {
         // Priority 3: deterministic fallback
         return palette[Math.abs(subjectId) % paletteSize]
     }
+
+    /**
+     * Returns the BlockColor directly for a given palette colorIndex (used for custom events).
+     */
+    fun getColorByIndex(colorIndex: Int, isDark: Boolean): BlockColor {
+        val palette = resolvedPalette(isDark)
+        return palette[colorIndex.coerceIn(0, palette.size - 1)]
+    }
 }

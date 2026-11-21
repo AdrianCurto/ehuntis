@@ -396,9 +396,15 @@ fun WidgetConfigScreen(
                                                     val result = ApiClient.fetchUserData(username)
                                                     if (result.isFailure) throw result.exceptionOrNull() ?: Exception("Error al conectar")
                                                     val response = result.getOrNull()!!
+                                                    val prevUserData = cache.getUserData()
+                                                    val merged = response.copy(
+                                                        custom_events = response.custom_events ?: prevUserData?.custom_events,
+                                                        custom_categories = response.custom_categories ?: prevUserData?.custom_categories,
+                                                        lesson_overrides = response.lesson_overrides ?: prevUserData?.lesson_overrides
+                                                    )
 
                                                     cache.saveUsername(username.trim())
-                                                    cache.saveUserData(response)
+                                                    cache.saveUserData(merged)
                                                     if (response.active_config_id != null) {
                                                         cache.saveActiveConfigId(response.active_config_id)
                                                     }

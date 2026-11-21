@@ -1,8 +1,66 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
-import { useEffect } from 'react';
+import { I18nProvider } from 'react-aria-components';
+import { Toaster } from 'sonner';
+
+function subscribeToDarkClass(callback) {
+  if (typeof document === 'undefined') return () => {};
+  const observer = new MutationObserver(callback);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+  return () => observer.disconnect();
+}
+
+function getDarkSnapshot() {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.classList.contains('dark');
+}
+
+function getDarkServerSnapshot() {
+  return false;
+}
+
+function ThemeAwareToaster() {
+  const isDark = useSyncExternalStore(
+    subscribeToDarkClass,
+    getDarkSnapshot,
+    getDarkServerSnapshot
+  );
+
+  return (
+    <Toaster
+      theme={isDark ? 'dark' : 'light'}
+      position="bottom-center"
+      duration={5000}
+      visibleToasts={3}
+      swipeDirections={['bottom', 'right', 'left']}
+      offset={{
+        bottom: 'calc(var(--tab-bar-h, 72px) + 32px + env(safe-area-inset-bottom, 0px))',
+      }}
+      mobileOffset={{
+        bottom: 'calc(var(--tab-bar-h, 72px) + 32px + env(safe-area-inset-bottom, 0px))',
+        left: '12px',
+        right: '12px',
+      }}
+      containerAriaLabel="Notificaciones"
+      style={{
+        '--width': 'min(480px, calc(100vw - 24px))',
+        fontFamily: 'var(--font-body)',
+      }}
+      toastOptions={{
+        style: {
+          fontFamily: 'var(--font-body)',
+          borderRadius: 'var(--radius-xl)',
+        },
+      }}
+    />
+  );
+}
 
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   const isPwa = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -38,5 +96,12 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 }
 
 export function PostHogProvider({ children }) {
-  return <PHProvider client={posthog}>{children}</PHProvider>;
+  return (
+    <PHProvider client={posthog}>
+      <I18nProvider locale="es-ES">
+        {children}
+        <ThemeAwareToaster />
+      </I18nProvider>
+    </PHProvider>
+  );
 }

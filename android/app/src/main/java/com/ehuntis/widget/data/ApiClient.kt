@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
+    // URL de producción para la API de EHUntis
     var baseUrl: String = "https://ehuntis.vercel.app"
 
     val json = Json {

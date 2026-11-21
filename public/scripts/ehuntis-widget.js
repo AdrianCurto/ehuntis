@@ -1,7 +1,7 @@
 // ===========================================================================
 //  EHUntis Widget para iOS — Scriptable
 //  Port fiel del widget Android (Kotlin) a JavaScript/Scriptable
-//  Versión: 1.0.0
+//  Versión: 2.0.0
 // ===========================================================================
 //
 //  INSTALACIÓN:
@@ -49,6 +49,9 @@ const FILES = {
 // Tamaños de widget en puntos calculados dinámicamente según el dispositivo físico (iOS)
 // Previene el escalado / aspect-fill de iOS que distorsiona proporciones y recorta bordes.
 function getDeviceWidgetSize(family) {
+  if (family && String(family).startsWith("accessory")) {
+    return WIDGET_SIZES[family] || { w: 150, h: 44 };
+  }
   let sw = 390, sh = 844;
   try {
     if (typeof Device !== 'undefined' && typeof Device.screenSize === 'function') {
@@ -397,8 +400,20 @@ async function syncIfNeeded(settings, force = false, instanceId) {
   if (!force && elapsed < MIN_INTERVAL && hasTimetable) return;
 
   try {
-    const userData = await fetchUserData(settings.username);
+    const rawUserData = await fetchUserData(settings.username);
     const prevUserData = loadUserData(settings.username);
+    const userData = {
+      ...rawUserData,
+      custom_events: rawUserData.custom_events !== undefined && rawUserData.custom_events !== null
+        ? rawUserData.custom_events
+        : (prevUserData?.custom_events || []),
+      custom_categories: rawUserData.custom_categories !== undefined && rawUserData.custom_categories !== null
+        ? rawUserData.custom_categories
+        : (prevUserData?.custom_categories || []),
+      lesson_overrides: rawUserData.lesson_overrides !== undefined && rawUserData.lesson_overrides !== null
+        ? rawUserData.lesson_overrides
+        : (prevUserData?.lesson_overrides || {}),
+    };
     saveUserData(userData, settings.username);
     if (userData.active_config_id && !settings.configId) {
       settings.configId = null; // Mantener "seguir activo"
@@ -410,7 +425,9 @@ async function syncIfNeeded(settings, force = false, instanceId) {
     const userChanged = !prevUserData ||
       prevUserData.active_config_id !== userData.active_config_id ||
       prevUserData.updated_at !== userData.updated_at ||
-      JSON.stringify(prevUserData.configs || []) !== JSON.stringify(userData.configs || []);
+      JSON.stringify(prevUserData.configs || []) !== JSON.stringify(userData.configs || []) ||
+      JSON.stringify(prevUserData.custom_events || []) !== JSON.stringify(userData.custom_events || []) ||
+      JSON.stringify(prevUserData.lesson_overrides || {}) !== JSON.stringify(userData.lesson_overrides || {});
 
     const shouldForceTt = force || userChanged || !hasTimetable || elapsed >= 6 * 3600 * 1000;
 
@@ -421,6 +438,9 @@ async function syncIfNeeded(settings, force = false, instanceId) {
         settings.lastSync = Date.now();
         saveSettings(settings, instanceId);
       }
+    } else {
+      settings.lastSync = Date.now();
+      saveSettings(settings, instanceId);
     }
   } catch(_) {
     // Fallo silencioso — usamos caché
@@ -443,9 +463,20 @@ function getAcademicYearBounds(date) {
   return { start, end };
 }
 
-// LocalDate → YYYYMMDD Int
+// LocalDate / Date / Number → YYYYMMDD Int
 function toDateNumber(date) {
-  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+  if (typeof date === "number") return date;
+  if (!date) return 0;
+  if (typeof date.getFullYear === "function") {
+    return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+  }
+  if (typeof date === "string") {
+    const parsed = parseInt(date, 10);
+    if (!isNaN(parsed) && parsed > 10000000) return parsed;
+    const d = new Date(date);
+    if (!isNaN(d.getTime())) return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+  return 0;
 }
 
 // YYYYMMDD Int → Date
@@ -491,11 +522,11 @@ function sameDay(a, b) {
 }
 
 // Filtra lecciones para una fecha YYYYMMDD
-function getLessonsForDate(timetable, dateNum, includeDimmed = false) {
+function getLessonsForDate(timetable, dateNum, includeDimmed = false, includeCancelled = false) {
   if (!timetable || timetable.length === 0) return [];
   return timetable.filter(l =>
     l.date === dateNum &&
-    l.code !== "cancelled" &&
+    (includeCancelled || (l.code !== "cancelled" && !l.isUserCancelled)) &&
     (includeDimmed || !l.isDimmed)
   );
 }
@@ -516,12 +547,15 @@ function computeVisibleTimeRange(dayLessons, isToday = false, nowMinutes = 0) {
   let firstHour = Math.floor(minClassMins / 60);
   let lastHour  = Math.ceil(maxClassMins / 60);
 
-  // Redondear a horas en punto dentro de la franja lectiva [8, 21]
-  firstHour = Math.max(8, Math.min(20, firstHour));
-  lastHour  = Math.max(firstHour + 1, Math.min(21, lastHour));
+  // Franja estándar lectiva [8, 21]. Si existen clases que empiezan antes o terminan después, expandir dinámicamente.
+  const minAllowedHour = Math.max(0, Math.min(8, firstHour));
+  const maxAllowedHour = Math.min(24, Math.max(21, lastHour));
 
-  const startMins = firstHour * 60 - 10;
-  const endMins   = lastHour  * 60 + 15;
+  firstHour = Math.max(minAllowedHour, Math.min(maxAllowedHour - 1, firstHour));
+  lastHour  = Math.max(firstHour + 1, Math.min(maxAllowedHour, lastHour));
+
+  const startMins = Math.max(0, firstHour * 60 - 10);
+  const endMins   = Math.min(24 * 60, lastHour * 60 + 15);
   return { firstHour, lastHour, startMinutes: startMins, endMinutes: endMins, totalMinutes: endMins - startMins };
 }
 
@@ -922,16 +956,29 @@ function filterLessonsForConfig(lessons, config) {
 // (por ejemplo: Magistral + GA continuos, o bloques partidos de seminario/laboratorio)
 function mergeConsecutiveBlocks(lessons) {
   if (!lessons || lessons.length === 0) return [];
+
+  const official = [];
+  const custom = [];
+  for (const l of lessons) {
+    if (l && l.isCustomEvent) {
+      custom.push(l);
+    } else if (l) {
+      official.push(l);
+    }
+  }
+  if (official.length === 0) return custom;
+
   const cleanRoom = (r) => (r != null ? String(r) : "").replace(/_\d+$/, "").trim();
   const stableStringify = (arr) => JSON.stringify([...(arr || [])].sort());
 
   const deduplicated = [];
   const seen = new Map();
-  for (const lesson of lessons) {
+  for (const lesson of official) {
     const mergeType = getMergeType(lesson.type);
     const subKey = extractSubgroupKey(lesson.type) || "";
     const roomsClean = (lesson.rooms || []).map(cleanRoom);
-    const key = `${lesson.date}_${lesson.startTime}_${lesson.endTime}_${stableStringify(lesson.subjectIds)}_${stableStringify(roomsClean)}_${mergeType}_${subKey}`;
+    const cancelKey = (lesson.code === "cancelled" || lesson.isUserCancelled) ? "cancelled" : "active";
+    const key = `${lesson.date}_${lesson.startTime}_${lesson.endTime}_${stableStringify(lesson.subjectIds)}_${stableStringify(roomsClean)}_${mergeType}_${subKey}_${cancelKey}`;
     if (seen.has(key)) {
       const existing = seen.get(key);
       const cIds = lesson.classIds || (lesson.classId ? [lesson.classId] : []);
@@ -939,6 +986,7 @@ function mergeConsecutiveBlocks(lessons) {
         if (!existing.classIds.includes(id)) existing.classIds.push(id);
       }
       if (lesson.code) existing.code = lesson.code;
+      if (lesson.isUserCancelled) existing.isUserCancelled = true;
     } else {
       const cIds = lesson.classIds ? [...lesson.classIds] : (lesson.classId ? [lesson.classId] : []);
       const newLesson = { ...lesson, classIds: cIds, rooms: roomsClean };
@@ -954,7 +1002,8 @@ function mergeConsecutiveBlocks(lessons) {
     const typeKey = (mergeType === "MAGISTRAL_GA") ? "MAGISTRAL_GA" : (subKey || mergeType || "UNKNOWN");
     const subjKey = stableStringify(lesson.subjectIds && lesson.subjectIds.length > 0 ? lesson.subjectIds : lesson.subjects);
     const roomKey = stableStringify(lesson.rooms);
-    const groupKey = `${lesson.date}_${subjKey}_${roomKey}_${typeKey}`;
+    const cancelKey = (lesson.code === "cancelled" || lesson.isUserCancelled) ? "cancelled" : "active";
+    const groupKey = `${lesson.date}_${subjKey}_${roomKey}_${typeKey}_${cancelKey}`;
 
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
@@ -969,7 +1018,7 @@ function mergeConsecutiveBlocks(lessons) {
 
     for (let i = 1; i < groupLessons.length; i++) {
       const next = groupLessons[i];
-      if (current.endTime === next.startTime) {
+      if (current.endTime === next.startTime && !current.isUserCancelled && !next.isUserCancelled) {
         current.endTime = next.endTime;
         if (next.code) current.code = next.code;
         if ((!current.teachers || current.teachers.length === 0) && next.teachers && next.teachers.length > 0) {
@@ -989,8 +1038,256 @@ function mergeConsecutiveBlocks(lessons) {
     }
   }
 
-  merged.sort((a, b) => (a.date - b.date) || (a.startTime - b.startTime));
-  return merged;
+  const allMerged = [...merged, ...custom];
+  allMerged.sort((a, b) => (a.date - b.date) || (a.startTime - b.startTime));
+  return allMerged;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MÓDULO D2 — EVENTOS PERSONALIZADOS Y OVERRIDES
+//  Port de: customEvents.js y lessonOverrides.js
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Genera la clave compuesta determinista para identificar una clase de WebUntis en overrides.
+ * Prefiere ${date}_${lesson.id} si existe. Fallback a ${date}_${subjectId}_${start}_${type}.
+ */
+function getLessonOverrideKey(lesson) {
+  if (!lesson) return "";
+  if (lesson.lessonKey) return lesson.lessonKey;
+
+  const date = lesson.date || "";
+  if (lesson.id !== undefined && lesson.id !== null && lesson.id !== 0) {
+    return `${date}_${lesson.id}`;
+  }
+
+  const subjId = (lesson.subjectIds && lesson.subjectIds[0] !== undefined && lesson.subjectIds[0] !== null)
+    ? lesson.subjectIds[0]
+    : ((lesson.subjects && lesson.subjects[0]) || "nosubj");
+  const start = lesson.rawStartTime !== undefined ? lesson.rawStartTime : lesson.startTime;
+  const type = (lesson.type || "").trim().toLowerCase();
+  return `${date}_${subjId}_${start}_${type}`;
+}
+
+/**
+ * Normaliza una lista o string de aulas para comparación insensible a espacios,
+ * sufijos internos (_14838), tildes, mayúsculas y orden (ej. "P3 G2A" == "P3G2A").
+ */
+function normalizeOverrideRooms(rooms) {
+  if (!rooms) return [];
+  const list = Array.isArray(rooms) ? rooms : [rooms];
+  const seen = new Set();
+  const result = [];
+  for (const entry of list) {
+    if (entry === null || entry === undefined) continue;
+    const parts = String(entry).split(",");
+    for (const part of parts) {
+      const cleaned = part.trim().replace(/_\d+$/, "");
+      if (!cleaned) continue;
+      const token = cleaned
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+      if (token && !seen.has(token)) {
+        seen.add(token);
+        result.push(token);
+      }
+    }
+  }
+  result.sort();
+  return result;
+}
+
+function areOverrideRoomsEqual(roomsA, roomsB) {
+  const normA = normalizeOverrideRooms(roomsA);
+  const normB = normalizeOverrideRooms(roomsB);
+  if (normA.length !== normB.length) return false;
+  return normA.every((r, idx) => r === normB[idx]);
+}
+
+/**
+ * Aplica los overrides sobre la lista de clases oficiales de WebUntis con reconciliación 3-way:
+ * - Si WebUntis cambia un campo no modificado por el usuario (según originalSnapshot), aplica el valor oficial.
+ * - Si WebUntis converge al valor del usuario (incluyendo espacios en aulas: P3 G2A == P3G2A), desmarca ese cambio.
+ * - Si no queda ningún cambio real del usuario, devuelve la clase oficial sin marcarla como editada.
+ */
+function applyLessonOverrides(lessons = [], overrides = {}) {
+  if (!Array.isArray(lessons)) return [];
+  if (!overrides || typeof overrides !== "object" || Object.keys(overrides).length === 0) {
+    return lessons;
+  }
+
+  const overridesList = Object.values(overrides);
+
+  return lessons.map(lesson => {
+    if (!lesson || lesson.isCustomEvent) return lesson;
+
+    const key = getLessonOverrideKey(lesson);
+    let ov = overrides[key];
+    if (!ov && lesson.id !== undefined && lesson.id !== null && lesson.id !== 0) {
+      ov = overridesList.find(o => o && o.lessonId === lesson.id);
+    }
+
+    if (!ov || typeof ov !== "object") return lesson;
+
+    const officialDate = toDateNumber(lesson.date);
+    const officialStart = lesson.startTime;
+    const officialEnd = lesson.endTime;
+    const officialRooms = Array.isArray(lesson.rooms) ? lesson.rooms : [];
+    const officialCode = lesson.code || null;
+    const isOfficialCancelled = officialCode === "cancelled";
+
+    const hasSnap = Boolean(ov.originalSnapshot && typeof ov.originalSnapshot === "object");
+    const snap = hasSnap ? ov.originalSnapshot : null;
+
+    // 1. Fecha
+    const baseDate = hasSnap && snap.date != null ? toDateNumber(snap.date) : officialDate;
+    const hasCustomDate = ov.customDate !== undefined && ov.customDate !== null;
+    const customDateNum = hasCustomDate ? toDateNumber(ov.customDate) : null;
+    const userModifiedDate = hasCustomDate && customDateNum !== baseDate;
+    const effectiveDateChange = userModifiedDate && customDateNum !== officialDate;
+    const finalDate = effectiveDateChange ? customDateNum : officialDate;
+
+    // 2. Horario (atómico startTime + endTime)
+    const baseStart = hasSnap && snap.startTime != null ? snap.startTime : officialStart;
+    const baseEnd = hasSnap && snap.endTime != null ? snap.endTime : officialEnd;
+    const hasCustomStart = ov.customStartTime !== undefined && ov.customStartTime !== null;
+    const hasCustomEnd = ov.customEndTime !== undefined && ov.customEndTime !== null;
+    const userStart = hasCustomStart ? ov.customStartTime : baseStart;
+    const userEnd = hasCustomEnd ? ov.customEndTime : baseEnd;
+    const userModifiedTime =
+      (hasCustomStart && ov.customStartTime !== baseStart) ||
+      (hasCustomEnd && ov.customEndTime !== baseEnd);
+    const effectiveTimeChange = userModifiedTime && (userStart !== officialStart || userEnd !== officialEnd);
+    const finalStart = effectiveTimeChange ? userStart : officialStart;
+    const finalEnd = effectiveTimeChange ? userEnd : officialEnd;
+
+    // 3. Aulas
+    const baseRooms = hasSnap && snap.rooms != null ? (Array.isArray(snap.rooms) ? snap.rooms : [String(snap.rooms)]) : officialRooms;
+    const hasCustomRooms = ov.customRooms !== undefined && ov.customRooms !== null;
+    const customRoomsArr = hasCustomRooms
+      ? (Array.isArray(ov.customRooms) ? ov.customRooms.filter(r => r != null) : [String(ov.customRooms)])
+      : null;
+    const userModifiedRoom = hasCustomRooms && !areOverrideRoomsEqual(customRoomsArr, baseRooms);
+    const effectiveRoomsChange = userModifiedRoom && !areOverrideRoomsEqual(customRoomsArr, officialRooms);
+    const finalRooms = effectiveRoomsChange ? customRoomsArr : officialRooms;
+
+    // 4. Swap (solo sigue activo si aún difiere algún campo posicional)
+    const hasPositionalChange = effectiveDateChange || effectiveTimeChange || effectiveRoomsChange;
+    const activeSwap = (ov.swappedWith && hasPositionalChange) ? ov.swappedWith : null;
+
+    // 5. Cancelación
+    const rawUserCancelled = Boolean(ov.userCancelled);
+    const effectiveUserCancelled = rawUserCancelled && !isOfficialCancelled;
+    const wasOfficialCancelled = hasSnap ? snap.code === "cancelled" : false;
+    const pendingCancelConflict =
+      hasSnap && !wasOfficialCancelled && isOfficialCancelled && !rawUserCancelled &&
+      !ov.ignoreOfficialCancellation && (hasPositionalChange || Boolean(activeSwap));
+    const effectiveIgnoreOfficialCancel =
+      (Boolean(ov.ignoreOfficialCancellation) || pendingCancelConflict) && isOfficialCancelled;
+
+    let finalCode = officialCode;
+    if (effectiveUserCancelled) {
+      finalCode = "cancelled";
+    } else if (effectiveIgnoreOfficialCancel) {
+      finalCode = null;
+    }
+
+    // 6. Notas
+    const hasNotes = typeof ov.customNotes === "string" && ov.customNotes.trim() !== "";
+
+    const hasChanges =
+      effectiveUserCancelled ||
+      effectiveIgnoreOfficialCancel ||
+      Boolean(activeSwap) ||
+      hasNotes ||
+      hasPositionalChange;
+
+    if (!hasChanges) return lesson;
+
+    return {
+      ...lesson,
+      lessonKey: key,
+      isOverridden: true,
+      date: finalDate,
+      rawDate: officialDate,
+      rawStartTime: officialStart,
+      rawEndTime: officialEnd,
+      rawRooms: officialRooms,
+      rawCode: officialCode,
+      startTime: finalStart,
+      endTime: finalEnd,
+      rooms: finalRooms,
+      notes: hasNotes ? ov.customNotes : (lesson.notes || ""),
+      isUserCancelled: effectiveUserCancelled,
+      code: finalCode,
+      swappedWith: activeSwap,
+    };
+  });
+}
+
+/**
+ * Expande las definiciones de eventos personalizados en ocurrencias puntuales
+ * para un conjunto de fechas (targetDates).
+ */
+function expandCustomEventsForDates(customEvents = [], targetDates = []) {
+  if (!Array.isArray(customEvents) || customEvents.length === 0) return [];
+  if (!Array.isArray(targetDates) || targetDates.length === 0) return [];
+
+  const instances = [];
+
+  for (const dateObj of targetDates) {
+    if (!dateObj || isNaN(dateObj.getTime())) continue;
+
+    const dateNum = toDateNumber(dateObj);
+    const dayOfWeek = dateObj.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+
+    for (const event of customEvents) {
+      if (!event || !event.recurrence) continue;
+
+      const exceptions = Array.isArray(event.recurrence.exceptions) ? event.recurrence.exceptions : [];
+      if (exceptions.some(ex => toDateNumber(ex) === dateNum)) continue;
+
+      let matches = false;
+
+      if (event.recurrence.type === "none") {
+        matches = toDateNumber(event.recurrence.date) === dateNum;
+      } else if (event.recurrence.type === "weekly") {
+        const days = Array.isArray(event.recurrence.daysOfWeek) ? event.recurrence.daysOfWeek : [];
+        const isDayMatched = days.includes(dayOfWeek);
+        const isAfterStart = !event.recurrence.startDate || dateNum >= toDateNumber(event.recurrence.startDate);
+        const isBeforeEnd = !event.recurrence.endDate || dateNum <= toDateNumber(event.recurrence.endDate);
+        matches = isDayMatched && isAfterStart && isBeforeEnd;
+      }
+
+      if (matches) {
+        const title = (event.title || "Evento personal").trim();
+        instances.push({
+          id: `custom_${event.id}_${dateNum}`,
+          eventId: event.id,
+          isCustomEvent: true,
+          date: dateNum,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          subjects: [title],
+          subjectShortNames: [title],
+          subjectIds: [`custom_${event.id}`],
+          rooms: event.location ? [event.location] : [],
+          teachers: [],
+          notes: event.notes || "",
+          category: event.category || "",
+          colorIndex: typeof event.colorIndex === "number" ? event.colorIndex : 4,
+          type: event.category ? event.category.toUpperCase() : "PERSONAL",
+          recurrenceType: event.recurrence.type,
+          isDimmed: false,
+          rawEvent: event,
+        });
+      }
+    }
+  }
+
+  return instances;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1078,7 +1375,8 @@ function classifyPeriod(dates) {
 
 function updateSubjectColors(allLessons) {
   const subjectDates = new Map();
-  for (const l of allLessons) {
+  for (const l of (allLessons || [])) {
+    if (!l || l.isCustomEvent) continue;
     const id = l.subjectIds && l.subjectIds[0] != null ? l.subjectIds[0] : null;
     if (id == null || l.date <= 0) continue;
     if (!subjectDates.has(id)) subjectDates.set(id, new Set());
@@ -1459,7 +1757,16 @@ function computeFullBlockLayout(lesson, blockW, blockH, scale, isDayView, widget
   // Si la lección tiene la flag de supresión de badge magistral en cascada, no calcular badge
   const suppressBadge = !!(lesson._suppressMagistralBadge && isMagistral);
 
-  const badgeCandidates = suppressBadge ? [] : getBadgeCandidates(lesson.type);
+  const isCancelled = (lesson.code === "cancelled" || !!lesson.isUserCancelled);
+  let badgeCandidates = [];
+  if (isCancelled) {
+    badgeCandidates = ["CANCELADA", "CANC."];
+  } else if (lesson.isCustomEvent) {
+    const cat = (lesson.category && lesson.category.toUpperCase() !== "PERSONAL") ? lesson.category.toUpperCase() : null;
+    badgeCandidates = cat ? [cat] : [];
+  } else if (!suppressBadge) {
+    badgeCandidates = getBadgeCandidates(lesson.type);
+  }
 
   const badgeFonts = isDayView
     ? (blockH < 55 * scale ? [8.5, 8, 7.5] : [9.5, 9, 8.5, 8]).map(f => f * scale * fontScale)
@@ -1803,6 +2110,41 @@ function drawDashedRoundRect(dc, x, y, w, h, r, dashLen, gapLen, color, alpha, l
   dc.strokePath();
 }
 
+// Dibuja el borde distintivo lateral izquierdo siguiendo la curvatura del rectángulo redondeado
+// Equivalente exacto a border-left en web y al clipRect de Android
+function drawLeftBorder(dc, x, y, w, h, r, color, lineWidth) {
+  const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+  const inset = lineWidth / 2;
+  const innerW = Math.max(0, w - 2 * inset);
+  const innerH = Math.max(0, h - 2 * inset);
+  const innerRad = Math.max(0.5, rad - inset);
+  const innerX = x + inset;
+  const innerY = y + inset;
+
+  const lTop = Math.max(0, innerW - 2 * innerRad);
+  const lSide = Math.max(0, innerH - 2 * innerRad);
+  const lArc = 0.5 * Math.PI * innerRad;
+  const totalP = 2 * lTop + 2 * lSide + 4 * lArc;
+  if (totalP <= 0) return;
+
+  const startDist = totalP - 2 * lArc - lSide;
+  const endDist = totalP;
+
+  const path = new Path();
+  const ptStart = getRoundRectPoint(startDist, innerX, innerY, innerW, innerH, innerRad);
+  path.move(ptStart);
+  const step = 2.0;
+  for (let s = startDist + step; s < endDist; s += step) {
+    path.addLine(getRoundRectPoint(s, innerX, innerY, innerW, innerH, innerRad));
+  }
+  path.addLine(getRoundRectPoint(endDist, innerX, innerY, innerW, innerH, innerRad));
+
+  dc.setStrokeColor(color);
+  dc.setLineWidth(lineWidth);
+  dc.addPath(path);
+  dc.strokePath();
+}
+
 
 // Dibuja texto centrado horizontalmente en DrawContext
 function drawCenteredText(dc, text, fontSize, isBold, color, alpha, cx, topY, maxW, lineH) {
@@ -1912,9 +2254,16 @@ function drawLessonCard(dc, lesson, rect, isToday, nowMinutes, startMins, endMin
   const bH = rect.height;
   const cx = rect.x + bW / 2;
   const isPast = isToday && nowMinutes >= endMins;
+  const isCancelled = (lesson.code === "cancelled" || !!lesson.isUserCancelled);
 
-  const subjectId = lesson.subjectIds && lesson.subjectIds[0] != null ? lesson.subjectIds[0] : 0;
-  const rawColor  = getColorForSubject(subjectId, isDark, customColors);
+  let rawColor;
+  if (lesson.isCustomEvent && typeof lesson.colorIndex === "number") {
+    const pal = getResolvedPalette(isDark);
+    rawColor = pal[Math.max(0, Math.min(pal.length - 1, lesson.colorIndex))];
+  } else {
+    const subjectId = lesson.subjectIds && lesson.subjectIds[0] != null ? lesson.subjectIds[0] : 0;
+    rawColor = getColorForSubject(subjectId, isDark, customColors);
+  }
 
   let bgHex     = rawColor.bg;
   let textHex   = rawColor.text;
@@ -1928,14 +2277,25 @@ function drawLessonCard(dc, lesson, rect, isToday, nowMinutes, startMins, endMin
     bdAlpha = isDark ? 0.25 : 0.20;
   }
 
-  // Alpha del fondo: igual que Android (isDimmed: 115/255≈0.45; isPast dark: 133/255≈0.52, light: 148/255≈0.58)
-  const bgAlpha = lesson.isDimmed ? (115/255) : (isPast ? (isDark ? 133/255 : 148/255) : 1.0);
-  const contentAlpha = bgAlpha;
+  // Alpha del fondo: atenuado para clases canceladas (0.45), isDimmed (115/255) o isPast (133/148)
+  const bgAlpha = isCancelled ? 0.45 : (lesson.isDimmed ? (115/255) : (isPast ? (isDark ? 133/255 : 148/255) : 1.0));
+  const contentAlpha = isCancelled ? 0.50 : (lesson.isDimmed ? (135/255) : (isPast ? (isDark ? 133/255 : 148/255) : 1.0));
 
   // Fondo redondeado
   dc.setFillColor(new Color(bgHex, bgAlpha));
   drawRoundRect(dc, rect.x, rect.y, bW, bH, cornerRadius);
   dc.fillPath();
+
+  // Borde distintivo izquierdo para eventos propios (matching web .lesson-block.is-custom-event)
+  if (lesson.isCustomEvent) {
+    // Ancho sutil y proporcionado: 1.8 en semana (evita aplastar el texto en columnas estrechas) y 2.8 en día
+    const indW = (isDayView ? 2.8 : 1.8) * scale;
+    const indAlpha = lesson.isDimmed ? 0.35 : (isPast ? (isDark ? 0.42 : 0.10) : (isDark ? 0.72 : 0.18));
+    const indicatorColor = isDark
+      ? new Color(bdHex, indAlpha)
+      : new Color("#000000", indAlpha);
+    drawLeftBorder(dc, rect.x, rect.y, bW, bH, cornerRadius, indicatorColor, indW);
+  }
 
   // Borde
   if (lesson.isDimmed) {
@@ -2059,6 +2419,20 @@ function drawLessonCard(dc, lesson, rect, isToday, nowMinutes, startMins, endMin
     for (const line of layout.subjectLines) {
       if (lineY + layout.subjectFont > maxBottomLimit + 1 * scale) break;
       dc.drawTextInRect(line, new Rect(rect.x + padX, lineY, availW, layout.subjectLineH));
+      if (isCancelled) {
+        const lineW = measureText(line, layout.subjectFont, true);
+        const midY = lineY + layout.subjectLineH / 2;
+        const strikeW = Math.min(lineW + 2 * scale, availW);
+        const startX = cx - strikeW / 2;
+        const endX = cx + strikeW / 2;
+        dc.setStrokeColor(new Color(textHex, contentAlpha * 0.9));
+        dc.setLineWidth(1.4 * scale);
+        const path = new Path();
+        path.move(new Point(startX, midY));
+        path.addLine(new Point(endX, midY));
+        dc.addPath(path);
+        dc.strokePath();
+      }
       lineY += layout.subjectLineH;
     }
   }
@@ -2111,7 +2485,7 @@ function renderTimetable(dc, w, h, targetDate, allLessons, isDark, nowTime, scal
 
   const targetDateNum = toDateNumber(targetDate);
   const mergedLessons = mergeConsecutiveBlocks(allLessons);
-  const dayLessons = getLessonsForDate(mergedLessons, targetDateNum, true);
+  const dayLessons = getLessonsForDate(mergedLessons, targetDateNum, true, true);
 
   if (dayLessons.length === 0) {
     const breakInfo = analyzeBreakStreak(targetDate, mergedLessons);
@@ -2228,13 +2602,24 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const nowMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
   const accentColor= new Color("#4F6EF7");
 
-  const weekDates   = [0,1,2,3,4].map(i => addDays(weekStartDate, i));
+  // Días dinámicos de la semana (Lunes a Viernes, o extendido a Sábado/Domingo si hay clases)
+  const satDate = addDays(weekStartDate, 5);
+  const sunDate = addDays(weekStartDate, 6);
+  const satNum = toDateNumber(satDate);
+  const sunNum = toDateNumber(sunDate);
+
+  const hasSun = (allLessons || []).some(l => l && (l.date === sunNum || toDateNumber(l.date) === sunNum));
+  const hasSat = (allLessons || []).some(l => l && (l.date === satNum || toDateNumber(l.date) === satNum));
+
+  const numDays = hasSun ? 7 : (hasSat ? 6 : 5);
+  const dayIndices = Array.from({ length: numDays }, (_, i) => i);
+  const weekDates   = dayIndices.map(i => addDays(weekStartDate, i));
   const weekDateNums= weekDates.map(toDateNumber);
 
   const lessonsByDate = {};
   const mergedLessons = mergeConsecutiveBlocks(allLessons);
   for (const dateNum of weekDateNums) {
-    lessonsByDate[dateNum] = getLessonsForDate(mergedLessons, dateNum, true);
+    lessonsByDate[dateNum] = getLessonsForDate(mergedLessons, dateNum, true, true);
   }
   const allWeekLessons = Object.values(lessonsByDate).flat();
 
@@ -2266,8 +2651,8 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const colDivColor    = isDark ? new Color("#152033") : new Color("#F1F5F9");
 
   const totalDaysW = safeW - timeAxisW - rightMargin;
-  const colW       = totalDaysW / 5;
-  const dayNames   = ["L","M","X","J","V"];
+  const colW       = totalDaysW / numDays;
+  const dayNames   = ["L","M","X","J","V","S","D"].slice(0, numDays);
 
   // Línea horizontal bajo cabeceras
   dc.setFillColor(dividerColor);
@@ -2276,7 +2661,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   dc.fillRect(new Rect(timeAxisW - 0.5 * scale, 0, 0.5 * scale, safeH - bottomPad));
 
   // Cabeceras de días
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const date      = weekDates[i];
     const colLeft   = timeAxisW + i * colW;
     const isToday2  = sameDay(date, todayDate);
@@ -2337,7 +2722,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
   const allWeekMagistrals = [];
   let anyMagistralMissingInWeek = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const dateNum   = weekDateNums[i];
     const dayLess   = lessonsByDate[dateNum] || [];
     const dayColX0  = timeAxisW + i * colW;
@@ -2369,7 +2754,7 @@ function renderWeekTimetable(dc, w, h, weekStartDate, allLessons, isDark, nowTim
 
   const suppressedWeekKeys = anyMagistralMissingInWeek ? new Set(allWeekMagistrals) : new Set();
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < numDays; i++) {
     const date      = weekDates[i];
     const dateNum   = weekDateNums[i];
     const dayLess   = lessonsByDate[dateNum] || [];
@@ -3293,7 +3678,20 @@ async function showSettingsScreen(settings, instanceId) {
       } else if (action === "request_connect") {
         const targetUser = payload.username;
         try {
-          const uData = await fetchUserData(targetUser);
+          const rawUserData = await fetchUserData(targetUser);
+          const prevUserData = loadUserData(targetUser);
+          const uData = {
+            ...rawUserData,
+            custom_events: rawUserData.custom_events !== undefined && rawUserData.custom_events !== null
+              ? rawUserData.custom_events
+              : (prevUserData?.custom_events || []),
+            custom_categories: rawUserData.custom_categories !== undefined && rawUserData.custom_categories !== null
+              ? rawUserData.custom_categories
+              : (prevUserData?.custom_categories || []),
+            lesson_overrides: rawUserData.lesson_overrides !== undefined && rawUserData.lesson_overrides !== null
+              ? rawUserData.lesson_overrides
+              : (prevUserData?.lesson_overrides || {}),
+          };
           userData = uData;
           currentSettings.username = targetUser;
           if (freshSys) currentSettings.systemThemeCached = freshSys;
@@ -3583,21 +3981,38 @@ async function buildWidget(settings, instanceId) {
   const activeId = userData && userData.active_config_id ? userData.active_config_id : null;
   const config2  = resolveConfig(configs, settings.configId, activeId);
 
-  // Filtrar lecciones y fusionar bloques consecutivos de forma segura
+  const now        = new Date();
+  const todayDate  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowDate = addDays(todayDate, 1);
+
+  // Filtrar lecciones, aplicar overrides y expandir eventos personalizados
   let finalLessons = [];
   try {
     const filteredLessons = (!config2 || !config2.selectedGroups || config2.selectedGroups.length === 0)
       ? allLessons
       : filterLessonsForConfig(allLessons, config2);
-    finalLessons = mergeConsecutiveBlocks(filteredLessons);
+
+    const overrides = (userData && userData.lesson_overrides) ? userData.lesson_overrides : {};
+    const overriddenLessons = applyLessonOverrides(filteredLessons, overrides);
+    const mergedOfficial = mergeConsecutiveBlocks(overriddenLessons);
+
+    const customEvents = (userData && Array.isArray(userData.custom_events)) ? userData.custom_events : [];
+    const targetDatesRange = [];
+    const rangeStart = addDays(todayDate, -7);
+    for (let i = 0; i <= 35; i++) {
+      targetDatesRange.push(addDays(rangeStart, i));
+    }
+    const expandedCustom = expandCustomEventsForDates(customEvents, targetDatesRange);
+
+    finalLessons = [...mergedOfficial, ...expandedCustom].sort((a, b) => {
+      if (a.date !== b.date) return a.date - b.date;
+      return a.startTime - b.startTime;
+    });
   } catch(e) {
     console.error("Error filtering lessons: " + e);
     finalLessons = mergeConsecutiveBlocks(allLessons);
   }
 
-  const now        = new Date();
-  const todayDate  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrowDate = addDays(todayDate, 1);
   const targetDate = (typeof PREVIEW_FORCE_TODAY !== 'undefined' && PREVIEW_FORCE_TODAY)
     ? todayDate
     : getResolvedTargetDate(now, finalLessons);
@@ -3607,12 +4022,17 @@ async function buildWidget(settings, instanceId) {
   const isWeekMode = settings.viewMode === "weekly" && family !== "small";
 
   if (isWeekMode) {
-    // Semana: Lun-Vie de la semana del targetDate
+    // Semana: Lun-(Vie/Sáb/Dom) según si hay clases en fin de semana
     const dow = targetDate.getDay(); // 0=dom
     const mondayOffset = dow === 0 ? -6 : 1 - dow;
     const monday = addDays(targetDate, mondayOffset);
-    const friday = addDays(monday, 4);
-    headerText = `Semana · ${formatDateShort(monday)} - ${formatDateShort(friday)}`;
+    const satNum = toDateNumber(addDays(monday, 5));
+    const sunNum = toDateNumber(addDays(monday, 6));
+    const hasSun = (finalLessons || []).some(l => l && toDateNumber(l.date) === sunNum);
+    const hasSat = (finalLessons || []).some(l => l && toDateNumber(l.date) === satNum);
+    const endOffset = hasSun ? 6 : (hasSat ? 5 : 4);
+    const endDay = addDays(monday, endOffset);
+    headerText = `Semana · ${formatDateShort(monday)} - ${formatDateShort(endDay)}`;
     if (config2 && configs.length > 1) headerText += ` · ${config2.name}`;
   } else {
     const dayNameShort = getDayOfWeekName(targetDate).substring(0,3);

@@ -11,9 +11,12 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
+import com.ehuntis.widget.data.ApiClient
+import com.ehuntis.widget.data.CustomEventsLogic
 import com.ehuntis.widget.data.DayLogic
 import com.ehuntis.widget.data.LocalCacheManager
 import com.ehuntis.widget.data.Subgroups
+import com.ehuntis.widget.data.TimetableLesson
 import com.ehuntis.widget.receiver.WidgetRefreshReceiver
 import com.ehuntis.widget.render.TimetableRenderEngine
 import com.ehuntis.widget.render.Palette
@@ -164,6 +167,9 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             val config = cache.resolveConfigForWidget(appWidgetId)
             val allLessons = cache.getTimetable()
 
+            val customEvents = userData?.custom_events ?: emptyList()
+            val overrides = userData?.lesson_overrides ?: emptyMap()
+
             // Actualizar la paleta de colores desde el último API response (si disponible)
             Palette.updateFromApi(userData?.palette)
 
@@ -172,19 +178,29 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             
             // Si el caché está vacío (primera instalación, aún sincronizando) mostramos
             // un estado de carga y lanzamos la sincronización en segundo plano de inmediato.
-            if (allLessons.isEmpty()) {
+            if (allLessons.isEmpty() && customEvents.isEmpty()) {
                 views.setTextViewText(R.id.widget_header_title, "EHUntis · Sincronizando...")
                 appWidgetManager.updateAppWidget(appWidgetId, views)
                 com.ehuntis.widget.worker.TimetableSyncWorker.enqueueImmediateSync(context, force = true)
                 return
             }
 
-            val filteredLessons = Subgroups.filterLessonsForConfig(allLessons, config)
-            val finalLessons = if (config == null || config.selectedGroups.isEmpty()) {
+            val filteredLessons = if (config == null || config.selectedGroups.isEmpty()) {
                 allLessons
             } else {
-                filteredLessons
+                Subgroups.filterLessonsForConfig(allLessons, config)
             }
+
+            val overriddenLessons = CustomEventsLogic.applyLessonOverrides(filteredLessons, overrides)
+
+            // Expandir eventos personalizados para un rango generoso (última semana a próximas 4 semanas)
+            val today = LocalDate.now()
+            val datesToExpand = (-7L..35L).map { today.plusDays(it) }
+            val expandedCustom = CustomEventsLogic.expandCustomEventsForDates(customEvents, datesToExpand)
+
+            val finalLessons = (overriddenLessons + expandedCustom).sortedWith(
+                compareBy<TimetableLesson> { it.date }.thenBy { it.startTime }
+            )
 
             // 2. Determinar fecha objetivo mediante DayLogic
             val now = LocalDateTime.now()
@@ -302,7 +318,7 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             views.setContentDescription(R.id.widget_timetable_image, accessibilityDesc)
 
             // 7. Click en el horario -> Abrir web de EHUntis
-            val openWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ehuntis.vercel.app")).apply {
+            val openWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse(ApiClient.baseUrl)).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             val pendingWeb = PendingIntent.getActivity(

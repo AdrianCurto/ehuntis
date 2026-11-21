@@ -27,8 +27,8 @@ android {
         applicationId = "com.ehuntis.widget"
         minSdk = 26
         targetSdk = 34
-        versionCode = 57
-        versionName = "4.3.8"
+        versionCode = 58
+        versionName = "5.0.0"
 
         buildConfigField("String", "POSTHOG_API_KEY", "\"$posthogApiKey\"")
 
@@ -48,8 +48,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
@@ -58,7 +58,7 @@ android {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(17)
 }
 
 dependencies {

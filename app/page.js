@@ -2,20 +2,80 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { extractSubgroupNumber, extractSubgroupKey } from './utils/subgroups';
+import { showUndoToast } from './components/ui/undo-toast';
+import { extractSubgroupNumber, extractSubgroupKey, formatRooms } from './utils/subgroups';
 import { useTheme } from './utils/useTheme';
-import { hasLocalCustomData, areConfigsEquivalent, mergeConfigs } from './utils/syncUtils';
-import { getResolvedTargetDate, getAcademicYearBounds } from './utils/dayLogic';
-import { resolveSubjectColors, swapSubjectColor } from './utils/colorLogic';
-import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch } from 'lucide-react';
+import {
+  hasLocalCustomData,
+  areConfigsEquivalent,
+  areCustomEventsEquivalent,
+  areCustomCategoriesEquivalent,
+  areLessonOverridesEquivalent,
+  mergeConfigs,
+  mergeCustomEvents,
+  mergeCustomCategories,
+  mergeLessonOverrides,
+} from './utils/syncUtils';
+import {
+  LESSON_OVERRIDES_STORAGE_KEY,
+  getStoredLessonOverrides,
+  saveStoredLessonOverrides,
+  applyLessonOverrides,
+  setLessonOverride,
+  resolveDrift,
+  swapLessons,
+  formatTime,
+  reconcileLessonOverrides,
+  areLessonsIdentical,
+} from './utils/lessonOverrides';
+import { toast } from 'sonner';
+import {
+  captureLessonOverrideRemoval,
+  captureLessonUnswap,
+  restoreLessonOverrideEntries,
+  captureCustomEventRemoval,
+  restoreCustomEventSnapshot,
+  captureGroupRemoval,
+  restoreGroupSnapshot,
+  captureConfigRemoval,
+  restoreConfigSnapshot,
+  captureCustomColorsReset,
+  restoreCustomColorsSnapshot,
+} from './utils/undoHelpers';
+import {
+  getResolvedTargetDate,
+  getAcademicYearBounds,
+  toDateNumber,
+  getDynamicWeekDates,
+  getWeekMonday,
+  getNextDayContextual,
+  getPrevDayContextual,
+} from './utils/dayLogic';
+import { resolveSubjectColors, swapSubjectColor, getSubjectColorStyle } from './utils/colorLogic';
+import { Settings as SettingsIcon, Calendar as CalendarIcon, User as UserIcon, CalendarSearch, Plus, ArrowUpDown, X, Layers } from 'lucide-react';
 import posthog from 'posthog-js';
+import {
+  getStoredCustomEvents,
+  saveStoredCustomEvents,
+  getStoredCustomCategories,
+  saveStoredCustomCategories,
+  expandCustomEventsForDates,
+  saveCustomEventInstance,
+  suggestEventColor,
+} from './utils/customEvents';
+
+import LessonModal from './components/LessonModal';
+import EditLessonModal from './components/EditLessonModal';
+import SwapLessonModal from './components/SwapLessonModal';
+import CustomEventModal from './components/CustomEventModal';
+import CustomEventDetailModal from './components/CustomEventDetailModal';
+import GroupSearch from './components/GroupSearch';
+import WeekHeader from './components/WeekHeader';
+import SettingsView from './components/SettingsView';
+import ProfileView from './components/ProfileView';
+import WelcomeView from './components/WelcomeView';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
-const WeekHeader = dynamic(() => import('./components/WeekHeader'), { ssr: false });
-const LessonModal = dynamic(() => import('./components/LessonModal'), { ssr: false });
-const GroupSearch = dynamic(() => import('./components/GroupSearch'), { ssr: false });
-const SettingsView = dynamic(() => import('./components/SettingsView'), { ssr: false });
-const ProfileView = dynamic(() => import('./components/ProfileView'), { ssr: false });
 const LAST_TIMETABLE_CACHE_KEY = 'ehuntis_timetable_last_v3';
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -27,22 +87,6 @@ function isSameDay(a, b) {
     a.getDate() === b.getDate();
 }
 
-function getWeekMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function getWeekDates(monday) {
-  return Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
 
 function readStoredJson(key, fallback) {
   if (typeof window === 'undefined') return fallback;
@@ -174,6 +218,7 @@ export default function Home() {
   const isDark = resolvedTheme === 'dark';
 
   const [activeTab, setActiveTab] = useState('horarios');
+  const [profileInitialAuthPanel, setProfileInitialAuthPanel] = useState(null);
   const [allClasses, setAllClasses] = useState([]);
 
   // Configurations (profiles) state
@@ -214,16 +259,25 @@ export default function Home() {
   const [isDayView, setIsDayView] = useState(false);
 
   const [activeLesson, setActiveLesson] = useState(null);
+  const [editingLesson, setEditingLesson] = useState(null);
+  const [calendarSwapOrigin, setCalendarSwapOrigin] = useState(null);
+  const [calendarSwapTarget, setCalendarSwapTarget] = useState(null);
+  const [lessonOverrides, setLessonOverrides] = useState(() => {
+    if (typeof window === 'undefined') return {};
+    return getStoredLessonOverrides();
+  });
   const [showGroupSearch, setShowGroupSearch] = useState(false);
+  const [customEvents, setCustomEvents] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    return getStoredCustomEvents();
+  });
+  const [selectedCustomEvent, setSelectedCustomEvent] = useState(null);
+  const [editingCustomEvent, setEditingCustomEvent] = useState(null);
+  const [showNewEventModal, setShowNewEventModal] = useState(false);
 
-  const weekDates = useMemo(() => getWeekDates(currentMonday), [currentMonday]);
-  const { minDate: _boundsMin, maxDate: _boundsMax } = getAcademicYearBounds();
-  const canSwipePrev = !isDayView
-    ? getWeekMonday(currentMonday) > getWeekMonday(_boundsMin)
-    : (selectedDay || currentMonday) > _boundsMin;
-  const canSwipeNext = !isDayView
-    ? getWeekMonday(currentMonday) < getWeekMonday(_boundsMax)
-    : (selectedDay || currentMonday) < _boundsMax;
+  const [newEventData, setNewEventData] = useState(null);
+  const canSwipePrev = true;
+  const canSwipeNext = true;
 
 
   const groupKey = (g) => String(g.uniqueId || g.id);
@@ -317,6 +371,18 @@ export default function Home() {
     }
   }, [configs, activeConfig.id, initDone]);
 
+  useEffect(() => {
+    if (initDone && typeof window !== 'undefined') {
+      saveStoredCustomEvents(customEvents);
+    }
+  }, [customEvents, initDone]);
+
+  useEffect(() => {
+    if (initDone && typeof window !== 'undefined') {
+      saveStoredLessonOverrides(lessonOverrides);
+    }
+  }, [lessonOverrides, initDone]);
+
   const updateActiveConfig = useCallback((updater) => {
     isUserDirtyRef.current = true;
     setConfigs(prev => prev.map(c => {
@@ -327,9 +393,26 @@ export default function Home() {
     }));
   }, [activeConfig.id]);
 
+  // Refs to always access fresh state in background/network event listeners
+  const usernameRef = useRef(username);
+  const configsRef = useRef(configs);
+  const activeConfigIdRef = useRef(activeConfig.id);
+  const customEventsRef = useRef(customEvents);
+  const lessonOverridesRef = useRef(lessonOverrides);
+  const syncStatusRef = useRef(syncStatus);
+
+  useEffect(() => {
+    usernameRef.current = username;
+    configsRef.current = configs;
+    activeConfigIdRef.current = activeConfig.id;
+    customEventsRef.current = customEvents;
+    lessonOverridesRef.current = lessonOverrides;
+    syncStatusRef.current = syncStatus;
+  });
+
   // ── Cloud sync helpers ──────────────────────────────────────────────────────
-  // Push local configs to Supabase via the REST API
-  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot) => {
+  // Push local configs and custom events to Supabase via the REST API
+  const pushToCloud = useCallback(async (uname, cfgsSnapshot, activeIdSnapshot, eventsSnapshot, categoriesSnapshot, overridesSnapshot) => {
     if (!uname) return;
     try {
       setSyncStatus('syncing');
@@ -337,7 +420,13 @@ export default function Home() {
       const res = await fetch(`/api/user/${encodeURIComponent(uname)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configs: cfgsSnapshot, active_config_id: activeIdSnapshot }),
+        body: JSON.stringify({
+          configs: cfgsSnapshot,
+          active_config_id: activeIdSnapshot,
+          custom_events: eventsSnapshot !== undefined ? eventsSnapshot : customEventsRef.current,
+          custom_categories: categoriesSnapshot !== undefined ? categoriesSnapshot : getStoredCustomCategories(),
+          lesson_overrides: overridesSnapshot !== undefined ? overridesSnapshot : lessonOverridesRef.current,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -349,16 +438,6 @@ export default function Home() {
       setSyncStatus('error');
     }
   }, []);
-
-  // Refs to always access fresh state in background/network event listeners
-  const usernameRef = useRef(username);
-  usernameRef.current = username;
-  const configsRef = useRef(configs);
-  configsRef.current = configs;
-  const activeConfigIdRef = useRef(activeConfig.id);
-  activeConfigIdRef.current = activeConfig.id;
-  const syncStatusRef = useRef(syncStatus);
-  syncStatusRef.current = syncStatus;
 
   // Flag to know when an update comes from the cloud (to avoid re-pushing it back in debounce)
   const isRemoteUpdateRef = useRef(false);
@@ -406,24 +485,60 @@ export default function Home() {
       const data = await res.json();
       const cloudConfigs = data.configs;
       const cloudActiveId = data.active_config_id;
+      const cloudCustomEvents = data.custom_events;
+      const cloudCustomCategories = data.custom_categories;
+      const cloudLessonOverrides = data.lesson_overrides;
 
-      if (!Array.isArray(cloudConfigs) || cloudConfigs.length === 0) return;
+      let hasConfigChanges = false;
+      let hasEventChanges = false;
+      let hasOverrideChanges = false;
 
-      const currentConfigs = configsRef.current;
-      const currentActiveId = activeConfigIdRef.current;
+      if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
+        const currentConfigs = configsRef.current;
+        const currentActiveId = activeConfigIdRef.current;
+        const isEquivalent = areConfigsEquivalent(currentConfigs, cloudConfigs);
+        const isSameActiveId = currentActiveId === cloudActiveId;
 
-      const isEquivalent = areConfigsEquivalent(currentConfigs, cloudConfigs);
-      const isSameActiveId = currentActiveId === cloudActiveId;
-
-      if (!isEquivalent || !isSameActiveId) {
-        // Cloud has different configs from another device! Adopt them cleanly
-        isRemoteUpdateRef.current = true;
-        setConfigs(cloudConfigs);
-        if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
-          setActiveConfigId(cloudActiveId);
-        } else {
-          setActiveConfigId(cloudConfigs[0].id);
+        if (!isEquivalent || !isSameActiveId) {
+          hasConfigChanges = true;
+          isRemoteUpdateRef.current = true;
+          setConfigs(cloudConfigs);
+          if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
+            setActiveConfigId(cloudActiveId);
+          } else {
+            setActiveConfigId(cloudConfigs[0].id);
+          }
         }
+      }
+
+      if (Array.isArray(cloudCustomEvents)) {
+        const isEventsEquivalent = areCustomEventsEquivalent(customEventsRef.current, cloudCustomEvents);
+        if (!isEventsEquivalent) {
+          hasEventChanges = true;
+          isRemoteUpdateRef.current = true;
+          setCustomEvents(cloudCustomEvents);
+          saveStoredCustomEvents(cloudCustomEvents);
+        }
+      }
+
+      if (Array.isArray(cloudCustomCategories)) {
+        const isCatsEquivalent = areCustomCategoriesEquivalent(getStoredCustomCategories(), cloudCustomCategories);
+        if (!isCatsEquivalent) {
+          saveStoredCustomCategories(cloudCustomCategories);
+        }
+      }
+
+      if (cloudLessonOverrides && typeof cloudLessonOverrides === 'object') {
+        const isOverridesEquivalent = areLessonOverridesEquivalent(lessonOverridesRef.current, cloudLessonOverrides);
+        if (!isOverridesEquivalent) {
+          hasOverrideChanges = true;
+          isRemoteUpdateRef.current = true;
+          setLessonOverrides(cloudLessonOverrides);
+          saveStoredLessonOverrides(cloudLessonOverrides);
+        }
+      }
+
+      if (hasConfigChanges || hasEventChanges || hasOverrideChanges) {
         setSyncStatus('synced');
         setSyncError(null);
       }
@@ -463,7 +578,14 @@ export default function Home() {
 
     const handleOnline = () => {
       if (usernameRef.current && (syncStatusRef.current === 'error' || syncStatusRef.current === 'syncing')) {
-        pushToCloud(usernameRef.current, configsRef.current, activeConfigIdRef.current);
+        pushToCloud(
+          usernameRef.current,
+          configsRef.current,
+          activeConfigIdRef.current,
+          customEventsRef.current,
+          getStoredCustomCategories(),
+          lessonOverridesRef.current
+        );
       } else {
         pullFromCloud({ force: true });
       }
@@ -487,6 +609,17 @@ export default function Home() {
           isRemoteUpdateRef.current = true;
           setActiveConfigId(e.newValue);
         }
+      }
+      if (e.key === LESSON_OVERRIDES_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') {
+            if (!areLessonOverridesEquivalent(lessonOverridesRef.current, parsed)) {
+              isRemoteUpdateRef.current = true;
+              setLessonOverrides(parsed);
+            }
+          }
+        } catch (_) {}
       }
       if (e.key === USERNAME_STORAGE_KEY) {
         const newUname = e.newValue || '';
@@ -533,7 +666,7 @@ export default function Home() {
     syncDebounceRef.current = setTimeout(() => {
       syncDebounceRef.current = null;
       isUserDirtyRef.current = false;
-      pushToCloud(username, configs, activeConfig.id);
+      pushToCloud(username, configs, activeConfig.id, customEvents, getStoredCustomCategories(), lessonOverrides);
     }, 800);
     return () => {
       if (syncDebounceRef.current) {
@@ -542,7 +675,7 @@ export default function Home() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, activeConfig.id, username, initDone]);
+  }, [configs, activeConfig.id, customEvents, lessonOverrides, username, initDone]);
 
   // Flush-on-hide: when the user switches away from the app (iOS kills tabs aggressively),
   // cancel the debounce and immediately push via fetch with keepalive:true, which survives
@@ -555,6 +688,8 @@ export default function Home() {
       const uname = usernameRef.current;
       const cfgs = configsRef.current;
       const activeId = activeConfigIdRef.current;
+      const evts = customEventsRef.current;
+      const cats = getStoredCustomCategories();
       if (!uname || !syncDebounceRef.current) return;
 
       // Cancel the debounce — we're flushing it now
@@ -567,7 +702,13 @@ export default function Home() {
         fetch(`/api/user/${encodeURIComponent(uname)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ configs: cfgs, active_config_id: activeId }),
+          body: JSON.stringify({
+            configs: cfgs,
+            active_config_id: activeId,
+            custom_events: evts,
+            custom_categories: cats,
+            lesson_overrides: lessonOverridesRef.current,
+          }),
           keepalive: true,
         }).catch(() => {});
       } catch (_) {}
@@ -584,7 +725,109 @@ export default function Home() {
       window.removeEventListener('pagehide', flushPendingSync);
       document.removeEventListener('visibilitychange', handleVisibilityHide);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Detección de teclado virtual en móviles (Android / iOS) ────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let baselineHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    let lastWidth = window.innerWidth;
+    let keyboardWasOpen = false;
+
+    const updateKeyboardState = () => {
+      // Si el ancho cambia sustancialmente (rotación de pantalla), reiniciar baseline
+      if (Math.abs(window.innerWidth - lastWidth) > 50) {
+        lastWidth = window.innerWidth;
+        baselineHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        document.documentElement.removeAttribute('data-keyboard-open');
+        keyboardWasOpen = false;
+        return;
+      }
+
+      const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+      // Si la altura actual es mayor que la base conocida, actualizar baseline
+      if (currentH > baselineHeight) {
+        baselineHeight = currentH;
+      }
+
+      // Comprobación de si el teclado está físicamente desplegado:
+      // La contracción de altura por teclado virtual en móvil siempre es > 140px
+      const diff = baselineHeight - currentH;
+      const isKeyboardOpen = diff > 140;
+
+      if (isKeyboardOpen) {
+        document.documentElement.setAttribute('data-keyboard-open', 'true');
+        document.body?.setAttribute('data-keyboard-open', 'true');
+        keyboardWasOpen = true;
+      } else {
+        document.documentElement.removeAttribute('data-keyboard-open');
+        document.body?.removeAttribute('data-keyboard-open');
+        // Si el teclado se acaba de cerrar (p. ej. botón atrás o gesto de cerrar teclado en Android):
+        if (keyboardWasOpen) {
+          keyboardWasOpen = false;
+          // Desenfocar el campo activo para que no quede el cursor huérfano
+          // y la barra inferior sea accesible de inmediato
+          const active = document.activeElement;
+          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+            active.blur();
+          }
+        }
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateKeyboardState);
+      window.visualViewport.addEventListener('scroll', updateKeyboardState);
+    }
+    window.addEventListener('resize', updateKeyboardState);
+
+    const handleFocusIn = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
+        // En móviles o dispositivos táctiles, ocultar la barra sincrónicamente al instante (0ms)
+        // para evitar el microparpadeo mientras el teclado virtual se despliega
+        const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+          (('ontouchstart' in window) && !window.matchMedia('(hover: hover)').matches);
+
+        if (isTouch) {
+          document.documentElement.setAttribute('data-keyboard-open', 'true');
+          document.body?.setAttribute('data-keyboard-open', 'true');
+          keyboardWasOpen = true;
+
+          // Si tras 450ms no ha habido contracción física del viewport (p. ej. teclado físico bluetooth), restaurar
+          setTimeout(() => {
+            const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            if (baselineHeight - currentH < 100) {
+              document.documentElement.removeAttribute('data-keyboard-open');
+              document.body?.removeAttribute('data-keyboard-open');
+              keyboardWasOpen = false;
+            }
+          }, 450);
+        } else {
+          setTimeout(updateKeyboardState, 150);
+        }
+      }
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(updateKeyboardState, 100);
+      setTimeout(updateKeyboardState, 300);
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateKeyboardState);
+        window.visualViewport.removeEventListener('scroll', updateKeyboardState);
+      }
+      window.removeEventListener('resize', updateKeyboardState);
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+    };
   }, []);
 
   // Stale-while-revalidate on mount: load cloud configs if user is logged in
@@ -601,8 +844,16 @@ export default function Home() {
       }
     } catch (_) {}
 
-    // Initial pull from cloud
-    pullFromCloud({ force: true });
+    // Initial pull from cloud (deferred to microtask to avoid sync setState in effect)
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        pullFromCloud({ force: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   // Only run once on mount (username stable)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -624,11 +875,17 @@ export default function Home() {
       const errData = await checkRes.json().catch(() => ({}));
       throw new Error(errData.error || `Error inesperado al comprobar el identificador (HTTP ${checkRes.status}).`);
     }
-    // Create the account by pushing current configs
+    // Create the account by pushing current configs, custom events, and lesson overrides
     const putRes = await fetch(`/api/user/${encodeURIComponent(newUsername)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ configs, active_config_id: activeConfig.id }),
+      body: JSON.stringify({
+        configs,
+        active_config_id: activeConfig.id,
+        custom_events: customEvents,
+        custom_categories: getStoredCustomCategories(),
+        lesson_overrides: lessonOverridesRef.current,
+      }),
     });
     if (!putRes.ok) {
       const data = await putRes.json().catch(() => ({}));
@@ -655,7 +912,7 @@ export default function Home() {
         });
       }
     } catch (_) {}
-  }, [configs, activeConfig]);
+  }, [configs, activeConfig, customEvents]);
 
   const handleLogin = useCallback(async (newUsername, resolutionChoice = null, conflictCloudData = null) => {
     // Helper to identify in posthog and capture login event
@@ -680,39 +937,62 @@ export default function Home() {
     // 1. If resolutionChoice is passed, user resolved conflict via modal
     if (resolutionChoice && conflictCloudData) {
       if (resolutionChoice === 'cloud') {
-        // Option 1: Adopt cloud configs (overwrite local)
-        const { configs: cConfigs, active_config_id: cActiveId } = conflictCloudData;
-        setConfigs(cConfigs);
-        setActiveConfigId(cActiveId && cConfigs.some(c => c.id === cActiveId) ? cActiveId : cConfigs[0].id);
+        // Option 1: Adopt cloud configs, events, and lesson overrides (overwrite local)
+        const { configs: cConfigs, active_config_id: cActiveId, custom_events: cEvents, custom_categories: cCats, lesson_overrides: cOverrides } = conflictCloudData;
+        if (Array.isArray(cConfigs) && cConfigs.length > 0) {
+          setConfigs(cConfigs);
+          setActiveConfigId(cActiveId && cConfigs.some(c => c.id === cActiveId) ? cActiveId : cConfigs[0].id);
+        }
+        if (Array.isArray(cEvents)) {
+          setCustomEvents(cEvents);
+          saveStoredCustomEvents(cEvents);
+        }
+        if (Array.isArray(cCats)) {
+          saveStoredCustomCategories(cCats);
+        }
+        if (cOverrides && typeof cOverrides === 'object') {
+          setLessonOverrides(cOverrides);
+          saveStoredLessonOverrides(cOverrides);
+        }
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        trackPosthogLogin(cConfigs.length, true, 'cloud');
+        trackPosthogLogin(cConfigs?.length || 1, true, 'cloud');
         return { success: true };
       }
 
       if (resolutionChoice === 'local') {
-        // Option 2: Keep local configs (overwrite cloud)
+        // Option 2: Keep local configs, events, and overrides (overwrite cloud)
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, configs, activeConfig.id);
+        await pushToCloud(newUsername, configs, activeConfig.id, customEvents, getStoredCustomCategories(), lessonOverridesRef.current);
         trackPosthogLogin(configs.length, true, 'local');
         return { success: true };
       }
 
       if (resolutionChoice === 'merge') {
-        // Option 3: Merge both (combine local + cloud)
+        // Option 3: Merge both (combine local + cloud configs, events, and overrides)
         const merged = mergeConfigs(configs, conflictCloudData.configs, conflictCloudData.active_config_id);
+        const mergedEvents = mergeCustomEvents(customEvents, conflictCloudData.custom_events || []);
+        const mergedCats = mergeCustomCategories(getStoredCustomCategories(), conflictCloudData.custom_categories || []);
+        const mergedOverrides = mergeLessonOverrides(lessonOverridesRef.current, conflictCloudData.lesson_overrides || {});
+
         setConfigs(merged.configs);
         setActiveConfigId(merged.activeConfigId);
+        setCustomEvents(mergedEvents);
+        saveStoredCustomEvents(mergedEvents);
+        saveStoredCustomCategories(mergedCats);
+        setLessonOverrides(mergedOverrides);
+        saveStoredLessonOverrides(mergedOverrides);
+
         try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
         setUsername(newUsername);
         setSyncStatus('synced');
         setSyncError(null);
-        await pushToCloud(newUsername, merged.configs, merged.activeConfigId);
+        await pushToCloud(newUsername, merged.configs, merged.activeConfigId, mergedEvents, mergedCats, mergedOverrides);
         trackPosthogLogin(merged.configs.length, true, 'merge');
         return { success: true };
       }
@@ -736,23 +1016,33 @@ export default function Home() {
     const data = await checkRes.json();
     const cloudConfigs = data.configs || [];
     const cloudActiveId = data.active_config_id;
+    const cloudCustomEvents = data.custom_events || [];
+    const cloudCustomCategories = data.custom_categories || [];
+    const cloudLessonOverrides = data.lesson_overrides || {};
 
     // Check if there is a conflict:
     // Only conflict if local has actual custom data AND differs from cloud
-    const hasLocal = hasLocalCustomData(configs);
-    const isEquivalent = areConfigsEquivalent(configs, cloudConfigs);
+    const hasLocal = hasLocalCustomData(configs, customEvents, lessonOverridesRef.current);
+    const isConfigsEquivalent = areConfigsEquivalent(configs, cloudConfigs);
+    const isEventsEquivalent = areCustomEventsEquivalent(customEvents, cloudCustomEvents);
+    const isOverridesEquivalent = areLessonOverridesEquivalent(lessonOverridesRef.current, cloudLessonOverrides);
 
-    if (hasLocal && !isEquivalent) {
+    if (hasLocal && (!isConfigsEquivalent || !isEventsEquivalent || !isOverridesEquivalent)) {
       return {
         conflict: true,
         username: newUsername,
         cloudConfigs,
         cloudActiveId,
+        cloudCustomEvents,
+        cloudCustomCategories,
+        cloudLessonOverrides,
         localConfigs: configs,
+        localCustomEvents: customEvents,
+        localLessonOverrides: lessonOverridesRef.current,
       };
     }
 
-    // No conflict: adopt cloud configs directly
+    // No conflict: adopt cloud configs, events, and overrides directly
     if (Array.isArray(cloudConfigs) && cloudConfigs.length > 0) {
       setConfigs(cloudConfigs);
       if (cloudActiveId && cloudConfigs.some(c => c.id === cloudActiveId)) {
@@ -761,13 +1051,25 @@ export default function Home() {
         setActiveConfigId(cloudConfigs[0].id);
       }
     }
+    if (Array.isArray(cloudCustomEvents)) {
+      setCustomEvents(cloudCustomEvents);
+      saveStoredCustomEvents(cloudCustomEvents);
+    }
+    if (Array.isArray(cloudCustomCategories)) {
+      saveStoredCustomCategories(cloudCustomCategories);
+    }
+    if (cloudLessonOverrides && typeof cloudLessonOverrides === 'object') {
+      setLessonOverrides(cloudLessonOverrides);
+      saveStoredLessonOverrides(cloudLessonOverrides);
+    }
+
     try { localStorage.setItem(USERNAME_STORAGE_KEY, newUsername); } catch (_) {}
     setUsername(newUsername);
     setSyncStatus('synced');
     setSyncError(null);
     trackPosthogLogin(cloudConfigs.length || configs.length, false, 'direct');
     return { success: true };
-  }, [configs, activeConfig.id, pushToCloud]);
+  }, [configs, activeConfig.id, customEvents, pushToCloud]);
 
   const handleLogout = useCallback(() => {
     const previousUsername = username;
@@ -790,6 +1092,9 @@ export default function Home() {
   }, [username]);
 
   const handleTabChange = useCallback((newTab) => {
+    if (newTab !== 'info') {
+      setProfileInitialAuthPanel(null);
+    }
     setActiveTab(newTab);
     try {
       if (typeof window !== 'undefined' && posthog) {
@@ -888,20 +1193,33 @@ export default function Home() {
   }, [configs]);
 
   const handleDeleteConfig = useCallback((id) => {
+    const { snapshot, nextConfigs, nextActiveConfigId } = captureConfigRemoval(
+      configsRef.current,
+      activeConfigIdRef.current,
+      id,
+      createDefaultConfig
+    );
+    if (!snapshot) return;
+
     isUserDirtyRef.current = true;
-    setConfigs(prev => {
-      const remaining = prev.filter(c => c.id !== id);
-      if (remaining.length === 0) {
-        const fallback = createDefaultConfig();
-        setActiveConfigId(fallback.id);
-        return [fallback];
-      }
-      if (activeConfigId === id) {
-        setActiveConfigId(remaining[0].id);
-      }
-      return remaining;
+    configsRef.current = nextConfigs;
+    activeConfigIdRef.current = nextActiveConfigId;
+    setConfigs(nextConfigs);
+    setActiveConfigId(nextActiveConfigId);
+
+    showUndoToast({
+      message: `Horario "${snapshot.deletedConfig.name}" eliminado`,
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        const restored = restoreConfigSnapshot(configsRef.current, snapshot);
+        if (!restored) return;
+        configsRef.current = restored.nextConfigs;
+        activeConfigIdRef.current = restored.nextActiveConfigId;
+        setConfigs(restored.nextConfigs);
+        setActiveConfigId(restored.nextActiveConfigId);
+      },
     });
-  }, [activeConfigId]);
+  }, []);
 
   // ── Subject Custom Colors resolution & swap handler ────────────────────────
   const resolvedSubjectColors = useMemo(() => {
@@ -925,11 +1243,36 @@ export default function Home() {
   }, [semesterTimetable, updateActiveConfig]);
 
   const handleResetSubjectColors = useCallback(() => {
-    updateActiveConfig(prev => ({
-      ...prev,
-      customColors: {},
-    }));
-  }, [updateActiveConfig]);
+    const currentConfigs = configsRef.current;
+    const targetConfig =
+      currentConfigs.find(c => c.id === activeConfigIdRef.current) || currentConfigs[0];
+    if (!targetConfig) return;
+
+    const { previousColors } = captureCustomColorsReset(targetConfig);
+    if (!previousColors) return;
+
+    const targetConfigId = targetConfig.id;
+    isUserDirtyRef.current = true;
+    setConfigs(prev => {
+      const next = prev.map(c => (c.id === targetConfigId ? { ...c, customColors: {} } : c));
+      configsRef.current = next;
+      return next;
+    });
+
+    showUndoToast({
+      message: 'Colores restablecidos',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setConfigs(prev => {
+          const next = prev.map(c =>
+            c.id === targetConfigId ? restoreCustomColorsSnapshot(c, previousColors) : c
+          );
+          configsRef.current = next;
+          return next;
+        });
+      },
+    });
+  }, []);
 
   const handleResetSingleSubjectColor = useCallback((subjectId) => {
     updateActiveConfig(prev => {
@@ -953,106 +1296,112 @@ export default function Home() {
   // ── Timetable fetching ────────────────────────────────────────────────────
   useEffect(() => {
     if (!initDone) return;
-    if (activeGroups.length === 0) {
-      setSemesterTimetable([]);
-      setLoadingTimetable(false);
-      return;
-    }
 
-    const today = new Date();
-    const month = today.getMonth();
-    const year = today.getFullYear();
-    const startYear = month >= 7 ? year : year - 1;
-
-    const startDate = new Date(startYear, 8, 1); // Sept 1
-    const endDate = new Date(startYear + 1, 5, 30); // June 30
-
-    const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
-    const cacheKey = `ehuntis_timetable_cache_v3_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
-
-    const isForce = forceNextFetchRef.current;
-    forceNextFetchRef.current = false;
-
-    let hasFreshCache = false;
-
-    if (!isForce) {
-      try {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed?.data)) {
-            setSemesterTimetable(parsed.data);
-            // Stale-While-Revalidate: si la caché local tiene menos de 2 horas, se considera fresca.
-            // Si tiene más de 2 horas, mostramos parsed.data inmediatamente (0ms)
-            // y a continuación revalidamos en segundo plano con la API de Vercel.
-            if (Date.now() - parsed.timestamp < 2 * 60 * 60 * 1000) {
-              hasFreshCache = true;
-            }
-          }
-        }
-      } catch (e) {}
-    }
-
-    if (hasFreshCache) {
-      setLoadingTimetable(false);
-      return;
-    }
-
-    setLoadingTimetable(true);
     const abortController = new AbortController();
 
-    const startStr = startDate.toISOString();
-    const endStr = endDate.toISOString();
-    const forceQuery = isForce ? `&force=1&t=${Date.now()}` : '';
+    Promise.resolve().then(() => {
+      if (abortController.signal.aborted) return;
 
-    // Usar 'no-store' en el fetch del cliente para que Vercel CDN no sirva su propia caché
-    // y vaya directamente a buscar datos frescos de WebUntis.
-    // Sin esto, Vercel puede devolver datos con hasta 6h de antigüedad aunque el
-    // localStorage local tenga más de 2h y haya lanzado este fetch de revalidación.
-    fetch(`/api/timetable?classIds=${ids}&startDate=${startStr}&endDate=${endStr}${forceQuery}`, {
-      signal: abortController.signal,
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(d => { 
-        if (abortController.signal.aborted) return;
-        if (!d.error && Array.isArray(d)) {
-          // Guard: do NOT overwrite a valid cache with an empty/suspicious response.
-          // If the API returns fewer than 10 lessons for the whole year, something is wrong
-          // (e.g. new academic year IDs not yet published in WebUntis, or a transient error).
-          // In that case, keep the previous cached data and do NOT update the cache timestamp.
-          if (d.length < 10) {
-            console.warn('[EHUntis] Timetable fetch returned suspiciously few lessons (' + d.length + '). Not overwriting cache.');
-            setSemesterTimetable(prev => prev.length === 0 ? d : prev);
-            return;
+      if (activeGroups.length === 0) {
+        setSemesterTimetable([]);
+        setLoadingTimetable(false);
+        return;
+      }
+
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      const startYear = month >= 7 ? year : year - 1;
+
+      const startDate = new Date(startYear, 8, 1); // Sept 1
+      const endDate = new Date(startYear + 1, 5, 30); // June 30
+
+      const ids = activeGroups.flatMap(g => Array.isArray(g.id) ? g.id : [g.id]).sort().join(',');
+      const cacheKey = `ehuntis_timetable_cache_v3_${ids}_${startDate.getFullYear()}_${startDate.getMonth()}`;
+
+      const isForce = forceNextFetchRef.current;
+      forceNextFetchRef.current = false;
+
+      let hasFreshCache = false;
+
+      if (!isForce) {
+        try {
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed?.data)) {
+              setSemesterTimetable(parsed.data);
+              // Stale-While-Revalidate: si la caché local tiene menos de 2 horas, se considera fresca.
+              // Si tiene más de 2 horas, mostramos parsed.data inmediatamente (0ms)
+              // y a continuación revalidamos en segundo plano con la API de Vercel.
+              if (Date.now() - parsed.timestamp < 2 * 60 * 60 * 1000) {
+                hasFreshCache = true;
+              }
+            }
           }
-          setSemesterTimetable(d); 
-          try {
-            const cachePayload = {
-              timestamp: Date.now(),
-              data: d
-            };
-            localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
-            localStorage.setItem(LAST_TIMETABLE_CACHE_KEY, JSON.stringify(cachePayload));
-          } catch(e) {}
-        }
+        } catch (_) {}
+      }
+
+      if (hasFreshCache) {
+        setLoadingTimetable(false);
+        return;
+      }
+
+      setLoadingTimetable(true);
+
+      const startStr = startDate.toISOString();
+      const endStr = endDate.toISOString();
+      const forceQuery = isForce ? `&force=1&t=${Date.now()}` : '';
+
+      // Usar 'no-store' en el fetch del cliente para que Vercel CDN no sirva su propia caché
+      // y vaya directamente a buscar datos frescos de WebUntis.
+      // Sin esto, Vercel puede devolver datos con hasta 6h de antigüedad aunque el
+      // localStorage local tenga más de 2h y haya lanzado este fetch de revalidación.
+      fetch(`/api/timetable?classIds=${ids}&startDate=${startStr}&endDate=${endStr}${forceQuery}`, {
+        signal: abortController.signal,
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       })
-      .catch(err => {
-        if (err.name === 'AbortError') return;
-        console.error('Timetable fetch error:', err);
-      })
-      .finally(() => {
-        if (!abortController.signal.aborted) {
-          setLoadingTimetable(false);
-        }
-      });
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(d => {
+          if (abortController.signal.aborted) return;
+          if (!d.error && Array.isArray(d)) {
+            // Guard: do NOT overwrite a valid cache with an empty/suspicious response.
+            // If the API returns fewer than 10 lessons for the whole year, something is wrong
+            // (e.g. new academic year IDs not yet published in WebUntis, or a transient error).
+            // In that case, keep the previous cached data and do NOT update the cache timestamp.
+            if (d.length < 10) {
+              console.warn('[EHUntis] Timetable fetch returned suspiciously few lessons (' + d.length + '). Not overwriting cache.');
+              setSemesterTimetable(prev => prev.length === 0 ? d : prev);
+              return;
+            }
+            setSemesterTimetable(d);
+            try {
+              const cachePayload = {
+                timestamp: Date.now(),
+                data: d
+              };
+              localStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+              localStorage.setItem(LAST_TIMETABLE_CACHE_KEY, JSON.stringify(cachePayload));
+            } catch (_) {}
+          }
+        })
+        .catch(err => {
+          if (err.name === 'AbortError') return;
+          console.error('Timetable fetch error:', err);
+        })
+        .finally(() => {
+          if (!abortController.signal.aborted) {
+            setLoadingTimetable(false);
+          }
+        });
+    });
 
     return () => {
       abortController.abort();
@@ -1199,6 +1548,313 @@ export default function Home() {
     }).filter(Boolean);
   }, [timetable, activeGroups, disabledSubjectsByGroup, disabledSubgroupsBySubject, activeConfig.showDimmedSubgroups]);
 
+  // ── Custom Events expansion and combined timetable ───────────────────────
+  const customEventsPreviewDates = useMemo(() => {
+    // Expandir fechas en un rango de ±4 semanas alrededor del lunes activo
+    // para que el carrusel de swipe tanto en vista semanal como diaria
+    // muestre de forma instantánea la vista previa de eventos personalizados sin parpadeos.
+    const dates = [];
+    const baseMonday = getWeekMonday(currentMonday);
+    for (let offset = -28; offset <= 28; offset++) {
+      const d = new Date(baseMonday);
+      d.setDate(baseMonday.getDate() + offset);
+      dates.push(d);
+    }
+    return dates;
+  }, [currentMonday]);
+
+  const expandedCustomEvents = useMemo(() => {
+    return expandCustomEventsForDates(customEvents, customEventsPreviewDates);
+  }, [customEvents, customEventsPreviewDates]);
+
+  const timetableWithOverrides = useMemo(() => {
+    return applyLessonOverrides(filteredTimetable, lessonOverrides);
+  }, [filteredTimetable, lessonOverrides]);
+
+  // Reconciliación automática 3-way de overrides contra el horario oficial de WebUntis:
+  // elimina overrides convergentes, limpia campos no conflictivos/convergentes, avanza snapshot y migra claves
+  useEffect(() => {
+    if (!semesterTimetable || semesterTimetable.length === 0) return;
+    if (!lessonOverrides || Object.keys(lessonOverrides).length === 0) return;
+
+    const reconciled = reconcileLessonOverrides(lessonOverrides, semesterTimetable);
+    if (reconciled !== lessonOverrides) {
+      let cancelled = false;
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        isUserDirtyRef.current = true;
+        setLessonOverrides(reconciled);
+        saveStoredLessonOverrides(reconciled);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [semesterTimetable, lessonOverrides]);
+
+  const combinedTimetable = useMemo(() => {
+    return [...timetableWithOverrides, ...expandedCustomEvents];
+  }, [timetableWithOverrides, expandedCustomEvents]);
+
+  const weekDates = useMemo(() => {
+    return getDynamicWeekDates(currentMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
+  const prevWeekDates = useMemo(() => {
+    const prevMonday = new Date(currentMonday);
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    return getDynamicWeekDates(prevMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
+  const nextWeekDates = useMemo(() => {
+    const nextMonday = new Date(currentMonday);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    return getDynamicWeekDates(nextMonday, combinedTimetable);
+  }, [currentMonday, combinedTimetable]);
+
+  const handleOpenNewEventModal = useCallback((customDate = null) => {
+    let date = customDate;
+    if (!date) {
+      if (isDayView) {
+        date = selectedDay || currentMonday;
+      } else {
+        const today = new Date();
+        const currentWeekMonday = getWeekMonday(today);
+        date = isSameDay(currentMonday, currentWeekMonday) ? today : currentMonday;
+      }
+    }
+    setNewEventData({ date });
+    setShowNewEventModal(true);
+  }, [isDayView, selectedDay, currentMonday]);
+
+  const handleCellDoubleClick = useCallback((date, clampedMinutes) => {
+    const startH = Math.floor(clampedMinutes / 60);
+    const startM = clampedMinutes % 60;
+    const endMinutes = clampedMinutes + 60;
+    const endH = Math.floor(endMinutes / 60);
+    const endM = endMinutes % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    const startStr = `${pad(startH)}:${pad(startM)}`;
+    const endStr = `${pad(endH)}:${pad(endM)}`;
+    setNewEventData({
+      date,
+      startTimeStr: startStr,
+      endTimeStr: endStr,
+    });
+    setShowNewEventModal(true);
+  }, []);
+
+  const suggestedEventColor = useMemo(() => {
+    return suggestEventColor(semesterTimetable, customEvents, activeConfig.customColors || {});
+  }, [semesterTimetable, customEvents, activeConfig.customColors]);
+
+  const handleSaveCustomEvent = useCallback((eventData, mode) => {
+    isUserDirtyRef.current = true;
+    const targetDateNum = editingCustomEvent?.date || toDateNumber(selectedDay || currentMonday);
+    setCustomEvents(prev => saveCustomEventInstance(prev, eventData, targetDateNum, mode));
+    setEditingCustomEvent(null);
+    setSelectedCustomEvent(null);
+    setShowNewEventModal(false);
+    setNewEventData(null);
+  }, [editingCustomEvent, selectedDay, currentMonday]);
+
+  const handleDeleteCustomEvent = useCallback((eventId, dateNum, mode) => {
+    const { snapshot, nextEvents } = captureCustomEventRemoval(
+      customEventsRef.current,
+      eventId,
+      dateNum,
+      mode
+    );
+    if (!snapshot) return;
+
+    isUserDirtyRef.current = true;
+    customEventsRef.current = nextEvents;
+    setCustomEvents(nextEvents);
+    setEditingCustomEvent(null);
+    setSelectedCustomEvent(null);
+
+    const message =
+      mode === 'single' && snapshot.isWeekly
+        ? 'Instancia eliminada'
+        : snapshot.isWeekly
+          ? 'Serie semanal eliminada'
+          : 'Evento eliminado';
+
+    showUndoToast({
+      message,
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setCustomEvents(prev => {
+          const restored = restoreCustomEventSnapshot(prev, snapshot);
+          if (!restored) return prev;
+          customEventsRef.current = restored;
+          return restored;
+        });
+      },
+    });
+  }, []);
+
+  const handleLessonClick = useCallback((lesson) => {
+    if (calendarSwapOrigin) {
+      if (lesson?.isCustomEvent) {
+        return;
+      }
+      const isOrigin = (
+        (lesson.lessonKey && lesson.lessonKey === calendarSwapOrigin.lessonKey) ||
+        (lesson.id && calendarSwapOrigin.id && lesson.id === calendarSwapOrigin.id)
+      );
+      if (isOrigin) {
+        setCalendarSwapOrigin(null);
+        return;
+      }
+      if (areLessonsIdentical(calendarSwapOrigin, lesson)) {
+        toast.info('No se pueden intercambiar dos clases idénticas (misma asignatura, tipo, profesor y aula)');
+        return;
+      }
+      setCalendarSwapTarget(lesson);
+      return;
+    }
+
+    if (lesson?.isCustomEvent) {
+      setSelectedCustomEvent(lesson);
+    } else {
+      setActiveLesson(lesson);
+    }
+  }, [calendarSwapOrigin]);
+
+  // Derives the currently displayed lesson with its active overrides without requiring a cascading setState effect
+  const displayedActiveLesson = useMemo(() => {
+    if (!activeLesson) return null;
+    return timetableWithOverrides.find(l => 
+      (l.lessonKey && l.lessonKey === activeLesson.lessonKey) || 
+      (l.id !== undefined && activeLesson.id !== undefined && l.id === activeLesson.id)
+    ) || activeLesson;
+  }, [activeLesson, timetableWithOverrides]);
+
+  const handleToggleLessonCancelled = useCallback((lesson) => {
+    isUserDirtyRef.current = true;
+    const nextCancelled = !lesson.isUserCancelled;
+    setLessonOverrides(prev => {
+      const updated = setLessonOverride(prev, lesson, { userCancelled: nextCancelled });
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleSaveLessonOverride = useCallback((lesson, patch) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = setLessonOverride(prev, lesson, patch);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+    setEditingLesson(null);
+  }, []);
+
+  const handleRemoveLessonOverride = useCallback((lessonOrKey) => {
+    const { removedEntries, nextOverrides } = captureLessonOverrideRemoval(
+      lessonOverridesRef.current,
+      lessonOrKey
+    );
+    if (!removedEntries) return null;
+
+    isUserDirtyRef.current = true;
+    lessonOverridesRef.current = nextOverrides;
+    setLessonOverrides(nextOverrides);
+    saveStoredLessonOverrides(nextOverrides);
+
+    showUndoToast({
+      message: 'Clase restablecida al horario oficial',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, removedEntries);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
+      },
+    });
+
+    return removedEntries;
+  }, []);
+
+  const handleResetAllLessonOverrides = useCallback(() => {
+    const current = lessonOverridesRef.current;
+    if (!current || Object.keys(current).length === 0) return;
+
+    const previousOverrides = JSON.parse(JSON.stringify(current));
+    isUserDirtyRef.current = true;
+    lessonOverridesRef.current = {};
+    setLessonOverrides({});
+    saveStoredLessonOverrides({});
+
+    showUndoToast({
+      message: 'Clases restablecidas al horario oficial',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, previousOverrides);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
+      },
+    });
+  }, []);
+
+  const handleResolveLessonDrift = useCallback((lesson, action) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = resolveDrift(prev, lesson, action);
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+  }, []);
+
+  const handleSwapLessons = useCallback((lessonA, lessonB, options = {}) => {
+    isUserDirtyRef.current = true;
+    setLessonOverrides(prev => {
+      const updated = swapLessons(prev, lessonA, lessonB, options);
+      lessonOverridesRef.current = updated;
+      saveStoredLessonOverrides(updated);
+      return updated;
+    });
+    setCalendarSwapOrigin(null);
+    setCalendarSwapTarget(null);
+  }, []);
+
+  const handleUnswapLesson = useCallback((lessonOrKey) => {
+    const { previousEntries, nextOverrides } = captureLessonUnswap(
+      lessonOverridesRef.current,
+      lessonOrKey
+    );
+    if (!previousEntries) return null;
+
+    isUserDirtyRef.current = true;
+    lessonOverridesRef.current = nextOverrides;
+    setLessonOverrides(nextOverrides);
+    saveStoredLessonOverrides(nextOverrides);
+
+    showUndoToast({
+      message: 'Intercambio deshecho',
+      onUndo: () => {
+        isUserDirtyRef.current = true;
+        setLessonOverrides(prev => {
+          const restored = restoreLessonOverrideEntries(prev, previousEntries);
+          if (!restored) return prev;
+          lessonOverridesRef.current = restored;
+          saveStoredLessonOverrides(restored);
+          return restored;
+        });
+      },
+    });
+
+    return previousEntries;
+  }, []);
+
   // ── Group and Subgroup management ──────────────────────────────────────────
   const addGroup = useCallback((c) => {
     updateActiveConfig(cfg => {
@@ -1230,22 +1886,40 @@ export default function Home() {
     } catch (_) {}
   }, [updateActiveConfig]);
 
-  const removeGroup = useCallback((g) => {
+  const removeGroup = useCallback((g, options = {}) => {
+    const currentConfigs = configsRef.current;
+    const targetConfig =
+      currentConfigs.find(c => c.id === activeConfigIdRef.current) || currentConfigs[0];
+    if (!targetConfig) return;
+
     const key = groupKey(g);
-    updateActiveConfig(cfg => {
-      const nextDisabledSubjs = { ...cfg.disabledSubjectsByGroup };
-      delete nextDisabledSubjs[key];
-      const nextDisabledSubgroups = { ...cfg.disabledSubgroupsBySubject };
-      delete nextDisabledSubgroups[key];
-      return {
-        ...cfg,
-        selectedGroups: cfg.selectedGroups.filter(x => x.id !== g.id),
-        disabledGroupIds: cfg.disabledGroupIds.filter(id => id !== key),
-        disabledSubjectsByGroup: nextDisabledSubjs,
-        disabledSubgroupsBySubject: nextDisabledSubgroups,
-      };
+    const { snapshot, nextConfig } = captureGroupRemoval(targetConfig, g, key);
+    if (!snapshot) return;
+
+    const targetConfigId = targetConfig.id;
+    isUserDirtyRef.current = true;
+    setConfigs(prev => {
+      const next = prev.map(c => (c.id === targetConfigId ? nextConfig : c));
+      configsRef.current = next;
+      return next;
     });
-  }, [updateActiveConfig]);
+
+    if (options.withUndo) {
+      showUndoToast({
+        message: `Grupo ${g.name} eliminado`,
+        onUndo: () => {
+          isUserDirtyRef.current = true;
+          setConfigs(prev => {
+            const next = prev.map(c =>
+              c.id === targetConfigId ? restoreGroupSnapshot(c, snapshot) : c
+            );
+            configsRef.current = next;
+            return next;
+          });
+        },
+      });
+    }
+  }, []);
 
   const toggleGroupDisabled = useCallback((gKey) => {
     updateActiveConfig(cfg => {
@@ -1324,8 +1998,6 @@ export default function Home() {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() - 7);
-      const { minDate } = getAcademicYearBounds();
-      if (d < getWeekMonday(minDate)) return prev;
       return d;
     });
   }, []);
@@ -1334,47 +2006,29 @@ export default function Home() {
     setCurrentMonday(prev => {
       const d = new Date(prev);
       d.setDate(d.getDate() + 7);
-      const { maxDate } = getAcademicYearBounds();
-      if (d > getWeekMonday(maxDate)) return prev;
       return d;
     });
   }, []);
 
   const handlePrevDay = useCallback(() => {
-    const { minDate } = getAcademicYearBounds();
     const base = selectedDay || currentMonday;
-    const d = new Date(base);
-    d.setDate(d.getDate() - 1);
-    // Skip weekends
-    if (d.getDay() === 0) d.setDate(d.getDate() - 2);
-    else if (d.getDay() === 6) d.setDate(d.getDate() - 1);
-    // Clamp to bounds
-    if (d < minDate) return;
-
-    setSelectedDay(d);
-    if (d < currentMonday) {
-      setCurrentMonday(getWeekMonday(d));
+    const targetDate = getPrevDayContextual(base, combinedTimetable);
+    setSelectedDay(targetDate);
+    const newMonday = getWeekMonday(targetDate);
+    if (newMonday.getTime() !== currentMonday.getTime()) {
+      setCurrentMonday(newMonday);
     }
-  }, [selectedDay, currentMonday]);
+  }, [selectedDay, currentMonday, combinedTimetable]);
 
   const handleNextDay = useCallback(() => {
-    const { maxDate } = getAcademicYearBounds();
     const base = selectedDay || currentMonday;
-    const d = new Date(base);
-    d.setDate(d.getDate() + 1);
-    // Skip weekends
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
-    else if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-    // Clamp to bounds
-    if (d > maxDate) return;
-
-    const nextMonday = new Date(currentMonday);
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    setSelectedDay(d);
-    if (d >= nextMonday) {
-      setCurrentMonday(getWeekMonday(d));
+    const targetDate = getNextDayContextual(base, combinedTimetable);
+    setSelectedDay(targetDate);
+    const newMonday = getWeekMonday(targetDate);
+    if (newMonday.getTime() !== currentMonday.getTime()) {
+      setCurrentMonday(newMonday);
     }
-  }, [selectedDay, currentMonday]);
+  }, [selectedDay, currentMonday, combinedTimetable]);
 
   const calendarRef = useRef(null);
   const targetMondayRef = useRef(currentMonday);
@@ -1393,25 +2047,11 @@ export default function Home() {
   }, [isDayView, handleNextDay, handlePrevDay, goToNextWeek, goToPrevWeek]);
 
   const handleSlide = useCallback((direction) => {
-    const { minDate, maxDate } = getAcademicYearBounds();
-    const minMonday = getWeekMonday(minDate);
-    const maxMonday = getWeekMonday(maxDate);
-
     if (isDayView) {
       const base = targetDayRef.current || selectedDay || currentMonday;
-      const targetDate = new Date(base);
-      if (direction === 'next') {
-        targetDate.setDate(targetDate.getDate() + 1);
-        if (targetDate.getDay() === 6) targetDate.setDate(targetDate.getDate() + 2);
-        else if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() + 1);
-      } else {
-        targetDate.setDate(targetDate.getDate() - 1);
-        if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() - 2);
-        else if (targetDate.getDay() === 6) targetDate.setDate(targetDate.getDate() - 1);
-      }
-
-      // Clamp to bounds: don't animate out of range
-      if (targetDate < minDate || targetDate > maxDate) return;
+      const targetDate = direction === 'next'
+        ? getNextDayContextual(base, combinedTimetable)
+        : getPrevDayContextual(base, combinedTimetable);
 
       targetDayRef.current = targetDate;
 
@@ -1441,9 +2081,6 @@ export default function Home() {
         targetMonday.setDate(targetMonday.getDate() - 7);
       }
 
-      // Clamp to bounds: don't animate out of range
-      if (targetMonday < minMonday || targetMonday > maxMonday) return;
-
       targetMondayRef.current = targetMonday;
 
       // If a slide is already running, queue this transition cleanly
@@ -1454,7 +2091,7 @@ export default function Home() {
         return;
       }
 
-      const targetWeekDates = getWeekDates(targetMonday);
+      const targetWeekDates = getDynamicWeekDates(targetMonday, combinedTimetable);
       if (calendarRef.current?.triggerSlideTo) {
         calendarRef.current.triggerSlideTo(targetWeekDates, () => {
           setCurrentMonday(targetMonday);
@@ -1463,14 +2100,14 @@ export default function Home() {
         setCurrentMonday(targetMonday);
       }
     }
-  }, [isDayView, selectedDay, currentMonday]);
+  }, [isDayView, selectedDay, currentMonday, combinedTimetable]);
 
   // Drain pending queued slides sequentially as each completes and state commits
   useEffect(() => {
     if (pendingNavQueueRef.current.length > 0) {
       const nextNav = pendingNavQueueRef.current.shift();
       if (nextNav.type === 'week') {
-        const targetWeekDates = getWeekDates(nextNav.target);
+        const targetWeekDates = getDynamicWeekDates(nextNav.target, combinedTimetable);
         if (calendarRef.current?.triggerSlideTo) {
           calendarRef.current.triggerSlideTo(targetWeekDates, () => {
             setCurrentMonday(nextNav.target);
@@ -1493,7 +2130,7 @@ export default function Home() {
       targetMondayRef.current = currentMonday;
       targetDayRef.current = selectedDay || currentMonday;
     }
-  }, [currentMonday, selectedDay]);
+  }, [currentMonday, selectedDay, combinedTimetable]);
 
   const handleNavClick = useCallback((direction) => {
     handleSlide(direction);
@@ -1508,6 +2145,11 @@ export default function Home() {
       }
 
       if (e.key === 'Escape') {
+        if (calendarSwapOrigin) {
+          setCalendarSwapOrigin(null);
+          setCalendarSwapTarget(null);
+          return;
+        }
         if (activeLesson) {
           setActiveLesson(null);
           return;
@@ -1533,9 +2175,9 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, activeLesson, showGroupSearch, handleNavClick]);
+  }, [activeTab, activeLesson, showGroupSearch, calendarSwapOrigin, handleNavClick]);
 
-  const handleSelectDay = (date) => {
+  const handleSelectDay = useCallback((date) => {
     pendingNavQueueRef.current = [];
     targetDayRef.current = date;
     targetMondayRef.current = getWeekMonday(date);
@@ -1553,25 +2195,17 @@ export default function Home() {
       setSelectedDay(date);
       setIsDayView(true);
     }
-  };
+  }, [isDayView, selectedDay]);
 
-  const handlePickDate = (pickedDate) => {
+  const handlePickDate = useCallback((pickedDate) => {
     pendingNavQueueRef.current = [];
-    const { minDate, maxDate } = getAcademicYearBounds();
     const date = new Date(pickedDate);
     date.setHours(0, 0, 0, 0);
-
-    if (date < minDate) date.setTime(minDate.getTime());
-    if (date > maxDate) date.setTime(maxDate.getTime());
-
-    // Sábado o domingo: saltar al viernes de esa misma semana (en vez de ignorar el clic)
-    if (date.getDay() === 6) date.setDate(date.getDate() - 1);
-    else if (date.getDay() === 0) date.setDate(date.getDate() - 2);
 
     targetMondayRef.current = getWeekMonday(date);
     targetDayRef.current = date;
 
-    const targetDates = isDayView ? [date] : getWeekDates(getWeekMonday(date));
+    const targetDates = isDayView ? [date] : getDynamicWeekDates(getWeekMonday(date), combinedTimetable);
 
     if (calendarRef.current?.triggerSlideTo) {
       calendarRef.current.triggerSlideTo(targetDates, () => {
@@ -1590,7 +2224,18 @@ export default function Home() {
         setCurrentMonday(getWeekMonday(date));
       }
     }
-  };
+  }, [isDayView, combinedTimetable]);
+
+  const displayedWeekDates = useMemo(
+    () => (isDayView && selectedDay ? [selectedDay] : weekDates),
+    [isDayView, selectedDay, weekDates]
+  );
+
+  const academicBounds = useMemo(() => getAcademicYearBounds(), []);
+  const handleNavPrev = useCallback(() => handleNavClick('prev'), [handleNavClick]);
+  const handleNavNext = useCallback(() => handleNavClick('next'), [handleNavClick]);
+  const handleSwipeLeft = useCallback(() => handleSwipeCommit('next'), [handleSwipeCommit]);
+  const handleSwipeRight = useCallback(() => handleSwipeCommit('prev'), [handleSwipeCommit]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!initDone) {
@@ -1606,19 +2251,95 @@ export default function Home() {
       {/* Content */}
       {activeTab === 'horarios' && (
         <>
-          <WeekHeader
-            weekDates={weekDates}
-            selectedDay={selectedDay}
-            isDayView={isDayView}
-            onSelectDay={handleSelectDay}
-            onPrevWeek={() => handleNavClick('prev')}
-            onNextWeek={() => handleNavClick('next')}
-            onPrevDay={() => handleNavClick('prev')}
-            onNextDay={() => handleNavClick('next')}
-            onPickDate={handlePickDate}
-            minDate={getAcademicYearBounds().minDate}
-            maxDate={getAcademicYearBounds().maxDate}
-          />
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
+            <WeekHeader
+              weekDates={weekDates}
+              prevWeekDates={prevWeekDates}
+              nextWeekDates={nextWeekDates}
+              selectedDay={selectedDay}
+              isDayView={isDayView}
+              onSelectDay={handleSelectDay}
+              onPrevWeek={handleNavPrev}
+              onNextWeek={handleNavNext}
+              onPrevDay={handleNavPrev}
+              onNextDay={handleNavNext}
+              onPickDate={handlePickDate}
+              minDate={academicBounds.minDate}
+              maxDate={academicBounds.maxDate}
+            />
+          )}
+
+          {calendarSwapOrigin && (() => {
+            const originColorIdx = resolvedSubjectColors?.[calendarSwapOrigin.subjectIds?.[0]] ?? 0;
+            const originColor = getSubjectColorStyle(originColorIdx, isDark);
+            const originDateObj = (() => {
+              if (!calendarSwapOrigin.date) return null;
+              const y = Math.floor(calendarSwapOrigin.date / 10000);
+              const m = Math.floor((calendarSwapOrigin.date % 10000) / 100) - 1;
+              const d = calendarSwapOrigin.date % 100;
+              return new Date(y, m, d);
+            })();
+            const dayName = originDateObj ? ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][originDateObj.getDay()] : '';
+
+            return (
+              <div className="swap-banner-wrap" aria-live="polite">
+                <div className="swap-banner">
+                  <div className="swap-banner-header">
+                    <div className="swap-banner-badge">
+                      <ArrowUpDown size={12} />
+                      <span>Modo intercambio</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="swap-banner-btn cancel-btn"
+                      onClick={() => {
+                        setCalendarSwapOrigin(null);
+                        setCalendarSwapTarget(null);
+                      }}
+                      title="Cancelar intercambio"
+                    >
+                      <X size={13} />
+                      <span>Cancelar</span>
+                    </button>
+                  </div>
+
+                  <div className="swap-banner-text">
+                    Pulsa en una clase del horario para intercambiar con:
+                  </div>
+
+                  <div className="swap-banner-origin-card">
+                    <span
+                      className="swap-banner-dot"
+                      style={{
+                        background: originColor.bg,
+                        border: `1.5px solid ${originColor.border || 'currentColor'}`,
+                      }}
+                    />
+                    <div className="swap-banner-origin-content">
+                      <div className="swap-banner-origin-title">
+                        {calendarSwapOrigin.subjects?.[0] || 'Clase'}
+                      </div>
+                      <div className="swap-banner-origin-meta">
+                        {calendarSwapOrigin.type && (
+                          <span className="swap-banner-type-tag">
+                            {calendarSwapOrigin.type}
+                          </span>
+                        )}
+                        <span className="swap-banner-time-tag">
+                          {dayName ? `${dayName} ` : ''}{formatTime(calendarSwapOrigin.startTime)}–{formatTime(calendarSwapOrigin.endTime)}
+                        </span>
+                        {calendarSwapOrigin.rooms && calendarSwapOrigin.rooms.length > 0 && (
+                          <span className="swap-banner-room-tag">
+                            · {formatRooms(calendarSwapOrigin.rooms)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {loadingTimetable && activeGroups.length > 0 && (
             <div className="updating-pill" aria-live="polite">
@@ -1627,39 +2348,90 @@ export default function Home() {
             </div>
           )}
 
-          {!loadingTimetable && activeGroups.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
-                <CalendarSearch size={48} strokeWidth={1.5} />
+          {!loadingTimetable && activeGroups.length === 0 && customEvents.length === 0 && (
+            selectedGroups.length === 0 ? (
+              <WelcomeView
+                onAddGroup={() => setShowGroupSearch(true)}
+                onLoginClick={() => {
+                  setProfileInitialAuthPanel('login');
+                  setActiveTab('info');
+                }}
+                onCreateEvent={() => handleOpenNewEventModal()}
+              />
+            ) : (
+              <div className="disabled-groups-state">
+                <div className="disabled-groups-card">
+                  <div style={{ color: 'var(--text-muted)', marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+                    <Layers size={38} strokeWidth={1.5} />
+                  </div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                    Todos tus grupos están desactivados
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+                    Tienes {selectedGroups.length} {selectedGroups.length === 1 ? 'grupo configurado' : 'grupos configurados'}, pero están apagados en Ajustes.
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%' }}>
+                    <button
+                      type="button"
+                      className="welcome-btn-primary"
+                      onClick={() => {
+                        updateActiveConfig(cfg => ({ ...cfg, disabledGroupIds: [] }));
+                      }}
+                    >
+                      Reactivar todos los grupos
+                    </button>
+                    <button
+                      type="button"
+                      className="welcome-btn-secondary"
+                      onClick={() => setActiveTab('ajustes')}
+                    >
+                      Gestionar en Ajustes
+                    </button>
+                    <button
+                      type="button"
+                      className="welcome-btn-ghost"
+                      onClick={() => handleOpenNewEventModal()}
+                    >
+                      + Crear evento personal
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="empty-state-title">Tu horario aquí</div>
-              <div className="empty-state-body">
-                {selectedGroups.length === 0 
-                  ? 'Ve a ajustes para añadir tus grupos y asignaturas.' 
-                  : 'Todos tus grupos están ocultos. Ve a ajustes para activarlos.'}
-              </div>
-              <button className="empty-cta-btn" onClick={() => setActiveTab('ajustes')}>
-                Ir a Ajustes
-              </button>
-            </div>
+            )
           )}
 
-          {activeGroups.length > 0 && (
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
             <WeekCalendar
               ref={calendarRef}
-              lessons={filteredTimetable}
+              lessons={combinedTimetable}
               customColors={activeConfig.customColors}
-              onLessonClick={setActiveLesson}
-              weekDates={isDayView && selectedDay ? [selectedDay] : weekDates}
+              onLessonClick={handleLessonClick}
+              weekDates={displayedWeekDates}
               isDayView={isDayView}
               selectedDay={selectedDay}
               fullWeekDates={weekDates}
+              prevWeekDates={prevWeekDates}
+              nextWeekDates={nextWeekDates}
               isDark={isDark}
               canSwipeNext={canSwipeNext}
               canSwipePrev={canSwipePrev}
-              onSwipeLeft={() => handleSwipeCommit('next')}
-              onSwipeRight={() => handleSwipeCommit('prev')}
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
+              onCellDoubleClick={handleCellDoubleClick}
+              swapOriginLesson={calendarSwapOrigin}
             />
+          )}
+
+          {/* Floating Action Button (FAB) para crear eventos personales */}
+          {(activeGroups.length > 0 || customEvents.length > 0) && (
+            <button
+              className="fab-add-event"
+              onClick={() => handleOpenNewEventModal()}
+              aria-label="Añadir evento personal"
+              title="Añadir evento personal"
+            >
+              <Plus size={24} strokeWidth={2.5} />
+            </button>
           )}
         </>
       )}
@@ -1687,7 +2459,7 @@ export default function Home() {
           onToggleGroupDisabled={toggleGroupDisabled}
           onToggleSubjectForGroup={toggleSubjectForGroup}
           onToggleSubgroupForSubject={toggleSubgroupForSubject}
-          onRemoveGroup={removeGroup}
+          onRemoveGroup={(g) => removeGroup(g, { withUndo: true })}
           onAddGroup={() => setShowGroupSearch(true)}
 
           customColors={activeConfig.customColors || {}}
@@ -1696,6 +2468,21 @@ export default function Home() {
           onResetSingleSubjectColor={handleResetSingleSubjectColor}
           onResetSubjectColors={handleResetSubjectColors}
           isDark={isDark}
+
+          customEvents={customEvents}
+          onCreateCustomEvent={() => {
+            setEditingCustomEvent(null);
+            setNewEventData(null);
+            setShowNewEventModal(true);
+          }}
+          onEditCustomEvent={(evt) => {
+            setEditingCustomEvent(evt);
+          }}
+          onDeleteCustomEvent={handleDeleteCustomEvent}
+          lessonOverrides={lessonOverrides}
+          timetable={combinedTimetable}
+          onResetLessonOverride={handleRemoveLessonOverride}
+          onResetAllLessonOverrides={handleResetAllLessonOverrides}
         />
       )}
 
@@ -1707,6 +2494,8 @@ export default function Home() {
           onRegister={handleRegister}
           onLogin={handleLogin}
           onLogout={handleLogout}
+          initialAuthPanel={profileInitialAuthPanel}
+          onLoginSuccess={() => setActiveTab('horarios')}
         />
       )}
 
@@ -1739,11 +2528,79 @@ export default function Home() {
       </nav>
 
       {/* Modals */}
-      {activeLesson && (
+      {displayedActiveLesson && (
         <LessonModal
-          lesson={activeLesson}
+          lesson={displayedActiveLesson}
           isDark={isDark}
           onClose={() => setActiveLesson(null)}
+          onToggleCancelled={handleToggleLessonCancelled}
+          onOpenEdit={(lesson) => setEditingLesson(lesson)}
+          onOpenSwap={(lesson) => {
+            setActiveLesson(null);
+            setCalendarSwapOrigin(lesson);
+          }}
+          onUnswap={handleUnswapLesson}
+          onResetOverride={handleRemoveLessonOverride}
+          onResolveDrift={handleResolveLessonDrift}
+        />
+      )}
+
+      {editingLesson && (
+        <EditLessonModal
+          lesson={editingLesson}
+          isDark={isDark}
+          onSave={handleSaveLessonOverride}
+          onResetOverride={handleRemoveLessonOverride}
+          onClose={() => setEditingLesson(null)}
+        />
+      )}
+
+      {calendarSwapOrigin && calendarSwapTarget && (
+        <SwapLessonModal
+          key={`${calendarSwapOrigin.lessonKey || calendarSwapOrigin.id}_${calendarSwapTarget.lessonKey || calendarSwapTarget.id}`}
+          lesson={calendarSwapOrigin}
+          targetLesson={calendarSwapTarget}
+          onSelectAnother={() => {
+            setCalendarSwapTarget(null);
+          }}
+          onSwap={handleSwapLessons}
+          onClose={() => {
+            setCalendarSwapOrigin(null);
+            setCalendarSwapTarget(null);
+          }}
+          isDark={isDark}
+        />
+      )}
+
+      {selectedCustomEvent && !editingCustomEvent && (
+        <CustomEventDetailModal
+          event={selectedCustomEvent}
+          isDark={isDark}
+          onEdit={() => {
+            const evt = selectedCustomEvent;
+            setSelectedCustomEvent(null);
+            setEditingCustomEvent(evt);
+          }}
+          onDelete={handleDeleteCustomEvent}
+          onClose={() => setSelectedCustomEvent(null)}
+        />
+      )}
+
+      {(showNewEventModal || editingCustomEvent) && (
+        <CustomEventModal
+          event={editingCustomEvent}
+          targetDate={editingCustomEvent ? undefined : newEventData?.date}
+          initialStartTimeStr={newEventData?.startTimeStr}
+          initialEndTimeStr={newEventData?.endTimeStr}
+          suggestedColor={suggestedEventColor}
+          onSave={handleSaveCustomEvent}
+          onDelete={handleDeleteCustomEvent}
+          onClose={() => {
+            setShowNewEventModal(false);
+            setEditingCustomEvent(null);
+            setNewEventData(null);
+          }}
+          isDark={isDark}
         />
       )}
 

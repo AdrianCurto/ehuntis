@@ -434,6 +434,130 @@ function analyzeBreakStreak(targetDate, timetable, schoolYearEndDate) {
   };
 }
 
+/**
+ * Devuelve el array de fechas de la semana (5, 6 o 7 días) de forma dinámica:
+ * - 5 días (L-V) por defecto
+ * - 6 días (L-S) si hay alguna clase/evento el sábado
+ * - 7 días (L-D) si hay alguna clase/evento el domingo (o sábado y domingo)
+ *
+ * @param {Date} monday - Lunes de la semana
+ * @param {Array} lessons - Lista de lecciones / eventos combinados
+ * @returns {Date[]} Array de 5, 6 o 7 objetos Date
+ */
+function getDynamicWeekDates(monday, lessons = []) {
+  if (!monday) return [];
+  const base = new Date(monday);
+  base.setHours(0, 0, 0, 0);
+
+  const satDate = new Date(base);
+  satDate.setDate(base.getDate() + 5);
+  const sunDate = new Date(base);
+  sunDate.setDate(base.getDate() + 6);
+
+  const satNum = toDateNumber(satDate);
+  const sunNum = toDateNumber(sunDate);
+
+  let hasSat = false;
+  let hasSun = false;
+
+  if (Array.isArray(lessons)) {
+    for (const l of lessons) {
+      if (!l) continue;
+      const lDate = typeof l.date === 'number' ? l.date : toDateNumber(l.date);
+      if (lDate === sunNum) {
+        hasSun = true;
+        break; // Con domingo ya son 7 días
+      } else if (lDate === satNum) {
+        hasSat = true;
+      }
+    }
+  }
+
+  const count = hasSun ? 7 : (hasSat ? 6 : 5);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    return d;
+  });
+}
+
+/**
+ * Devuelve el lunes a las 00:00:00 de la semana de una fecha dada.
+ * @param {Date} date
+ * @returns {Date}
+ */
+function getWeekMonday(date) {
+  if (!date) return new Date();
+  const d = date instanceof Date ? new Date(date) : new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Devuelve el siguiente día navegable teniendo en cuenta el contexto de fines de semana.
+ * - De lunes a jueves: día + 1
+ * - Viernes: sábado si la semana actual tiene eventos el sábado o domingo; si no, lunes (+3)
+ * - Sábado: domingo si la semana actual tiene eventos el domingo; si no, lunes de la sig. semana (+2)
+ * - Domingo: lunes de la siguiente semana (+1)
+ *
+ * @param {Date} currentDate
+ * @param {Array} lessons
+ * @returns {Date}
+ */
+function getNextDayContextual(currentDate, lessons = []) {
+  if (!currentDate) return new Date();
+  const next = new Date(currentDate);
+  next.setHours(0, 0, 0, 0);
+  const day = next.getDay();
+  const mon = getWeekMonday(next);
+  const currentWeekDates = getDynamicWeekDates(mon, lessons);
+  const weekLength = currentWeekDates.length;
+
+  if (day === 5) {
+    if (weekLength >= 6) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 3);
+  } else if (day === 6) {
+    if (weekLength >= 7) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 2);
+  } else if (day === 0) {
+    next.setDate(next.getDate() + 1);
+  } else {
+    next.setDate(next.getDate() + 1);
+  }
+  return next;
+}
+
+/**
+ * Devuelve el día anterior navegable teniendo en cuenta el contexto de fines de semana.
+ * - De martes a sábado/domingo: día - 1
+ * - Lunes: domingo de la semana anterior si tiene 7 días (-1), sábado si tiene 6 días (-2), o viernes (-3)
+ *
+ * @param {Date} currentDate
+ * @param {Array} lessons
+ * @returns {Date}
+ */
+function getPrevDayContextual(currentDate, lessons = []) {
+  if (!currentDate) return new Date();
+  const prev = new Date(currentDate);
+  prev.setHours(0, 0, 0, 0);
+  const day = prev.getDay();
+
+  if (day === 1) {
+    const prevMonday = new Date(getWeekMonday(prev));
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    const prevWeekDates = getDynamicWeekDates(prevMonday, lessons);
+    if (prevWeekDates.length === 7) prev.setDate(prev.getDate() - 1);
+    else if (prevWeekDates.length === 6) prev.setDate(prev.getDate() - 2);
+    else prev.setDate(prev.getDate() - 3);
+  } else {
+    prev.setDate(prev.getDate() - 1);
+  }
+  return prev;
+}
+
 module.exports = {
   getAcademicYearBounds,
   toDateNumber,
@@ -448,4 +572,9 @@ module.exports = {
   findClosestClassDate,
   analyzeBreakStreak,
   computeNextEventTime,
+  getDynamicWeekDates,
+  getWeekMonday,
+  getNextDayContextual,
+  getPrevDayContextual,
 };
+

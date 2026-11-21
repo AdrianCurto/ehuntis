@@ -66,9 +66,9 @@ object TimetableRenderEngine {
         val boundsRect = RectF(0f, 0f, safeW.toFloat(), safeH.toFloat())
         canvas.drawRoundRect(boundsRect, 14f * density, 14f * density, bgPaint)
 
-        // 2. Lecciones del día seleccionado (incluyendo atenuadas si el filtro las preservó)
+        // 2. Lecciones del día seleccionado (incluyendo atenuadas y canceladas para renderizarlas con su estilo propio)
         val targetDateNum = DayLogic.toDateNumber(targetDate)
-        val dayLessons = DayLogic.getLessonsForDate(allLessons, targetDateNum, includeDimmed = true)
+        val dayLessons = DayLogic.getLessonsForDate(allLessons, targetDateNum, includeDimmed = true, includeCancelled = true)
 
         if (dayLessons.isEmpty()) {
             val breakInfo = DayLogic.analyzeBreakStreak(targetDate, allLessons)
@@ -254,12 +254,26 @@ object TimetableRenderEngine {
         val boundsRect = RectF(0f, 0f, safeW.toFloat(), safeH.toFloat())
         canvas.drawRoundRect(boundsRect, 14f * density, 14f * density, bgPaint)
 
-        // Días de lunes a viernes
-        val weekDates = (0L..4L).map { weekStartDate.plusDays(it) }
+        // Días dinámicos de la semana (Lunes a Viernes, o extendido a Sábado/Domingo si hay clases)
+        val satDate = weekStartDate.plusDays(5)
+        val sunDate = weekStartDate.plusDays(6)
+        val satDateNum = DayLogic.toDateNumber(satDate)
+        val sunDateNum = DayLogic.toDateNumber(sunDate)
+
+        val hasSun = allLessons.any { it.date == sunDateNum }
+        val hasSat = allLessons.any { it.date == satDateNum }
+
+        val numDays = when {
+            hasSun -> 7
+            hasSat -> 6
+            else -> 5
+        }
+
+        val weekDates = (0L until numDays.toLong()).map { weekStartDate.plusDays(it) }
         val weekDateNums = weekDates.map { DayLogic.toDateNumber(it) }
 
         val lessonsByDate = weekDateNums.associateWith { dateNum ->
-            DayLogic.getLessonsForDate(allLessons, dateNum, includeDimmed = true)
+            DayLogic.getLessonsForDate(allLessons, dateNum, includeDimmed = true, includeCancelled = true)
         }
         val allWeekLessons = lessonsByDate.values.flatten()
 
@@ -290,10 +304,10 @@ object TimetableRenderEngine {
             return topPad + ((clamped - timeRange.startMinutes).toFloat() / timeRange.totalMinutes) * contentH
         }
 
-        // Cabeceras de días (Lunes a Viernes)
+        // Cabeceras de días (Lunes a Viernes, con Sábado/Domingo si procede)
         val totalDaysW = safeW - timeAxisWidth - rightMargin
-        val colW = totalDaysW / 5f
-        val dayNames = listOf("L", "M", "X", "J", "V")
+        val colW = totalDaysW / numDays.toFloat()
+        val dayNames = listOf("L", "M", "X", "J", "V", "S", "D").take(numDays)
 
         val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = dividerColor
@@ -316,7 +330,7 @@ object TimetableRenderEngine {
             textSize = 10f * density
         }
 
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val date = weekDates[i]
             val colLeft = timeAxisWidth + i * colW
             val isToday = (date == todayDate)
@@ -392,7 +406,7 @@ object TimetableRenderEngine {
         // ── Supresión en cascada de badges magistrales (ámbito: toda la semana) ──
         // Si cualquier bloque GA/Magistral de la semana no cabe, se suprimen todos los de la semana.
         var anyMagistralMissingInWeek = false
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val dateNum = weekDateNums[i]
             val dayLessons = lessonsByDate[dateNum] ?: emptyList()
             val dayColLeft = timeAxisWidth + i * colW
@@ -420,7 +434,7 @@ object TimetableRenderEngine {
         val suppressMagistralBadgesWeek = anyMagistralMissingInWeek
         // ──────────────────────────────────────────────────────────────────────
 
-        for (i in 0..4) {
+        for (i in 0 until numDays) {
             val date = weekDates[i]
             val dateNum = weekDateNums[i]
             val dayLessons = lessonsByDate[dateNum] ?: emptyList()
@@ -502,12 +516,17 @@ object TimetableRenderEngine {
         val bottom = blockRect.bottom
 
         val isPast = isToday && nowMinutes >= endMins
+        val isCancelled = (lesson.code == "cancelled" || lesson.isUserCancelled)
 
-        val rawBlockColor = Palette.getColorForSubject(
-            subjectId = lesson.subjectIds.filterNotNull().firstOrNull() ?: 0,
-            isDark = isDark,
-            customColors = customColors
-        )
+        val rawBlockColor = if (lesson.isCustomEvent && lesson.colorIndex != null) {
+            Palette.getColorByIndex(lesson.colorIndex, isDark)
+        } else {
+            Palette.getColorForSubject(
+                subjectId = lesson.subjectIds.filterNotNull().firstOrNull() ?: 0,
+                isDark = isDark,
+                customColors = customColors
+            )
+        }
         val blockColor = if (lesson.isDimmed) {
             BlockColor(
                 bg = desaturateColor(rawBlockColor.bg, 0.55f),
@@ -519,10 +538,12 @@ object TimetableRenderEngine {
         }
 
         // Opacidad del fondo de la tarjeta:
+        // isCancelled en web usa opacity: 0.5 (~125/255)
         // isDimmed en web usa opacity: 0.45 (115/255)
         // isPast en web usa opacity: 0.58 (148) en tema claro y 0.52 (133) en tema oscuro
         blockPaint.color = blockColor.bg
         blockPaint.alpha = when {
+            isCancelled -> 125
             lesson.isDimmed -> 115
             isPast -> if (isDark) 133 else 148
             else -> 255
@@ -531,6 +552,42 @@ object TimetableRenderEngine {
         // Esquinas redondeadas suaves y proporcionadas a la altura del bloque
         val dynamicCornerRadius = minOf(cornerRadius, maxOf(3.5f * density, blockH * 0.16f))
         canvas.drawRoundRect(blockRect, dynamicCornerRadius, dynamicCornerRadius, blockPaint)
+
+        // Borde distintivo izquierdo para eventos propios (matching web .lesson-block.is-custom-event)
+        if (lesson.isCustomEvent) {
+            // Ancho sutil y proporcionado: 1.8dp en semana (evita aplastar el texto en columnas estrechas) y 2.8dp en día
+            val indicatorWidth = (if (isDayView) 2.8f else 1.8f) * density
+
+            val baseAlpha = if (isDark) 180 else 46
+            val finalAlpha = when {
+                lesson.isDimmed -> (baseAlpha * 0.45f).toInt()
+                isPast -> (baseAlpha * (if (isDark) 0.52f else 0.58f)).toInt()
+                else -> baseAlpha
+            }
+
+            val indicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = if (isDark) {
+                    // Modo oscuro: Tono acento extraído de la paleta del propio evento (armónico y distinguible)
+                    Color.argb(
+                        finalAlpha,
+                        Color.red(blockColor.border),
+                        Color.green(blockColor.border),
+                        Color.blue(blockColor.border)
+                    )
+                } else {
+                    // Modo claro: Sombra sutil que oscurece el fondo pastel del evento (matching border-left web)
+                    Color.argb(finalAlpha, 0, 0, 0)
+                }
+                style = Paint.Style.FILL
+            }
+
+            canvas.save()
+            // Limitar el trazado estrictamente a la franja lateral izquierda (sin desbordar ni abultar)
+            canvas.clipRect(blockRect.left, blockRect.top, blockRect.left + indicatorWidth, blockRect.bottom)
+            // Curvar con el mismo dynamicCornerRadius para que las esquinas sigan perfectamente el contorno
+            canvas.drawRoundRect(blockRect, dynamicCornerRadius, dynamicCornerRadius, indicatorPaint)
+            canvas.restore()
+        }
 
         // Borde dentro del recuadro (inset border idéntico a box-sizing: border-box en web)
         val strokeWidth = if (lesson.isDimmed) 1.3f * density else 1f * density
@@ -578,6 +635,7 @@ object TimetableRenderEngine {
 
 
         val contentAlpha = when {
+            isCancelled -> 128
             lesson.isDimmed -> 135 // Suficiente contraste y nitidez, matching web opacity
             isPast -> if (isDark) 133 else 148
             else -> 255
@@ -706,6 +764,7 @@ object TimetableRenderEngine {
 
                 var currentLineTop = startSubjectY
                 val maxBottomLimit = subjectBottomLimit + 0.5f * density
+                textPaint.isStrikeThruText = isCancelled
                 for (line in subjectLines) {
                     val lineBaseline = currentLineTop + layoutResult.subjectFontSizePx * 0.85f
                     if (lineBaseline <= maxBottomLimit) {
@@ -713,6 +772,7 @@ object TimetableRenderEngine {
                         currentLineTop += layoutResult.subjectLineHeightPx
                     }
                 }
+                textPaint.isStrikeThruText = false
             }
         }
     }

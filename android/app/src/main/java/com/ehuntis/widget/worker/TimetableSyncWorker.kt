@@ -42,9 +42,15 @@ class TimetableSyncWorker(
             val prevUserData = cache.getUserData()
             val userResult = ApiClient.fetchUserData(username)
             val userData = if (userResult.isSuccess) {
-                val data = userResult.getOrThrow()
-                cache.saveUserData(data)
-                data
+                val fresh = userResult.getOrThrow()
+                // Si la respuesta proviene de un backend que no envía estos campos (null), preservamos el caché local existente
+                val merged = fresh.copy(
+                    custom_events = fresh.custom_events ?: prevUserData?.custom_events,
+                    custom_categories = fresh.custom_categories ?: prevUserData?.custom_categories,
+                    lesson_overrides = fresh.lesson_overrides ?: prevUserData?.lesson_overrides
+                )
+                cache.saveUserData(merged)
+                merged
             } else {
                 prevUserData
             }
@@ -64,6 +70,8 @@ class TimetableSyncWorker(
                         cache.saveTimetable(lessons)
                         cache.saveLastSyncTime(System.currentTimeMillis())
                     }
+                } else {
+                    cache.saveLastSyncTime(System.currentTimeMillis())
                 }
             }
 

@@ -54,3 +54,7 @@ android/.kotlin/
 android/local.properties
 android/*.apk
 android/*.aab
+
+# playwright local browsers
+/.browsers/
+.screenshots/

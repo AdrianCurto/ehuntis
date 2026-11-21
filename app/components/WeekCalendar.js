@@ -1,8 +1,16 @@
 'use client';
 
-import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { extractSubgroupNumber, isMagistralType, extractSubgroupKey } from '../utils/subgroups';
+import { useRef, useState, useEffect, useLayoutEffect, useMemo, useCallback, useImperativeHandle, forwardRef, memo } from 'react';
+import { ArrowUpDown, Pencil, Ban, BookOpen, Dumbbell, Briefcase, Coffee, User } from 'lucide-react';
+import { extractSubgroupNumber, isMagistralType, extractSubgroupKey, formatRoom } from '../utils/subgroups';
 import { formatTeacher, getTeacherCandidates } from '../utils/teachers';
+import { getNextDayContextual, getPrevDayContextual } from '../utils/dayLogic';
+import {
+  resolveStatusIndicatorPlacement,
+  getMaxCenteredBadgeWidthForCorner,
+} from '../utils/statusBadgeLayout';
+import { hasNonSwapOverrides, areLessonsIdentical } from '../utils/lessonOverrides';
+import { preloadLessonModal, preloadCustomEventDetailModal } from '../utils/modalPreload';
 
 import {
   PALETTE,
@@ -12,6 +20,14 @@ import {
 } from '../utils/colorLogic';
 
 export { PALETTE, PALETTE_DARK, getSubjectColorStyle };
+
+const CATEGORY_ICONS = {
+  estudio: BookOpen,
+  deporte: Dumbbell,
+  trabajo: Briefcase,
+  ocio: Coffee,
+  personal: User,
+};
 
 // Helper to assign a color index dynamically based on a semester-aware unique list of subjects and customColors
 let subjectColorIndexMap = new Map();
@@ -128,7 +144,7 @@ export function buildSubjectTiers(fullName, lesson = null) {
 
 export function getRoomCandidates(rawRoom) {
   if (!rawRoom) return [];
-  const raw = rawRoom.trim().replace(/\s+/g, '');
+  const raw = formatRoom(rawRoom).replace(/\s+/g, '');
   const candidates = [raw];
 
   // EHU room codes like P2G1A, P1I2S, P2E3A, S1A8A -> allow dropping the last letter (A, S, I)
@@ -332,12 +348,116 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   const availWidth = Math.max(0, blockWidth - padX * 2 - (isDayView ? 2 : 0));
   const availHeight = Math.max(0, blockHeight - padTop - padBottom - (isDayView ? 2 : 0));
 
-  const isMagistral = isMagistralType(lesson.type);
+  const isMagistral = !lesson.isCustomEvent && isMagistralType(lesson.type);
+  const isCancelled = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
 
   // 1. Badge candidate options
-  const subNum = extractSubgroupNumber(lesson.type);
+  const subNum = !lesson.isCustomEvent ? extractSubgroupNumber(lesson.type) : null;
   const badgeCandidates = [];
-  if (lesson.type && lesson.type.trim()) {
+
+  // El badge permanece siempre centrado; si hay indicador de estado en la esquina superior derecha,
+  // intentamos primero un tamaño de fuente de BADGE_STYLES que deje hueco simétrico a la pestaña sin abreviar.
+  const badgeAvailWidth = availWidth;
+  const hasDrift = Boolean(lesson.hasRemoteDrift);
+  const isSwapped = !isCancelled && Boolean(lesson.swappedWith) && !hasDrift;
+  const isEdited = !isCancelled && (lesson.swappedWith ? hasNonSwapOverrides(lesson) : Boolean(lesson.isOverridden)) && !hasDrift;
+  const showEditedIcon = isSwapped || isEdited;
+  const maxBadgeWidthForCorner = getMaxCenteredBadgeWidthForCorner({
+    showEditedIcon,
+    isSwapped,
+    isEdited,
+    hasDrift,
+    blockWidth,
+  });
+  const preferredBadgeWidth =
+    (showEditedIcon || hasDrift) && maxBadgeWidthForCorner > 0
+      ? Math.min(badgeAvailWidth, maxBadgeWidthForCorner)
+      : badgeAvailWidth;
+
+  const pickBestBadgeStyle = (text, extraWidth = 2) => {
+    let fallbackMatch = null;
+    for (const style of BADGE_STYLES) {
+      const width = measureText(text, style.font, '800') + style.padX * 2 + extraWidth;
+      if (width <= preferredBadgeWidth) {
+        return { style, width };
+      }
+      if (!fallbackMatch && width <= badgeAvailWidth) {
+        fallbackMatch = { style, width };
+      }
+    }
+    return fallbackMatch;
+  };
+
+  if (isCancelled) {
+    const cancelTexts = ['Cancelada', 'Canc.'];
+    for (const text of cancelTexts) {
+      // Reserva para icono (8px) + gap (2.5px) + padding (padX * 2) + border (2px) + margen (2px) = padX * 2 + 14.5px
+      const match = pickBestBadgeStyle(text, 14.5);
+      if (match) {
+        const { style, width: totalBadgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text,
+          isCancelledBadge: true,
+          iconOnly: false,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(totalBadgeWidth),
+        });
+      }
+    }
+
+    // Si ni 'Cancelada' ni 'Canc.' caben en el ancho disponible, pero hay al menos espacio para el icono (>= 13px)
+    if (badgeAvailWidth >= 13) {
+      badgeCandidates.push({
+        hide: false,
+        text: '',
+        isCancelledBadge: true,
+        iconOnly: true,
+        font: 8,
+        padding: '0px',
+        lineHeight: 1.1,
+        height: 14,
+        width: 13,
+      });
+    }
+  } else if (lesson.isCustomEvent) {
+    if (lesson.category) {
+      const catText = lesson.category.charAt(0).toUpperCase() + lesson.category.slice(1).toLowerCase();
+      const match = pickBestBadgeStyle(catText, 2);
+      if (match) {
+        const { style, width: badgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text: catText,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(badgeWidth),
+        });
+      } else {
+        const catKey = lesson.category.toLowerCase().trim();
+        if (CATEGORY_ICONS[catKey] && badgeAvailWidth >= 13) {
+          badgeCandidates.push({
+            hide: false,
+            text: '',
+            category: catKey,
+            iconOnly: true,
+            font: 8,
+            padding: '1px 2px',
+            lineHeight: 1.1,
+            height: 14,
+            width: 14,
+          });
+        }
+      }
+    }
+  } else if (lesson.type && lesson.type.trim()) {
     const raw = lesson.type.trim();
     const upper = raw.toUpperCase();
     const texts = [];
@@ -379,38 +499,59 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
 
     const uniqueTexts = Array.from(new Set(texts));
     for (const text of uniqueTexts) {
-      for (const style of BADGE_STYLES) {
-        if (measureText(text, style.font, '800') + style.padX * 2 <= availWidth) {
-          const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
-          badgeCandidates.push({
-            hide: false,
-            text,
-            font: style.font,
-            padding: `${style.padY}px ${style.padX}px`,
-            lineHeight: 1.1,
-            height,
-          });
-          break;
-        }
+      const match = pickBestBadgeStyle(text, 2);
+      if (match) {
+        const { style, width: badgeWidth } = match;
+        const height = Math.round(style.font * 1.1) + style.padY * 2 + style.mb;
+        badgeCandidates.push({
+          hide: false,
+          text,
+          font: style.font,
+          padding: `${style.padY}px ${style.padX}px`,
+          lineHeight: 1.1,
+          height,
+          width: Math.ceil(badgeWidth),
+        });
       }
     }
   }
 
   const bestBadge = badgeCandidates[0] || null;
-  const hiddenBadge = { hide: true, height: 0, text: '', font: 0 };
+  const hiddenBadge = { hide: true, height: 0, width: 0, text: '', font: 0 };
 
   // 2. Room candidate options - genera opciones con distintos tamaños de fuente
   // para que si hay compresión vertical, el aula reduzca su fuente antes de desaparecer
   const roomCandidates = [];
   if (lesson.rooms?.[0]) {
     const texts = getRoomCandidates(lesson.rooms[0]);
-    const baseFonts = isDayView ? [12, 11, 10, 9, 8] : [10, 9, 8, 7, 6.5];
+    const baseFonts = isDayView ? [12, 11, 10, 9, 8] : [10, 9, 8];
+    const smallerFonts = isDayView ? [7.5, 7] : [7.5, 7, 6.5];
+
+    // 1. Intentar primero con el texto completo del aula bajando el tamaño
     for (const font of baseFonts) {
-      for (const text of texts) {
-        if (measureText(text, font, '500') <= availWidth) {
+      if (measureText(texts[0], font, '500') <= availWidth - 1) {
+        const height = Math.round(font * (font <= 8 ? 1.05 : 1.1)) + (blockHeight < 36 ? 0.5 : 1);
+        roomCandidates.push({ show: true, text: texts[0], font, height });
+      }
+    }
+
+    // 2. Si no entra con fuentes base, probar fuentes más pequeñas
+    if (roomCandidates.length === 0) {
+      for (const font of smallerFonts) {
+        if (measureText(texts[0], font, '500') <= availWidth - 1) {
+          const height = Math.round(font * 1.05) + (blockHeight < 36 ? 0.5 : 1);
+          roomCandidates.push({ show: true, text: texts[0], font, height });
+        }
+      }
+    }
+
+    // 3. Si aún no entra y existe versión sin última letra, probar
+    if (roomCandidates.length === 0 && texts.length > 1) {
+      const dropFonts = isDayView ? [10, 9, 8, 7.5, 7] : [9, 8, 7.5, 7, 6.5];
+      for (const font of dropFonts) {
+        if (measureText(texts[1], font, '500') <= availWidth - 1) {
           const height = Math.round(font * (font <= 8 ? 1.05 : 1.1)) + (blockHeight < 36 ? 0.5 : 1);
-          roomCandidates.push({ show: true, text, font, height });
-          break;
+          roomCandidates.push({ show: true, text: texts[1], font, height });
         }
       }
     }
@@ -449,10 +590,10 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
   // Control de visibilidad física para asegurar legibilidad
   const canTeacher = Boolean(validTeacherCandidates.length > 0 && blockHeight >= 44);
   const canRoom = validRoomCandidates.length > 0 && blockHeight >= (isDayView ? 24 : 20);
-  const canBadge = Boolean(bestBadge && blockHeight >= (isMagistral ? (isDayView ? 55 : 45) : 18));
+  const canBadge = Boolean(bestBadge && blockHeight >= (isCancelled ? 14 : (isMagistral ? (isDayView ? 55 : 45) : (bestBadge.iconOnly ? 14 : 18))));
 
   const attempts = [];
-  if (isMagistral) {
+  if (isMagistral && !isCancelled) {
     // CLASES MAGISTRALES / GA: El Aula tiene PRIORIDAD ABSOLUTA frente a la insignia
     // 1. Todo completo (si cabe de sobra)
     if (canBadge && canRoom && canTeacher) {
@@ -565,13 +706,28 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
         const subjectHeight = lines.length * Math.round(font * lineHeight);
 
         if (subjectHeight <= remainingHeight + 1) {
+          const usedHeight = curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight;
+          const statusPlacement = resolveStatusIndicatorPlacement({
+            showEditedIcon,
+            isSwapped,
+            isEdited,
+            hasDrift,
+            hasBadge: !curBadge.hide,
+            badgeWidth: curBadge.width || 0,
+            blockWidth,
+            blockHeight,
+          });
           return {
             padding,
             badge: curBadge,
             room: roomCandidate,
             teacher: teacherCandidate,
             subject: { mode: 'lines', lines, font, lineHeight, tier: tier.name },
-            totalHeight: curBadgeHeight + roomHeight + curTeacherHeight + subjectHeight,
+            totalHeight: usedHeight,
+            blockWidth,
+            availWidth,
+            availHeight,
+            statusPlacement,
           };
         }
       }
@@ -589,7 +745,7 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
     ? validRoomCandidates[validRoomCandidates.length - 1] 
     : null;
 
-  if (isMagistral) {
+  if (isMagistral && !isCancelled) {
     if (canRoom && mostCompactRoom && blockHeight >= 22) {
       fallbackRoom = mostCompactRoom;
     } else if (canBadge && bestBadge) {
@@ -602,6 +758,17 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
       fallbackRoom = mostCompactRoom;
     }
   }
+
+  const fallbackStatusPlacement = resolveStatusIndicatorPlacement({
+    showEditedIcon,
+    isSwapped,
+    isEdited,
+    hasDrift,
+    hasBadge: !fallbackBadge.hide,
+    badgeWidth: fallbackBadge.width || 0,
+    blockWidth,
+    blockHeight,
+  });
 
   return {
     padding,
@@ -616,6 +783,10 @@ export function computeBlockLayout(lesson, blockWidth, blockHeight, isDayView) {
       tier: fallbackTier.name || 'fallback',
     },
     totalHeight: availHeight,
+    blockWidth,
+    availWidth,
+    availHeight,
+    statusPlacement: fallbackStatusPlacement,
   };
 }
 
@@ -630,8 +801,8 @@ function toMinutes(t) {
   return Math.floor(t / 100) * 60 + (t % 100);
 }
 
-function minutesSinceStart(t) {
-  return toMinutes(t) - START_MINUTES;
+function minutesSinceStart(t, startMin = START_MINUTES) {
+  return toMinutes(t) - startMin;
 }
 
 export function getTimeInterval(slotHeight) {
@@ -640,13 +811,13 @@ export function getTimeInterval(slotHeight) {
   return 60;
 }
 
-export function getGridLines(slotHeight, interval) {
+export function getGridLines(slotHeight, interval, startMinutes = START_MINUTES, endMinutes = END_MINUTES) {
   const lines = [];
-  const remainder = START_MINUTES % interval;
-  const firstMinute = remainder === 0 ? START_MINUTES : START_MINUTES + (interval - remainder);
+  const remainder = startMinutes % interval;
+  const firstMinute = remainder === 0 ? startMinutes : startMinutes + (interval - remainder);
 
-  for (let m = firstMinute; m <= END_MINUTES; m += interval) {
-    const top = ((m - START_MINUTES) / 60) * slotHeight;
+  for (let m = firstMinute; m <= endMinutes; m += interval) {
+    const top = ((m - startMinutes) / 60) * slotHeight;
     const isHour = m % 60 === 0;
     const isHalf = !isHour && m % 30 === 0;
     const type = isHour ? 'hour' : (isHalf ? 'half' : 'quarter');
@@ -655,13 +826,13 @@ export function getGridLines(slotHeight, interval) {
   return lines;
 }
 
-export function getTimeLabels(slotHeight, interval) {
+export function getTimeLabels(slotHeight, interval, startMinutes = START_MINUTES, endMinutes = END_MINUTES) {
   const labels = [];
-  const startMinute = 8 * 60;
-  const endMinute = 21 * 60;
+  const startMinute = Math.ceil(startMinutes / 60) * 60;
+  const endMinute = endMinutes > 1320 ? Math.floor(endMinutes / 60) * 60 : 21 * 60;
 
   for (let m = startMinute; m <= endMinute; m += interval) {
-    const top = ((m - START_MINUTES) / 60) * slotHeight;
+    const top = ((m - startMinutes) / 60) * slotHeight;
     const isHour = m % 60 === 0;
     const h = Math.floor(m / 60);
     const mm = m % 60;
@@ -753,18 +924,32 @@ const SWIPE_DOMINANCE_RATIO = 1.35;
 const getPrevDay = (d) => {
   if (!d) return new Date();
   const prev = new Date(d);
-  prev.setDate(prev.getDate() - 1);
-  if (prev.getDay() === 0) prev.setDate(prev.getDate() - 2);
-  else if (prev.getDay() === 6) prev.setDate(prev.getDate() - 1);
+  const day = prev.getDay();
+  if (day === 1) {
+    prev.setDate(prev.getDate() - 3);
+  } else if (day === 0 || day === 6) {
+    prev.setDate(prev.getDate() - 1);
+  } else {
+    prev.setDate(prev.getDate() - 1);
+  }
   return prev;
 };
 
-const getNextDay = (d) => {
+const getNextDay = (d, weekLength = 5) => {
   if (!d) return new Date();
   const next = new Date(d);
-  next.setDate(next.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  else if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  const day = next.getDay();
+  if (day === 5) {
+    if (weekLength >= 6) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 3);
+  } else if (day === 6) {
+    if (weekLength >= 7) next.setDate(next.getDate() + 1);
+    else next.setDate(next.getDate() + 2);
+  } else if (day === 0) {
+    next.setDate(next.getDate() + 1);
+  } else {
+    next.setDate(next.getDate() + 1);
+  }
   return next;
 };
 
@@ -790,11 +975,15 @@ const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffec
 
 const DEFAULT_FIT = {
   padding: '2px 4px',
-  badge: { hide: true, height: 0, text: '', font: 8 },
+  badge: { hide: true, height: 0, width: 0, text: '', font: 8 },
   room: { show: false, text: '', font: 8 },
   teacher: { show: false, text: '', font: 8 },
   subject: { mode: 'lines', lines: [''], font: 10, lineHeight: 1.1 },
   totalHeight: 40,
+  blockWidth: 60,
+  availWidth: 0,
+  availHeight: 0,
+  statusPlacement: 'none',
 };
 
 const layoutCache = new Map();
@@ -803,7 +992,10 @@ export function computeBlockLayoutMemo(lesson, blockWidth, blockHeight, isDayVie
   if (!lesson) return DEFAULT_FIT;
   const roundedW = Math.round(blockWidth || 60);
   const roundedH = Math.round(blockHeight || 80);
-  const key = `${lesson.id || 0}_${roundedW}_${roundedH}_${isDayView ? 1 : 0}_${lesson.type || ''}_${lesson.rooms?.[0] || ''}`;
+  const isCanc = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled) ? 1 : 0;
+  const isOv = lesson.isOverridden ? 1 : 0;
+  const hasDrift = lesson.hasRemoteDrift ? 1 : 0;
+  const key = `${lesson.id || 0}_${roundedW}_${roundedH}_${isDayView ? 1 : 0}_${isCanc}_${isOv}_${hasDrift}_${lesson.type || ''}_${lesson.rooms?.[0] || ''}`;
   if (layoutCache.has(key)) {
     return layoutCache.get(key);
   }
@@ -835,9 +1027,14 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   onSwipeRight,
   isDayView: propIsDayView,
   selectedDay,
+  fullWeekDates = null,
+  prevWeekDates = null,
+  nextWeekDates = null,
   isDark,
   canSwipeNext,
   canSwipePrev,
+  onCellDoubleClick,
+  swapOriginLesson = null,
 }, ref) {
   const calendarScrollRef = useRef(null);
   const pinchRef = useRef(null);
@@ -893,6 +1090,21 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   const selectedDayIndex = selectedDateObj ? ((selectedDateObj.getDay() + 6) % 7) : -1;
   const selectedDayIndexRef = useRef(selectedDayIndex);
   selectedDayIndexRef.current = selectedDayIndex;
+
+  // Pre-index lessons by date (YYYYMMDD) for O(1) day lookups across all panels
+  const lessonsByDate = useMemo(() => {
+    const map = new Map();
+    for (const lesson of (lessons || [])) {
+      if (!lesson || !lesson.date) continue;
+      let list = map.get(lesson.date);
+      if (!list) {
+        list = [];
+        map.set(lesson.date, list);
+      }
+      list.push(lesson);
+    }
+    return map;
+  }, [lessons]);
 
   // Track container width for synchronous column width calculation
   useEffect(() => {
@@ -971,36 +1183,26 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   // Helper: clear all inline drag styles from track + panels + header + thumb
   const clearDragStyles = useCallback(() => {
     const {
-      daysTrackEl, prevPanel, currPanel, nextPanel,
-      headerTrackEl, prevHeader, currHeader, nextHeader,
+      daysTrackEl,
+      headerTrackEl,
       thumbEl,
-      currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+      currentTimeOverlayEl,
     } = getPanels();
     if (daysTrackEl) {
       daysTrackEl.style.transition = 'none';
       daysTrackEl.style.transform = 'translate3d(0, 0, 0)';
     }
-    if (prevPanel) { prevPanel.style.transition = 'none'; prevPanel.style.opacity = ''; }
-    if (currPanel) { currPanel.style.transition = 'none'; currPanel.style.opacity = ''; }
-    if (nextPanel) { nextPanel.style.transition = 'none'; nextPanel.style.opacity = ''; }
 
     if (currentTimeOverlayEl) {
       currentTimeOverlayEl.classList.remove('is-moving');
       currentTimeOverlayEl.style.transition = 'none';
       currentTimeOverlayEl.style.transform = 'translate3d(0, 0, 0)';
-      currentTimeOverlayEl.style.opacity = '';
     }
-    if (prevTimePanel) { prevTimePanel.style.transition = 'none'; prevTimePanel.style.opacity = ''; }
-    if (currTimePanel) { currTimePanel.style.transition = 'none'; currTimePanel.style.opacity = ''; }
-    if (nextTimePanel) { nextTimePanel.style.transition = 'none'; nextTimePanel.style.opacity = ''; }
 
     if (headerTrackEl) {
       headerTrackEl.style.transition = 'none';
       headerTrackEl.style.transform = 'translate3d(0, 0, 0)';
     }
-    if (prevHeader) { prevHeader.style.transition = 'none'; prevHeader.style.opacity = ''; }
-    if (currHeader) { currHeader.style.transition = 'none'; currHeader.style.opacity = ''; }
-    if (nextHeader) { nextHeader.style.transition = 'none'; nextHeader.style.opacity = ''; }
 
     if (thumbEl && isDayViewRef.current) {
       const currentIdx = selectedDayIndexRef.current;
@@ -1020,66 +1222,31 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     const targetX = isNext ? '-100%' : '100%';
 
     const {
-      daysTrackEl, prevPanel, currPanel, nextPanel,
-      headerTrackEl, prevHeader, currHeader, nextHeader,
+      daysTrackEl,
+      headerTrackEl,
       thumbEl,
-      currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+      currentTimeOverlayEl,
     } = getPanels();
 
     if (daysTrackEl) {
-      daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-    }
-    if (currPanel) {
-      currPanel.style.transition = 'opacity 0.24s ease';
-      currPanel.style.opacity = '0';
     }
     if (currentTimeOverlayEl) {
       currentTimeOverlayEl.classList.add('is-moving');
-      currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-    }
-    if (currTimePanel) {
-      currTimePanel.style.transition = 'opacity 0.24s ease';
-      currTimePanel.style.opacity = '0';
-    }
-    if (isNext && nextTimePanel) {
-      nextTimePanel.style.transition = 'opacity 0.24s ease';
-      nextTimePanel.style.opacity = '1';
-    }
-    if (!isNext && prevTimePanel) {
-      prevTimePanel.style.transition = 'opacity 0.24s ease';
-      prevTimePanel.style.opacity = '1';
-    }
-    if (isNext && nextPanel) {
-      nextPanel.style.transition = 'opacity 0.24s ease';
-      nextPanel.style.opacity = '1';
-    }
-    if (!isNext && prevPanel) {
-      prevPanel.style.transition = 'opacity 0.24s ease';
-      prevPanel.style.opacity = '1';
     }
 
     if (headerTrackEl && !isDayViewRef.current) {
-      headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
       headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-      if (currHeader) {
-        currHeader.style.transition = 'opacity 0.24s ease';
-        currHeader.style.opacity = '0';
-      }
-      if (isNext && nextHeader) {
-        nextHeader.style.transition = 'opacity 0.24s ease';
-        nextHeader.style.opacity = '1';
-      }
-      if (!isNext && prevHeader) {
-        prevHeader.style.transition = 'opacity 0.24s ease';
-        prevHeader.style.opacity = '1';
-      }
     }
 
     if (thumbEl && isDayViewRef.current) {
-      if (targetDayIdx >= 0 && targetDayIdx < 5) {
-        thumbEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+      const totalDays = fullWeekDates?.length || weekDates?.length || 5;
+      if (targetDayIdx >= 0 && targetDayIdx < totalDays) {
+        thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
         thumbEl.style.transform = `translate3d(${targetDayIdx * 100}%, 0, 0)`;
       }
     }
@@ -1087,12 +1254,12 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     const timer = setTimeout(() => {
       isSlidingRef.current = false;
       onComplete?.();
-    }, 245);
+    }, 180);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [slidePlan, getPanels]);
+  }, [slidePlan, getPanels, fullWeekDates, weekDates]);
 
   // Step 2: Whenever weekDates or selectedDay changes, reset all drag styles and clear sliding flags
   useIsomorphicLayoutEffect(() => {
@@ -1133,8 +1300,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       if (isSlidingRef.current) return;
       const isNext = direction === 'next';
       const targetDates = isDayViewRef.current
-        ? [isNext ? getNextDay(weekDates[0]) : getPrevDay(weekDates[0])]
-        : (isNext ? getNextWeek(weekDates) : getPrevWeek(weekDates));
+        ? [isNext ? getNextDayContextual(weekDates[0], lessons) : getPrevDayContextual(weekDates[0], lessons)]
+        : (isNext ? (nextWeekDates || getNextWeek(weekDates)) : (prevWeekDates || getPrevWeek(weekDates)));
 
       if (ref.current?.triggerSlideTo) {
         ref.current.triggerSlideTo(targetDates, onComplete);
@@ -1142,7 +1309,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
         onComplete?.();
       }
     }
-  }), [weekDates]);
+  }), [weekDates, lessons, nextWeekDates, prevWeekDates]);
 
   // Unified touch gestures: Pinch-to-zoom (2 fingers) & 1:1 real-time swipe (1 finger)
   useEffect(() => {
@@ -1218,7 +1385,25 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       }
 
       // ── Single-finger drag ──
-      if (e.touches.length !== 1 || !swipeDragRef.current || pinchRef.current?.isPinching) return;
+      if (e.touches.length !== 1 || pinchRef.current?.isPinching) return;
+
+      // Si el arrastre no se inicio en touchstart porque la diapositiva anterior estaba completandose,
+      // engancharlo inmediatamente en cuanto termine el relevo
+      if (!swipeDragRef.current && !isSlidingRef.current) {
+        clearDragStyles();
+        const t = e.touches[0];
+        swipeDragRef.current = {
+          startX: t.clientX,
+          startY: t.clientY,
+          startTime: Date.now(),
+          lastX: t.clientX,
+          dragOffset: 0,
+          direction: 'none',
+        };
+        return;
+      }
+
+      if (!swipeDragRef.current) return;
 
       const drag = swipeDragRef.current;
       const t = e.touches[0];
@@ -1240,106 +1425,29 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       drag.dragOffset = dx;
 
       const {
-        daysTrackEl, prevPanel, currPanel, nextPanel,
-        headerTrackEl, prevHeader, currHeader, nextHeader,
+        daysTrackEl,
+        headerTrackEl,
         thumbEl,
-        currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+        currentTimeOverlayEl,
       } = getPanels();
       const viewportWidth = el.clientWidth || 360;
-      const progress = Math.min(1, absX / (viewportWidth * 0.7));
 
       if (daysTrackEl) {
         daysTrackEl.style.transition = 'none';
         daysTrackEl.style.transform = `translate3d(${dx}px, 0, 0)`;
 
-        // Outgoing panel loses opacity
-        const currOpacity = Math.max(0.15, 1 - progress * 0.85);
-        if (currPanel) {
-          currPanel.style.transition = 'none';
-          currPanel.style.opacity = String(currOpacity);
-        }
         if (currentTimeOverlayEl) {
           currentTimeOverlayEl.classList.add('is-moving');
           currentTimeOverlayEl.style.transition = 'none';
           currentTimeOverlayEl.style.transform = `translate3d(${dx}px, 0, 0)`;
         }
-        if (currTimePanel) {
-          currTimePanel.style.transition = 'none';
-          currTimePanel.style.opacity = String(currOpacity);
-        }
-
-        // Incoming panel gains opacity
-        if (dx < 0) {
-          const nextOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (nextPanel) {
-            nextPanel.style.transition = 'none';
-            nextPanel.style.opacity = String(nextOpacity);
-          }
-          if (nextTimePanel) {
-            nextTimePanel.style.transition = 'none';
-            nextTimePanel.style.opacity = String(nextOpacity);
-          }
-          if (prevPanel) {
-            prevPanel.style.transition = 'none';
-            prevPanel.style.opacity = '0.2';
-          }
-          if (prevTimePanel) {
-            prevTimePanel.style.transition = 'none';
-            prevTimePanel.style.opacity = '0';
-          }
-        } else {
-          const prevOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (prevPanel) {
-            prevPanel.style.transition = 'none';
-            prevPanel.style.opacity = String(prevOpacity);
-          }
-          if (prevTimePanel) {
-            prevTimePanel.style.transition = 'none';
-            prevTimePanel.style.opacity = String(prevOpacity);
-          }
-          if (nextPanel) {
-            nextPanel.style.transition = 'none';
-            nextPanel.style.opacity = '0.2';
-          }
-          if (nextTimePanel) {
-            nextTimePanel.style.transition = 'none';
-            nextTimePanel.style.opacity = '0';
-          }
-        }
       }
 
-      // In Week View: header track moves 1:1 and panels fade simultaneously
+      // In Week View: header track moves 1:1 with finger
       // In Day View: header track stays fixed and static
       if (headerTrackEl && !isDayViewRef.current) {
         headerTrackEl.style.transition = 'none';
         headerTrackEl.style.transform = `translate3d(${dx}px, 0, 0)`;
-
-        const currOpacity = Math.max(0.15, 1 - progress * 0.85);
-        if (currHeader) {
-          currHeader.style.transition = 'none';
-          currHeader.style.opacity = String(currOpacity);
-        }
-        if (dx < 0) {
-          const nextOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (nextHeader) {
-            nextHeader.style.transition = 'none';
-            nextHeader.style.opacity = String(nextOpacity);
-          }
-          if (prevHeader) {
-            prevHeader.style.transition = 'none';
-            prevHeader.style.opacity = '0.2';
-          }
-        } else {
-          const prevOpacity = Math.min(1, 0.2 + progress * 0.8);
-          if (prevHeader) {
-            prevHeader.style.transition = 'none';
-            prevHeader.style.opacity = String(prevOpacity);
-          }
-          if (nextHeader) {
-            nextHeader.style.transition = 'none';
-            nextHeader.style.opacity = '0.2';
-          }
-        }
       }
 
       // In Day View: blue circle thumb glides in real-time with finger
@@ -1387,10 +1495,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
         }
 
         const {
-          daysTrackEl, prevPanel, currPanel, nextPanel,
-          headerTrackEl, prevHeader, currHeader, nextHeader,
+          daysTrackEl,
+          headerTrackEl,
           thumbEl,
-          currentTimeOverlayEl, prevTimePanel, currTimePanel, nextTimePanel
+          currentTimeOverlayEl,
         } = getPanels();
 
         if (shouldCommit) {
@@ -1407,61 +1515,25 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           const targetX = isNext ? '-100%' : '100%';
 
           if (daysTrackEl) {
-            daysTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             daysTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-          }
-          if (currPanel) {
-            currPanel.style.transition = 'opacity 0.22s ease';
-            currPanel.style.opacity = '0';
           }
           if (currentTimeOverlayEl) {
             currentTimeOverlayEl.classList.add('is-moving');
-            currentTimeOverlayEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             currentTimeOverlayEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-          }
-          if (currTimePanel) {
-            currTimePanel.style.transition = 'opacity 0.22s ease';
-            currTimePanel.style.opacity = '0';
-          }
-          if (isNext && nextTimePanel) {
-            nextTimePanel.style.transition = 'opacity 0.22s ease';
-            nextTimePanel.style.opacity = '1';
-          }
-          if (!isNext && prevTimePanel) {
-            prevTimePanel.style.transition = 'opacity 0.22s ease';
-            prevTimePanel.style.opacity = '1';
-          }
-          if (isNext && nextPanel) {
-            nextPanel.style.transition = 'opacity 0.22s ease';
-            nextPanel.style.opacity = '1';
-          }
-          if (!isNext && prevPanel) {
-            prevPanel.style.transition = 'opacity 0.22s ease';
-            prevPanel.style.opacity = '1';
           }
 
           if (headerTrackEl && !isDayViewRef.current) {
-            headerTrackEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+            headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
             headerTrackEl.style.transform = `translate3d(${targetX}, 0, 0)`;
-            if (currHeader) {
-              currHeader.style.transition = 'opacity 0.22s ease';
-              currHeader.style.opacity = '0';
-            }
-            if (isNext && nextHeader) {
-              nextHeader.style.transition = 'opacity 0.22s ease';
-              nextHeader.style.opacity = '1';
-            }
-            if (!isNext && prevHeader) {
-              prevHeader.style.transition = 'opacity 0.22s ease';
-              prevHeader.style.opacity = '1';
-            }
           }
 
           if (thumbEl && isDayViewRef.current) {
             const currentIdx = selectedDayIndexRef.current;
             if (currentIdx >= 0) {
               const targetIdx = isNext ? currentIdx + 1 : currentIdx - 1;
-              thumbEl.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+              thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
               thumbEl.style.transform = `translate3d(${targetIdx * 100}%, 0, 0)`;
             }
           }
@@ -1469,59 +1541,31 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           setTimeout(() => {
             if (isNext) onSwipeLeftRef.current?.();
             else onSwipeRightRef.current?.();
-          }, 225);
+          }, 160);
           return;
         }
 
-        // Cancel: Snap back smoothly to 0 with opacities restoring
+        // Cancel: Snap back smoothly to 0
         if (daysTrackEl) {
-          daysTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          daysTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           daysTrackEl.style.transform = 'translate3d(0, 0, 0)';
-        }
-        if (currPanel) {
-          currPanel.style.transition = 'opacity 0.24s ease';
-          currPanel.style.opacity = '1';
         }
         if (currentTimeOverlayEl) {
           currentTimeOverlayEl.classList.add('is-moving');
-          currentTimeOverlayEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          currentTimeOverlayEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           currentTimeOverlayEl.style.transform = 'translate3d(0, 0, 0)';
-        }
-        if (currTimePanel) {
-          currTimePanel.style.transition = 'opacity 0.24s ease';
-          currTimePanel.style.opacity = '1';
-        }
-        if (nextTimePanel) {
-          nextTimePanel.style.transition = 'opacity 0.24s ease';
-          nextTimePanel.style.opacity = '0';
-        }
-        if (prevTimePanel) {
-          prevTimePanel.style.transition = 'opacity 0.24s ease';
-          prevTimePanel.style.opacity = '0';
-        }
-        if (nextPanel) {
-          nextPanel.style.transition = 'opacity 0.24s ease';
-          nextPanel.style.opacity = '0.2';
-        }
-        if (prevPanel) {
-          prevPanel.style.transition = 'opacity 0.24s ease';
-          prevPanel.style.opacity = '0.2';
         }
 
         if (headerTrackEl && !isDayViewRef.current) {
-          headerTrackEl.style.transition = 'transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)';
+          headerTrackEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
           headerTrackEl.style.transform = 'translate3d(0, 0, 0)';
-          if (currHeader) {
-            currHeader.style.transition = 'opacity 0.24s ease';
-            currHeader.style.opacity = '1';
-          }
-          if (nextHeader) {
-            nextHeader.style.transition = 'opacity 0.24s ease';
-            nextHeader.style.opacity = '0.2';
-          }
-          if (prevHeader) {
-            prevHeader.style.transition = 'opacity 0.24s ease';
-            prevHeader.style.opacity = '0.2';
+        }
+
+        if (thumbEl && isDayViewRef.current) {
+          const currentIdx = selectedDayIndexRef.current;
+          if (currentIdx >= 0) {
+            thumbEl.style.transition = 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)';
+            thumbEl.style.transform = `translate3d(${currentIdx * 100}%, 0, 0)`;
           }
         }
 
@@ -1593,13 +1637,56 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     };
   }, [slotHeight, clearDragStyles, getPanels, resetZoom]);
 
-  const totalHeight = TOTAL_HOURS * slotHeight;
+  const visibleDayNumbers = useMemo(() => {
+    return (weekDates || []).map(d => {
+      if (!d) return 0;
+      const dt = d instanceof Date ? d : new Date(d);
+      return isNaN(dt.getTime()) ? 0 : dt.getFullYear() * 10000 + (dt.getMonth() + 1) * 100 + dt.getDate();
+    }).filter(Boolean);
+  }, [weekDates]);
+
+  const { startMinutes, endMinutes, totalHours } = useMemo(() => {
+    let minStart = 7 * 60 + 30; // 7:30 AM por defecto
+    let maxEnd = 22 * 60;       // 22:00 PM por defecto
+
+    const visibleLessons = (lessons || []).filter(l => l && visibleDayNumbers.includes(l.date));
+
+    for (const l of visibleLessons) {
+      if (typeof l.startTime === 'number') {
+        const startM = toMinutes(l.startTime);
+        if (startM < 8 * 60) {
+          // Dejar margen de 30 min antes del evento más temprano
+          const paddedStart = Math.floor((startM - 30) / 30) * 30;
+          if (paddedStart < minStart) {
+            minStart = Math.max(0, paddedStart);
+          }
+        }
+      }
+      if (typeof l.endTime === 'number') {
+        const endM = toMinutes(l.endTime);
+        if (endM > 21 * 60 + 30) {
+          // Dejar margen de 30 min después del evento más tardío
+          const paddedEnd = Math.ceil((endM + 30) / 30) * 30;
+          if (paddedEnd > maxEnd) {
+            maxEnd = Math.min(24 * 60, paddedEnd);
+          }
+        }
+      }
+    }
+
+    return {
+      startMinutes: minStart,
+      endMinutes: maxEnd,
+      totalHours: (maxEnd - minStart) / 60,
+    };
+  }, [lessons, visibleDayNumbers]);
+
+  const totalHeight = totalHours * slotHeight;
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
   const todayNum = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-  // Active between 7:30 (450 min) and 21:30 (1290 min)
-  const isTimeInRange = nowMinutes >= 450 && nowMinutes <= 1290;
-  const currentTimeTop = isTimeInRange ? ((nowMinutes - START_MINUTES) / 60) * slotHeight : null;
+  const isTimeInRange = nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+  const currentTimeTop = isTimeInRange ? ((nowMinutes - startMinutes) / 60) * slotHeight : null;
 
   // Compute 3 panels dates: previous, current, next
   const currentDates = weekDates;
@@ -1607,53 +1694,62 @@ const WeekCalendar = forwardRef(function WeekCalendar({
     if (slidePlan && slidePlan.dir === 'prev') {
       return slidePlan.dates;
     }
-    return isDayView ? [getPrevDay(weekDates[0])] : getPrevWeek(weekDates);
-  }, [isDayView, weekDates, slidePlan]);
+    if (isDayView) {
+      return [getPrevDayContextual(weekDates[0] || selectedDay, lessons)];
+    }
+    return prevWeekDates || getPrevWeek(weekDates);
+  }, [isDayView, weekDates, selectedDay, lessons, prevWeekDates, slidePlan]);
 
   const nextDates = useMemo(() => {
     if (slidePlan && slidePlan.dir === 'next') {
       return slidePlan.dates;
     }
-    return isDayView ? [getNextDay(weekDates[0])] : getNextWeek(weekDates);
-  }, [isDayView, weekDates, slidePlan]);
+    if (isDayView) {
+      return [getNextDayContextual(weekDates[0] || selectedDay, lessons)];
+    }
+    return nextWeekDates || getNextWeek(weekDates);
+  }, [isDayView, weekDates, selectedDay, lessons, nextWeekDates, slidePlan]);
 
-  // Adapt interval, grid lines, and time labels dynamically to vertical zoom
+  // Adapt interval, grid lines, and time labels dynamically to vertical zoom and hours range
   const interval = useMemo(() => getTimeInterval(slotHeight), [slotHeight]);
-  const gridLines = useMemo(() => getGridLines(slotHeight, interval), [slotHeight, interval]);
-  const timeLabels = useMemo(() => getTimeLabels(slotHeight, interval), [slotHeight, interval]);
+  const gridLines = useMemo(() => getGridLines(slotHeight, interval, startMinutes, endMinutes), [slotHeight, interval, startMinutes, endMinutes]);
+  const timeLabels = useMemo(() => getTimeLabels(slotHeight, interval, startMinutes, endMinutes), [slotHeight, interval, startMinutes, endMinutes]);
 
   // Assign distinct colors to the unique subjects in this week's timetable
   updateSubjectColors(lessons, customColors);
 
-  const dayColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / 5);
-
   // Helper to render columns for any panel (prev, current, next) with 100% precomputed layouts
   const renderDayColumns = (datesList, panelKey) => {
     if (!Array.isArray(datesList)) return null;
+    const panelColWidth = isDayView ? (containerWidth || 360) : ((containerWidth || 360) / Math.max(1, datesList.length || 5));
+
+    // Pre-analizar columnas y calcular layout una sola vez por día
+    const columnsData = datesList.map((date, dayIdx) => {
+      if (!date) return null;
+      const d = date instanceof Date ? date : new Date(date);
+      if (isNaN(d.getTime())) return null;
+      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+      const dayLessons = lessonsByDate.get(dateNum) || [];
+      const layout = arrangeColumns(dayLessons);
+      return { date: d, dayIdx, dateNum, dayLessons, layout };
+    });
 
     // ── Supresión en cascada de badges magistrales (ámbito de la vista actual) ──
-    // En vista de semana: evalúa toda la semana; si cualquier GA/Magistral no cabe, se quitan todos los de la semana.
-    // En vista de día: evalúa el día actual individualmente.
-    // Las etiquetas de subgrupos (GL, S, GO, etc.) NUNCA se alteran.
     let weekSuppressedMagistralIds = null;
     if (!isDayView) {
       let anyMissingInWeek = false;
       const allMagistralInWeek = [];
-      for (const date of datesList) {
-        if (!date) continue;
-        const d = date instanceof Date ? date : new Date(date);
-        if (isNaN(d.getTime())) continue;
-        const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-        const dayLessons = (lessons || []).filter(l => l && l.date === dateNum);
-        const layout = arrangeColumns(dayLessons);
+      for (const colData of columnsData) {
+        if (!colData) continue;
+        const { dayLessons, layout } = colData;
         for (const lesson of dayLessons) {
           if (!isMagistralType(lesson.type)) continue;
           allMagistralInWeek.push(lesson.id);
           const col = layout.get(lesson.id) || { colIdx: 0, total: 1, span: 1 };
-          const startMin = minutesSinceStart(lesson.startTime);
-          const endMin = minutesSinceStart(lesson.endTime);
+          const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+          const endMin = minutesSinceStart(lesson.endTime, startMinutes);
           const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
-          const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 2);
+          const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - 2);
           const fit = computeBlockLayoutMemo(lesson, blockWidth, height, false) || DEFAULT_FIT;
           if (fit.badge?.hide !== false) {
             anyMissingInWeek = true;
@@ -1665,13 +1761,9 @@ const WeekCalendar = forwardRef(function WeekCalendar({
       }
     }
 
-    return datesList.map((date, dayIdx) => {
-      if (!date) return null;
-      const d = date instanceof Date ? date : new Date(date);
-      if (isNaN(d.getTime())) return null;
-      const dateNum = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-      const dayLessons = (lessons || []).filter(l => l && l.date === dateNum);
-      const layout = arrangeColumns(dayLessons);
+    return columnsData.map((colData, dayIdx) => {
+      if (!colData) return null;
+      const { date: d, dateNum, dayLessons, layout } = colData;
       const isToday = isSameDay(d, now);
 
       // En vista de día: evaluar cascada para el día actual
@@ -1682,10 +1774,10 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           let anyMissingBadge = false;
           const magistralFits = magistralLessons.map(lesson => {
             const col = layout.get(lesson.id) || { colIdx: 0, total: 1, span: 1 };
-            const startMin = minutesSinceStart(lesson.startTime);
-            const endMin = minutesSinceStart(lesson.endTime);
+            const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+            const endMin = minutesSinceStart(lesson.endTime, startMinutes);
             const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
-            const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - 4);
+            const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - 4);
             const fit = computeBlockLayoutMemo(lesson, blockWidth, height, true) || DEFAULT_FIT;
             if (fit.badge?.hide !== false) anyMissingBadge = true;
             return { id: lesson.id, hideBadge: fit.badge?.hide !== false };
@@ -1703,11 +1795,21 @@ const WeekCalendar = forwardRef(function WeekCalendar({
           <div
             className="day-col-inner"
             style={{ height: totalHeight + 'px' }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (e.target.closest('.lesson-block')) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const offsetY = e.clientY - rect.top;
+              const clickedMinutes = startMinutes + (offsetY / slotHeight) * 60;
+              const roundedMinutes = Math.round(clickedMinutes / 15) * 15;
+              const clampedMinutes = Math.max(startMinutes, Math.min(endMinutes - 30, roundedMinutes));
+              onCellDoubleClick?.(d, clampedMinutes);
+            }}
           >
 
             {dayLessons.map((lesson, idx) => {
-              const startMin = minutesSinceStart(lesson.startTime);
-              const endMin = minutesSinceStart(lesson.endTime);
+              const startMin = minutesSinceStart(lesson.startTime, startMinutes);
+              const endMin = minutesSinceStart(lesson.endTime, startMinutes);
               const top = (startMin / 60) * slotHeight;
               const height = Math.max(((endMin - startMin) / 60) * slotHeight - 2, 22);
               const isPastLesson = dateNum < todayNum || (dateNum === todayNum && toMinutes(lesson.endTime) <= nowMinutes);
@@ -1717,20 +1819,163 @@ const WeekCalendar = forwardRef(function WeekCalendar({
               const widthPct = 100 / col.total;
               const leftPct = col.colIdx * widthPct;
 
-              const color = subjectColor(lesson.subjectIds?.[0] || 0, isDark);
-              const blockWidth = Math.max(16, (dayColWidth / col.total) * col.span - (isDayView ? 4 : 2));
+              const color = (lesson.isCustomEvent && typeof lesson.colorIndex === 'number')
+                ? getSubjectColorStyle(lesson.colorIndex, isDark)
+                : subjectColor(lesson.subjectIds?.[0] || 0, isDark);
+              const blockWidth = Math.max(16, (panelColWidth / col.total) * col.span - (isDayView ? 4 : 2));
               let fit = computeBlockLayoutMemo(lesson, blockWidth, height, isDayView) || DEFAULT_FIT;
 
+              const isSwapOrigin = Boolean(swapOriginLesson && (
+                (lesson.lessonKey && lesson.lessonKey === swapOriginLesson.lessonKey) ||
+                (lesson.id && swapOriginLesson.id && lesson.id === swapOriginLesson.id)
+              ));
+              const isSwapIdentical = Boolean(
+                swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent && areLessonsIdentical(swapOriginLesson, lesson)
+              );
+              const isSwapTargetCandidate = Boolean(
+                swapOriginLesson && !isSwapOrigin && !lesson.isCustomEvent && !isSwapIdentical
+              );
+              const isCancelledLesson = lesson.code === 'cancelled' || Boolean(lesson.isUserCancelled);
+              const hasDrift = Boolean(lesson.hasRemoteDrift);
+              const isSwapped = !isSwapOrigin && !isCancelledLesson && Boolean(lesson.swappedWith) && !hasDrift;
+              const isEdited = !isSwapOrigin && !isCancelledLesson && (lesson.swappedWith ? hasNonSwapOverrides(lesson) : Boolean(lesson.isOverridden)) && !hasDrift;
+              const showEditedIcon = isSwapped || isEdited;
+              const isCompactBlock = height < 34;
+
               // Aplicar supresión en cascada: si este magistral debe ser suprimido en la vista actual, ocultar badge
+              // y recalcular el tamaño de la pestaña superior derecha sin badge.
               if (activeSuppressedIds && activeSuppressedIds.has(lesson.id) && isMagistralType(lesson.type)) {
-                fit = { ...fit, badge: { ...(fit.badge || {}), hide: true } };
+                const prevBadgeHeight = fit.badge?.hide ? 0 : (fit.badge?.height || 0);
+                const nextTotalHeight = Math.max(0, (fit.totalHeight || 0) - prevBadgeHeight);
+                fit = {
+                  ...fit,
+                  badge: { ...(fit.badge || {}), hide: true, width: 0, height: 0 },
+                  totalHeight: nextTotalHeight,
+                  statusPlacement: resolveStatusIndicatorPlacement({
+                    showEditedIcon,
+                    isSwapped,
+                    isEdited,
+                    hasDrift,
+                    hasBadge: false,
+                    badgeWidth: 0,
+                    blockWidth: fit.blockWidth || blockWidth,
+                    blockHeight: height,
+                  }),
+                };
               }
 
+              const hasTextBadge = !fit.badge?.hide && Boolean(fit.badge?.text);
+              const isIconOnlyCancelledBadge = isCancelledLesson && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
+              const isIconOnlyCategoryBadge = lesson.isCustomEvent && !fit.badge?.hide && Boolean(fit.badge?.iconOnly);
+              const hasVisibleHeaderBadge =
+                hasTextBadge ||
+                (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock)) ||
+                isIconOnlyCategoryBadge;
+
+              const effectiveStatusPlacement = isSwapOrigin
+                ? (hasDrift ? 'corner-sm' : 'none')
+                : (fit.statusPlacement || 'none');
+
+              const isCornerTabStatus =
+                effectiveStatusPlacement !== 'none' && (showEditedIcon || hasDrift);
+
+              const hasHeaderRow = hasVisibleHeaderBadge;
+
+              const statusTooltip = hasDrift
+                ? 'WebUntis ha actualizado esta clase'
+                : (isSwapped && isEdited
+                  ? `Horario intercambiado con ${lesson.swappedWith?.subjectName || ''} · Clase personalizada`
+                  : (isSwapped
+                    ? `Horario intercambiado con ${lesson.swappedWith?.subjectName || ''}`
+                    : 'Clase personalizada'));
+
+              const renderStatusIcons = (mode) => {
+                if (!isSwapped && !isEdited && !hasDrift) return null;
+                const cfg =
+                  mode === 'corner-lg'
+                    ? { box: 13, icon: 8, driftFont: 8, radius: '0 0 0 5px' }
+                    : mode === 'corner-md'
+                      ? { box: 11, icon: 7, driftFont: 7.5, radius: '0 0 0 4px' }
+                      : mode === 'corner-sm'
+                        ? { box: 9, icon: 6, driftFont: 6.5, radius: '0 0 0 3px' }
+                        : { box: 8, icon: 5.5, driftFont: 6, radius: '0 0 0 3px' };
+
+                const isDualStatus = Boolean(isSwapped && isEdited);
+
+                const tabBaseStyle = {
+                  width: cfg.box,
+                  height: cfg.box,
+                  background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.11)',
+                  color: color.text,
+                  opacity: 0.92,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                };
+
+                return (
+                  <>
+                    {isSwapped && (
+                      <div
+                        style={{
+                          ...tabBaseStyle,
+                          // Cuando ambas están presentes, la superior no se redondea abajo a la izquierda
+                          // para fusionarse de forma continua con la pestaña inferior
+                          borderRadius: isDualStatus ? 0 : cfg.radius,
+                        }}
+                        title={lesson.swappedWith ? `Horario intercambiado con ${lesson.swappedWith.subjectName}` : 'Horario intercambiado'}
+                      >
+                        <ArrowUpDown size={cfg.icon} strokeWidth={2.5} />
+                      </div>
+                    )}
+
+                    {isEdited && (
+                      <div
+                        style={{
+                          ...tabBaseStyle,
+                          borderRadius: cfg.radius,
+                        }}
+                        title="Clase personalizada"
+                      >
+                        <Pencil size={cfg.icon} strokeWidth={2.5} />
+                      </div>
+                    )}
+
+                    {hasDrift && (
+                      <div
+                        style={{
+                          background: '#f59e0b',
+                          color: '#ffffff',
+                          borderRadius: cfg.radius,
+                          width: cfg.box,
+                          height: cfg.box,
+                          fontSize: cfg.driftFont,
+                          lineHeight: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}
+                        title="WebUntis ha actualizado esta clase"
+                      >
+                        !
+                      </div>
+                    )}
+                  </>
+                );
+              };
+
+              const swapDisabledTooltip = isSwapIdentical
+                ? 'No se pueden intercambiar dos clases idénticas (misma asignatura, tipo, profesor y aula)'
+                : undefined;
 
               return (
                 <div
                   key={blockKey}
-                  className={`lesson-block${lesson.code === 'cancelled' ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}`}
+                  title={isCornerTabStatus ? statusTooltip : swapDisabledTooltip}
+                  className={`lesson-block${lesson.isCustomEvent ? ' is-custom-event' : ''}${isCancelledLesson ? ' cancelled' : ''}${lesson.isDimmed ? ' is-dimmed' : ''}${isPastLesson ? ' is-past' : ''}${lesson.isOverridden && !isCancelledLesson ? ' is-overridden' : ''}${lesson.hasRemoteDrift ? ' has-drift' : ''}${isSwapOrigin ? ' is-swap-origin' : ''}${isSwapTargetCandidate ? ' is-swap-candidate' : ''}${isSwapIdentical ? ' is-swap-disabled' : ''}`}
                   style={{
                     top: `${top}px`,
                     height: `${height}px`,
@@ -1739,6 +1984,13 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     background: color.bg,
                     color: color.text,
                     border: color.border ? `1px solid ${color.border}` : undefined,
+                    outline: isSwapOrigin ? '2.5px solid var(--accent)' : undefined,
+                    outlineOffset: isSwapOrigin ? '-1px' : undefined,
+                    boxShadow: isSwapOrigin
+                      ? '0 0 16px rgba(99, 102, 241, 0.45)'
+                      : (effectiveStatusPlacement === 'corner-xs' && hasDrift ? 'inset 0 2px 0 #f59e0b' : undefined),
+                    zIndex: isSwapOrigin ? 20 : undefined,
+                    cursor: isSwapTargetCandidate ? 'pointer' : (isSwapIdentical ? 'not-allowed' : undefined),
                     position: 'absolute',
                     padding: fit.padding,
                     display: 'flex',
@@ -1746,36 +1998,166 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                     justifyContent: 'flex-start',
                     alignItems: 'center',
                     textAlign: 'center',
-                    overflow: 'hidden',
+                    overflow: isSwapOrigin ? 'visible' : 'hidden',
+                  }}
+                  onPointerEnter={() => {
+                    if (lesson.isCustomEvent) preloadCustomEventDetailModal();
+                    else preloadLessonModal();
+                  }}
+                  onTouchStart={() => {
+                    if (lesson.isCustomEvent) preloadCustomEventDetailModal();
+                    else preloadLessonModal();
                   }}
                   onClick={() => onLessonClick(lesson)}
                 >
-                  {/* Subgroup Badge */}
-                  {!fit.badge?.hide && (
+                  {/* Pestaña superior flotante para la clase origen (preserva intacto el texto interno de la tarjeta) */}
+                  {isSwapOrigin && (
                     <div
+                      className="swap-origin-floating-tab"
                       style={{
-                        fontSize: fit.badge?.font || 8,
-                        fontWeight: 800,
-                        background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)',
-                        color: isDark ? '#FFFFFF' : 'inherit',
-                        border: isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none',
-                        padding: fit.badge?.padding || '0px 2px',
-                        borderRadius: 3,
-                        marginBottom: 1,
-                        display: 'inline-block',
-                        lineHeight: fit.badge?.lineHeight || 1.1,
-                        flexShrink: 0,
-                        maxWidth: '100%',
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        alignSelf: 'center',
-                        boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                        top: top < 12 ? '2px' : '-10px',
                       }}
+                      title="Clase de origen para intercambio"
+                      aria-label="Clase de origen para intercambio"
                     >
-                      {fit.badge?.text}
+                      <ArrowUpDown className="w-2.5 h-2.5 shrink-0" strokeWidth={2.8} />
+                      {blockWidth >= 40 && <span>Origen</span>}
                     </div>
                   )}
+
+                  {/* Pestaña compacta con el icono real pegada a la esquina superior derecha */}
+                  {isCornerTabStatus && (
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                      }}
+                    >
+                      {renderStatusIcons(effectiveStatusPlacement)}
+                    </div>
+                  )}
+
+                  {/* Cabecera de estado y badges en flujo natural (NUNCA superpuesto ni descentrando el badge) */}
+                  {hasHeaderRow && (() => {
+                    const badgeContent = (() => {
+                      if (hasTextBadge) {
+                        return (
+                          <div
+                            style={{
+                              fontSize: fit.badge?.font || 8,
+                              fontWeight: 800,
+                              background: isCancelledLesson
+                                ? (isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
+                                : (isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)'),
+                              color: isCancelledLesson
+                                ? (isDark ? '#fca5a5' : '#b91c1c')
+                                : (isDark ? '#FFFFFF' : 'inherit'),
+                              border: isCancelledLesson
+                                ? '1px solid rgba(239, 68, 68, 0.35)'
+                                : (isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none'),
+                              padding: isCancelledLesson ? (fit.badge?.padding || '1px 3px') : (fit.badge?.padding || '0px 2px'),
+                              borderRadius: 3,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: isCancelledLesson ? 2.5 : 0,
+                              lineHeight: fit.badge?.lineHeight || 1.1,
+                              flexShrink: 0,
+                              maxWidth: '100%',
+                              textAlign: 'center',
+                              whiteSpace: 'nowrap',
+                              overflow: 'clip',
+                              boxShadow: isDark ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {isCancelledLesson && <Ban size={8} strokeWidth={2.8} className="shrink-0" />}
+                            <span>{fit.badge?.text}</span>
+                          </div>
+                        );
+                      }
+
+                      if (isCancelledLesson && (isIconOnlyCancelledBadge || !isCompactBlock)) {
+                        return (
+                          <div
+                            style={{
+                              width: 13,
+                              height: 13,
+                              borderRadius: 3,
+                              background: isDark ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.16)',
+                              color: isDark ? '#fca5a5' : '#b91c1c',
+                              border: isDark ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(239, 68, 68, 0.25)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              textDecoration: 'none',
+                            }}
+                            title="Clase cancelada"
+                          >
+                            <Ban size={8} strokeWidth={2.8} />
+                          </div>
+                        );
+                      }
+
+                      if (lesson.isCustomEvent && isIconOnlyCategoryBadge) {
+                        const CatIcon = CATEGORY_ICONS[fit.badge?.category];
+                        if (CatIcon) {
+                          return (
+                            <div
+                              style={{
+                                width: 14,
+                                height: 14,
+                                borderRadius: 3,
+                                background: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)',
+                                color: isDark ? '#FFFFFF' : 'inherit',
+                                border: isDark ? '1px solid rgba(255, 255, 255, 0.35)' : 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                textDecoration: 'none',
+                              }}
+                              title={lesson.category}
+                            >
+                              <CatIcon size={9} strokeWidth={2.5} />
+                            </div>
+                          );
+                        }
+                      }
+
+                      return null;
+                    })();
+
+                    if (!badgeContent) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        className="lesson-block-header"
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 3,
+                          marginBottom: 1,
+                          flexShrink: 0,
+                          minHeight: 0,
+                          overflow: 'clip',
+                        }}
+                      >
+                        {badgeContent}
+                      </div>
+                    );
+                  })()}
 
                   {/* Center Area: Vertically centered Subject Name */}
                   {fit.subject?.mode === 'lines' && Array.isArray(fit.subject?.lines) && (
@@ -1790,7 +2172,7 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         width: '100%',
                         minHeight: 0,
                         overflow: 'hidden',
-                        paddingTop: fit.badge?.hide ? '0px' : '1px',
+                        paddingTop: hasHeaderRow ? '1px' : '0px',
                         paddingBottom: (fit.room?.show || (isDayView && fit.teacher?.show)) ? '1px' : '0px',
                       }}
                     >
@@ -1810,21 +2192,31 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                           overflow: 'hidden',
                         }}
                       >
-                        {fit.subject.lines.map((line, lineIdx) => (
-                          <span
-                            key={lineIdx}
-                            style={{
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              lineHeight: fit.subject?.lineHeight || 1.1,
-                              textAlign: 'center',
-                            }}
-                          >
-                            {line}
-                          </span>
-                        ))}
+                        {fit.subject.lines.map((line, lineIdx) => {
+                          const showCompactCancelled = isCompactBlock && fit.badge?.hide && isCancelledLesson && lineIdx === 0;
+
+                          return (
+                            <span
+                              key={lineIdx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 2.5,
+                                maxWidth: '100%',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'clip',
+                                textDecoration: (lesson.code === 'cancelled' || lesson.isUserCancelled) ? 'line-through' : 'none',
+                                lineHeight: fit.subject?.lineHeight || 1.1,
+                                textAlign: 'center',
+                              }}
+                            >
+                              {showCompactCancelled && <Ban size={8} strokeWidth={2.8} className="shrink-0 text-rose-500" />}
+                              <span>{line}</span>
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1854,7 +2246,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                             textAlign: 'center',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            textOverflow: 'clip',
+                            textDecoration: 'none',
                             width: '100%',
                             lineHeight: fit.room.font <= 8 ? 1.05 : 1.1,
                             flexShrink: 0,
@@ -1875,7 +2268,8 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                             textAlign: 'center',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            textOverflow: 'clip',
+                            textDecoration: 'none',
                             width: '100%',
                             lineHeight: 1.1,
                             flexShrink: 0,
@@ -1885,11 +2279,6 @@ const WeekCalendar = forwardRef(function WeekCalendar({
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {/* Cancelled badge */}
-                  {lesson.code === 'cancelled' && (
-                    <div className="cancelled-badge">Cancelada</div>
                   )}
                 </div>
               );
@@ -2014,4 +2403,4 @@ const WeekCalendar = forwardRef(function WeekCalendar({
   );
 });
 
-export default WeekCalendar;
+export default memo(WeekCalendar);
