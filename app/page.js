@@ -729,24 +729,75 @@ export default function Home() {
 
   // ── Detección de teclado virtual en móviles (Android / iOS) ────────────────
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.visualViewport) return;
+    if (typeof window === 'undefined') return;
 
-    const handleViewportChange = () => {
-      // Si la altura del visualViewport se reduce más de 140px respecto a la ventana,
-      // significa que el teclado virtual está desplegado en pantalla
-      const isKeyboardOpen = window.innerHeight - window.visualViewport.height > 140;
+    let baselineHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    let lastWidth = window.innerWidth;
+    let keyboardWasOpen = false;
+
+    const updateKeyboardState = () => {
+      // Si el ancho cambia sustancialmente (rotación de pantalla), reiniciar baseline
+      if (Math.abs(window.innerWidth - lastWidth) > 50) {
+        lastWidth = window.innerWidth;
+        baselineHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        document.documentElement.removeAttribute('data-keyboard-open');
+        keyboardWasOpen = false;
+        return;
+      }
+
+      const currentH = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+      // Si la altura actual es mayor que la base conocida, actualizar baseline
+      if (currentH > baselineHeight) {
+        baselineHeight = currentH;
+      }
+
+      // Comprobación de si el teclado está físicamente desplegado
+      let isKeyboardOpen = false;
+      if ('virtualKeyboard' in navigator && typeof navigator.virtualKeyboard?.boundingRect?.height === 'number') {
+        isKeyboardOpen = navigator.virtualKeyboard.boundingRect.height > 50;
+      } else {
+        const diff = baselineHeight - currentH;
+        isKeyboardOpen = diff > 140;
+      }
+
       if (isKeyboardOpen) {
         document.documentElement.setAttribute('data-keyboard-open', 'true');
+        keyboardWasOpen = true;
       } else {
         document.documentElement.removeAttribute('data-keyboard-open');
+        // Si el teclado se acaba de cerrar (p. ej. botón atrás o gesto de cerrar teclado en Android):
+        if (keyboardWasOpen) {
+          keyboardWasOpen = false;
+          // Desenfocar el campo activo para que no quede el cursor huérfano
+          // y la barra inferior sea accesible de inmediato
+          const active = document.activeElement;
+          if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+            active.blur();
+          }
+        }
       }
     };
 
-    window.visualViewport.addEventListener('resize', handleViewportChange);
-    window.visualViewport.addEventListener('scroll', handleViewportChange);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateKeyboardState);
+      window.visualViewport.addEventListener('scroll', updateKeyboardState);
+    }
+    window.addEventListener('resize', updateKeyboardState);
+
+    if ('virtualKeyboard' in navigator && navigator.virtualKeyboard) {
+      navigator.virtualKeyboard.addEventListener('geometrychange', updateKeyboardState);
+    }
+
     return () => {
-      window.visualViewport.removeEventListener('resize', handleViewportChange);
-      window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateKeyboardState);
+        window.visualViewport.removeEventListener('scroll', updateKeyboardState);
+      }
+      window.removeEventListener('resize', updateKeyboardState);
+      if ('virtualKeyboard' in navigator && navigator.virtualKeyboard) {
+        navigator.virtualKeyboard.removeEventListener('geometrychange', updateKeyboardState);
+      }
     };
   }, []);
 

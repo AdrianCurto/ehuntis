@@ -869,31 +869,9 @@ html, body {
   will-change: transform, opacity;
 }
 
-/* Ocultar barra de pestañas y FAB en móvil/touch cuando el teclado virtual o un input de texto está activo */
+/* Ocultar barra de pestañas y FAB en móvil/touch EXCLUSIVAMENTE cuando el teclado virtual está desplegado */
 @media (hover: none) and (pointer: coarse) {
-  body:has(
-    input[type="text"]:focus,
-    input[type="search"]:focus,
-    input[type="password"]:focus,
-    input[type="email"]:focus,
-    input[type="number"]:focus,
-    input[type="tel"]:focus,
-    input[type="url"]:focus,
-    input:not([type]):focus,
-    textarea:focus
-  ) .tab-bar,
   html[data-keyboard-open="true"] .tab-bar,
-  body:has(
-    input[type="text"]:focus,
-    input[type="search"]:focus,
-    input[type="password"]:focus,
-    input[type="email"]:focus,
-    input[type="number"]:focus,
-    input[type="tel"]:focus,
-    input[type="url"]:focus,
-    input:not([type]):focus,
-    textarea:focus
-  ) .fab-add-event,
   html[data-keyboard-open="true"] .fab-add-event {
     opacity: 0 !important;
     pointer-events: none !important;
