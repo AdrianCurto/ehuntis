@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { showUndoToast } from './components/ui/undo-toast';
 import { extractSubgroupNumber, extractSubgroupKey, formatRooms } from './utils/subgroups';
@@ -232,6 +233,23 @@ function getInitialProfileAuthPanel() {
       return authParam;
     }
   } catch (_) {}
+  return null;
+}
+
+function TabUrlSync({ onTabChange, onAuthPanelChange }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')?.toLowerCase();
+    if (tab === 'info' || tab === 'ajustes' || tab === 'horarios') {
+      onTabChange(tab);
+    }
+    const auth = searchParams.get('auth')?.toLowerCase();
+    if (auth === 'login' || auth === 'register') {
+      onAuthPanelChange(auth);
+    }
+  }, [searchParams, onTabChange, onAuthPanelChange]);
+
   return null;
 }
 
@@ -2272,6 +2290,12 @@ export default function Home() {
 
   return (
     <div className="app-shell">
+      <Suspense fallback={null}>
+        <TabUrlSync
+          onTabChange={setActiveTab}
+          onAuthPanelChange={setProfileInitialAuthPanel}
+        />
+      </Suspense>
       {/* Content */}
       {activeTab === 'horarios' && (
         <>
