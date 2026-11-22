@@ -420,18 +420,12 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="4"
-                  title="Paso 4 — Configura tu identificador y vista"
+                  title="Paso 4 — Configura tu horario"
                   isLast={true}
                 >
                   <p>
-                    Al colocar el widget se abrirá la ventana de configuración:
+                    Al colocar el widget se abrirá la pantalla de ajustes (o toca el icono de engranaje arriba a la derecha). Introduce tu identificador de EHUntis, pulsa <KeyTag>Conectar y cargar</KeyTag>, elige tu horario, vista (<KeyTag>Vista diaria</KeyTag> o <KeyTag>Semana completa</KeyTag>) y tema, y guarda los cambios.
                   </p>
-                  <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                    <li>Pega o escribe tu identificador de usuario y pulsa <KeyTag>Conectar y cargar</KeyTag>.</li>
-                    <li>Selecciona el horario a mostrar (<KeyTag>Seguir horario activo</KeyTag> o uno fijo).</li>
-                    <li>Elige el modo de vista (<KeyTag>Vista diaria</KeyTag> o <KeyTag>Semana completa</KeyTag>) y el tema (<KeyTag>Sistema</KeyTag>, <KeyTag>Claro</KeyTag> u <KeyTag>Oscuro</KeyTag>).</li>
-                    <li>Pulsa <KeyTag>Guardar y actualizar widget</KeyTag>.</li>
-                  </ol>
                 </TimelineStep>
               </ol>
             </section>
