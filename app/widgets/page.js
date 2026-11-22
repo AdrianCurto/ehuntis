@@ -672,6 +672,20 @@ export default function WidgetsPage() {
             </section>
           </div>
         )}
+
+        {/* 4. Atajo hacia soporte y feedback */}
+        <div className="mt-8 pt-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+            ¿Sigues teniendo problemas con el widget o tienes alguna sugerencia?
+          </p>
+          <Link
+            href={`/?tab=info&feedback=widgets&os=${platform}`}
+            className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold text-[var(--accent)] hover:opacity-85 transition-opacity px-3.5 py-2 rounded-[var(--radius-md)] bg-[var(--accent-light)] touch-target-44 sm:touch-auto whitespace-nowrap"
+          >
+            <span>Enviar un mensaje</span>
+            <ChevronRight size={15} className="shrink-0" />
+          </Link>
+        </div>
       </main>
     </div>
   );

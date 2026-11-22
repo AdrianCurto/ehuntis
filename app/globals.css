@@ -2210,6 +2210,21 @@ html, body {
   box-sizing: border-box;
 }
 
+.profile-links-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 360px) {
+  .profile-links-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 .profile-footer {
   text-align: center;
   font-size: 12px;

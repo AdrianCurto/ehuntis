@@ -216,6 +216,7 @@ function getInitialActiveTab() {
   if (typeof window === 'undefined') return 'horarios';
   try {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('feedback')) return 'info';
     const tabParam = params.get('tab')?.toLowerCase();
     if (tabParam === 'info' || tabParam === 'ajustes' || tabParam === 'horarios') {
       return tabParam;
@@ -236,19 +237,56 @@ function getInitialProfileAuthPanel() {
   return null;
 }
 
-function TabUrlSync({ onTabChange, onAuthPanelChange }) {
+function getInitialFeedbackState() {
+  if (typeof window === 'undefined') {
+    return { open: false, source: 'info_tab', os: null };
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const feedback = params.get('feedback');
+    const os = params.get('os')?.toLowerCase();
+    if (feedback) {
+      const source = feedback === 'widgets' ? 'widgets_faq' : 'info_tab';
+      const validOs = os === 'android' || os === 'ios' ? os : null;
+      return { open: true, source, os: validOs };
+    }
+  } catch (_) {}
+  return { open: false, source: 'info_tab', os: null };
+}
+
+function TabUrlSync({ onTabChange, onAuthPanelChange, onFeedbackTrigger }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const tab = searchParams.get('tab')?.toLowerCase();
-    if (tab === 'info' || tab === 'ajustes' || tab === 'horarios') {
-      onTabChange(tab);
+    const feedback = searchParams.get('feedback');
+    const os = searchParams.get('os')?.toLowerCase();
+    if (feedback) {
+      onTabChange('info');
+      onFeedbackTrigger?.({
+        open: true,
+        source: feedback === 'widgets' ? 'widgets_faq' : 'info_tab',
+        os: os === 'android' || os === 'ios' ? os : null,
+      });
+
+      try {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('feedback');
+        currentUrl.searchParams.delete('os');
+        const nextQuery = currentUrl.searchParams.toString();
+        window.history.replaceState({}, '', currentUrl.pathname + (nextQuery ? `?${nextQuery}` : ''));
+      } catch (_) {}
+    } else {
+      const tab = searchParams.get('tab')?.toLowerCase();
+      if (tab === 'info' || tab === 'ajustes' || tab === 'horarios') {
+        onTabChange(tab);
+      }
     }
+
     const auth = searchParams.get('auth')?.toLowerCase();
     if (auth === 'login' || auth === 'register') {
       onAuthPanelChange(auth);
     }
-  }, [searchParams, onTabChange, onAuthPanelChange]);
+  }, [searchParams, onTabChange, onAuthPanelChange, onFeedbackTrigger]);
 
   return null;
 }
@@ -261,7 +299,21 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState(getInitialActiveTab);
   const [profileInitialAuthPanel, setProfileInitialAuthPanel] = useState(getInitialProfileAuthPanel);
+  const [feedbackModalState, setFeedbackModalState] = useState(getInitialFeedbackState);
   const [allClasses, setAllClasses] = useState([]);
+
+  // Limpiar parámetros de feedback / os de la URL si se cargó en frío
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('feedback')) {
+        params.delete('feedback');
+        params.delete('os');
+        const nextQuery = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (nextQuery ? `?${nextQuery}` : ''));
+      }
+    } catch (_) {}
+  }, []);
 
   // Configurations (profiles) state
   const [configs, setConfigs] = useState(() => getInitialConfigs());
@@ -275,6 +327,15 @@ export default function Home() {
   const disabledGroupIds = activeConfig.disabledGroupIds || [];
   const disabledSubjectsByGroup = activeConfig.disabledSubjectsByGroup || {};
   const disabledSubgroupsBySubject = activeConfig.disabledSubgroupsBySubject || {};
+
+  const activeGroupNames = useMemo(() => {
+    const groups = activeConfig.selectedGroups || [];
+    const disabled = activeConfig.disabledGroupIds || [];
+    return groups
+      .filter(g => !disabled.includes(String(g.uniqueId || g.id)))
+      .map(g => g.name || g.code || String(g.id || ''))
+      .filter(Boolean);
+  }, [activeConfig.selectedGroups, activeConfig.disabledGroupIds]);
 
   const [semesterTimetable, setSemesterTimetable] = useState(() => getInitialSemesterTimetable(configs, activeConfigId));
   const [loadingTimetable, setLoadingTimetable] = useState(false);
@@ -2294,6 +2355,7 @@ export default function Home() {
         <TabUrlSync
           onTabChange={setActiveTab}
           onAuthPanelChange={setProfileInitialAuthPanel}
+          onFeedbackTrigger={setFeedbackModalState}
         />
       </Suspense>
       {/* Content */}
@@ -2544,6 +2606,15 @@ export default function Home() {
           onLogout={handleLogout}
           initialAuthPanel={profileInitialAuthPanel}
           onLoginSuccess={() => setActiveTab('horarios')}
+          feedbackModalOpen={feedbackModalState.open}
+          onFeedbackModalOpenChange={(open) =>
+            setFeedbackModalState((prev) => ({ ...prev, open }))
+          }
+          feedbackInitialSource={feedbackModalState.source}
+          feedbackInitialOs={feedbackModalState.os}
+          activeGroups={activeGroupNames}
+          viewMode={isDayView ? 'day' : 'week'}
+          theme={theme}
         />
       )}
 

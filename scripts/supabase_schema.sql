@@ -42,3 +42,28 @@ BEGIN
     CREATE POLICY "Actualizacion publica por username" ON public.users FOR UPDATE USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- Tabla de feedback, preguntas y reporte de bugs
+CREATE TABLE IF NOT EXISTS public.feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL CHECK (type IN ('bug', 'suggestion', 'question')),
+  message TEXT NOT NULL CHECK (char_length(message) BETWEEN 10 AND 2000),
+  contact TEXT CHECK (contact IS NULL OR char_length(contact) <= 200),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ip_hash TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'resolved', 'ignored')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+-- Indices para rate limiting por IP y revision por estado
+CREATE INDEX IF NOT EXISTS idx_feedback_ip_hash_created_at
+  ON public.feedback (ip_hash, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at
+  ON public.feedback (status, created_at DESC);
+
+-- Row Level Security: habilitado SIN politicas publicas.
+-- Nadie puede leer ni escribir directamente con la anon key;
+-- solo el servidor mediante SUPABASE_SERVICE_ROLE_KEY puede operar sobre esta tabla.
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+

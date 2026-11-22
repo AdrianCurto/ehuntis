@@ -18,7 +18,28 @@ import {
   Smartphone,
   ChevronRight,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
+import FeedbackModal from './FeedbackModal';
+
+function GitHubIcon({ size = 18, className = '' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+      />
+    </svg>
+  );
+}
 
 // ── Username validation ────────────────────────────────────────────────────────
 const USERNAME_REGEX = /^[a-zA-Z0-9_\-.]{6,30}$/;
@@ -138,6 +159,13 @@ export default function ProfileView({
   onLogout,
   initialAuthPanel = null,
   onLoginSuccess,
+  feedbackModalOpen,
+  onFeedbackModalOpenChange,
+  feedbackInitialSource = 'info_tab',
+  feedbackInitialOs = null,
+  activeGroups = [],
+  viewMode = 'week',
+  theme = 'system',
 }) {
   // Which auth panel is open: null | 'register' | 'login'
   const [authPanel, setAuthPanel] = useState(initialAuthPanel);
@@ -153,6 +181,17 @@ export default function ProfileView({
 
   // Conflict resolution state: null or { username, cloudConfigs, cloudActiveId, cloudCustomEvents, cloudCustomCategories, localConfigs, localCustomEvents }
   const [conflictData, setConflictData] = useState(null);
+
+  // Feedback modal open state (controlled if feedbackModalOpen provided, uncontrolled fallback)
+  const [localFeedbackOpen, setLocalFeedbackOpen] = useState(false);
+  const isFeedbackModalVisible = feedbackModalOpen !== undefined
+    ? Boolean(feedbackModalOpen)
+    : localFeedbackOpen;
+
+  const handleFeedbackOpenChange = (open) => {
+    setLocalFeedbackOpen(open);
+    onFeedbackModalOpenChange?.(open);
+  };
 
   const isLoggedIn = Boolean(username);
 
@@ -502,34 +541,96 @@ export default function ProfileView({
           </Link>
         </div>
 
-        {/* ── WebUntis link ── */}
-        <a
-          href="https://ehu.webuntis.com/WebUntis/#/basic/timetablePublic"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="profile-link-btn"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            color: 'var(--accent)',
-            fontWeight: 600,
-            textDecoration: 'none',
-            background: 'var(--accent-light)',
-            padding: '12px 20px',
-            borderRadius: 'var(--radius-lg)',
-          }}
-        >
-          <ExternalLink size={20} strokeWidth={2} />
-          Abrir WebUntis oficial
-        </a>
+        {/* ── Feedback section ── */}
+        <div className="profile-card feedback-card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <MessageSquare size={20} color="var(--accent)" strokeWidth={2} />
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+              Ayuda y comentarios
+            </span>
+          </div>
+          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            ¿Has encontrado un fallo, tienes alguna duda o una idea para mejorar EHUntis?
+          </p>
+          <button
+            type="button"
+            className="sync-btn-secondary"
+            onClick={() => handleFeedbackOpenChange(true)}
+          >
+            <MessageSquare size={15} />
+            <span>Reportar fallo o sugerencia</span>
+          </button>
+        </div>
+
+        {/* ── External links (WebUntis + GitHub) ── */}
+        <div className="profile-links-grid">
+          <a
+            href="https://ehu.webuntis.com/WebUntis/#/basic/timetablePublic"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="profile-link-btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              color: 'var(--accent)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: 'var(--accent-light)',
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: 13,
+            }}
+          >
+            <ExternalLink size={18} strokeWidth={2} />
+            <span>WebUntis oficial</span>
+          </a>
+
+          <a
+            href="https://github.com/AdrianCurto/ehuntis"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="profile-link-btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              color: 'var(--accent)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              background: 'var(--accent-light)',
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: 13,
+            }}
+          >
+            <GitHubIcon size={18} />
+            <span>Código en GitHub</span>
+          </a>
+        </div>
 
         {/* ── Footer ── */}
         <div className="profile-footer">
           Datos obtenidos de ehu.webuntis.com<br />
-          Curso académico 2026–2027
+          Curso académico 2026-2027<br />
+          <span style={{ opacity: 0.85 }}>Código abierto · Licencia MIT</span>
         </div>
+
+        {/* ── Feedback Modal ── */}
+        <FeedbackModal
+          open={isFeedbackModalVisible}
+          onOpenChange={handleFeedbackOpenChange}
+          initialSource={feedbackInitialSource}
+          initialOs={feedbackInitialOs}
+          context={{
+            username,
+            activeGroups,
+            viewMode,
+            theme,
+          }}
+        />
       </div>
     </div>
   );
