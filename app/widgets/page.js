@@ -23,6 +23,7 @@ const USERNAME_STORAGE_KEY = 'ehuntis_username_v1';
 const APK_DOWNLOAD_URL = 'https://github.com/AdrianCurto/ehuntis/releases/latest/download/ehuntis-widget.apk';
 const GITHUB_RELEASES_URL = 'https://github.com/AdrianCurto/ehuntis/releases/latest';
 const SCRIPTABLE_APP_STORE_URL = 'https://apps.apple.com/app/scriptable/id1405459188';
+const LOADER_LINE_COUNT = IOS_WIDGET_LOADER_CODE.trim().split('\n').length;
 
 // ── Iconos vectoriales auténticos (cero emojis) ──────────────────────────────
 function AndroidIcon({ className, size = 18 }) {
@@ -52,6 +53,21 @@ function AppleIcon({ className, size = 18 }) {
     >
       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.16.66-2.83 1.44-.59.67-1.11 1.77-.97 2.84 1.11.09 2.2-.57 2.84-1.33z" />
     </svg>
+  );
+}
+
+function JsIcon({ className = '' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center font-extrabold font-mono rounded-[3px] bg-[#F7DF1E] text-[#000000] text-[9px] leading-none shrink-0 select-none tracking-tighter w-4 h-4 shadow-xs',
+        className
+      )}
+      aria-label="JavaScript"
+      title="JavaScript"
+    >
+      JS
+    </span>
   );
 }
 
@@ -526,32 +542,15 @@ export default function WidgetsPage() {
                 >
                   <div className="overflow-hidden">
                     <div className="rounded-[var(--radius-lg)] bg-slate-950 text-slate-200 border border-slate-800 shadow-md overflow-hidden">
-                      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
+                      <div className="flex items-center px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <JsIcon />
                           <span className="font-mono text-slate-300 font-medium">iosWidgetLoader.js</span>
                           <span className="text-slate-600">·</span>
-                          <span className="text-[10px] text-slate-400">JavaScript (~50 líneas)</span>
+                          <span className="text-[11px] text-slate-400">{LOADER_LINE_COUNT} líneas</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleCopyScript}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
-                        >
-                          {copiedScript ? (
-                            <>
-                              <Check size={11} className="text-emerald-400" />
-                              <span>Copiado</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={11} />
-                              <span>Copiar</span>
-                            </>
-                          )}
-                        </button>
                       </div>
-                      <div className="p-3.5 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-64 select-all text-slate-300">
+                      <div className="code-scroll-container p-3.5 font-mono text-[11px] leading-relaxed max-h-64 select-all text-slate-300">
                         <pre>{IOS_WIDGET_LOADER_CODE}</pre>
                       </div>
                     </div>

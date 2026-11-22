@@ -2116,6 +2116,35 @@ html, body {
 /* ─── Scrollbar ──────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 0; }
 
+/* ─── Visor de código con scrollbar visible ─────────────── */
+.code-scroll-container {
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) rgba(30, 41, 59, 0.7);
+}
+
+.code-scroll-container::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.code-scroll-container::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 4px;
+  margin: 4px 2px;
+}
+
+.code-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+  border: 1px solid rgba(15, 23, 42, 0.4);
+}
+
+.code-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
 /* ─── ProfileView ────────────────────────────────────────── */
 .profile-view {
   flex: 1;
