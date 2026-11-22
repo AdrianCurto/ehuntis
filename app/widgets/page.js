@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -8,69 +8,216 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Smartphone,
-  Apple,
   HelpCircle,
   ShieldAlert,
   Info,
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { SegmentedControl } from '@/app/components/ui/segmented-control';
 import { Button } from '@/app/components/ui/button';
 import { IOS_WIDGET_LOADER_CODE } from '@/app/utils/iosWidgetLoader';
+import { cn } from '@/app/utils/cn';
 
 const USERNAME_STORAGE_KEY = 'ehuntis_username_v1';
 const APK_DOWNLOAD_URL = 'https://github.com/AdrianCurto/ehuntis/releases/latest/download/ehuntis-widget.apk';
 const GITHUB_RELEASES_URL = 'https://github.com/AdrianCurto/ehuntis/releases/latest';
+const SCRIPTABLE_APP_STORE_URL = 'https://apps.apple.com/app/scriptable/id1405459188';
 
+// ── Iconos vectoriales auténticos (cero emojis) ──────────────────────────────
+function AndroidIcon({ className, size = 18 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993 0 .5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9994.4482.9994.9993 0 .5511-.4483.9997-.9994.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.423 13.849 8.16 12 8.16s-3.5847.263-5.1368.7897L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396" />
+    </svg>
+  );
+}
+
+function AppleIcon({ className, size = 18 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.16.66-2.83 1.44-.59.67-1.11 1.77-.97 2.84 1.11.09 2.2-.57 2.84-1.33z" />
+    </svg>
+  );
+}
+
+// ── Componentes de apoyo visual y estructural ────────────────────────────────
+function TimelineStep({ stepNumber, title, children, isLast = false }) {
+  return (
+    <li className="relative pl-9 sm:pl-10 pb-7 last:pb-1 list-none">
+      {!isLast && (
+        <div
+          className="absolute left-[13px] top-8 bottom-0 w-px bg-[var(--border)]"
+          aria-hidden="true"
+        />
+      )}
+      <div
+        className="absolute left-0 top-0.5 w-7 h-7 rounded-full bg-[var(--surface-elevated)] border-2 border-[var(--accent)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shadow-xs select-none"
+        aria-hidden="true"
+      >
+        {stepNumber}
+      </div>
+      <div>
+        <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)] mb-1.5">
+          {title}
+        </h3>
+        <div className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed space-y-2.5">
+          {children}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function KeyTag({ children }) {
+  return (
+    <kbd className="inline-block px-1.5 py-0.5 mx-0.5 font-mono text-[11px] font-semibold text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border)] rounded shadow-2xs select-all">
+      {children}
+    </kbd>
+  );
+}
+
+function LateralCallout({ variant = 'info', title, children }) {
+  const isWarning = variant === 'warning';
+  return (
+    <div
+      className={cn(
+        'rounded-r-[var(--radius-md)] rounded-l-xs p-3.5 sm:p-4 border-l-[3.5px] bg-[var(--bg-secondary)] text-xs sm:text-sm leading-relaxed border-t border-r border-b border-[var(--border)]/60 my-2.5',
+        isWarning ? 'border-l-amber-500' : 'border-l-[var(--accent)]'
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        {isWarning ? (
+          <ShieldAlert size={16} className="text-amber-500 shrink-0 mt-0.5" />
+        ) : (
+          <Info size={16} className="text-[var(--accent)] shrink-0 mt-0.5" />
+        )}
+        <div className="flex-1 min-w-0">
+          {title && (
+            <strong className="block font-semibold mb-1 text-[var(--text-primary)]">
+              {title}
+            </strong>
+          )}
+          <div className="text-[var(--text-secondary)] leading-relaxed space-y-1">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ question, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)] overflow-hidden transition-colors hover:border-[var(--border-light)]">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        className="w-full p-3.5 sm:p-4 text-left font-semibold text-xs sm:text-sm flex items-center justify-between text-[var(--text-primary)] cursor-pointer select-none transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/60 touch-target-44"
+      >
+        <span className="pr-3 leading-snug">{question}</span>
+        <ChevronDown
+          size={16}
+          className={cn(
+            'text-[var(--text-muted)] shrink-0 transition-transform duration-200 ease-out',
+            isOpen && 'rotate-180 text-[var(--accent)]'
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          'grid transition-all duration-200 ease-in-out',
+          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border)]/60">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers de inicialización en cliente ─────────────────────────────────────
+function getInitialPlatform() {
+  if (typeof window === 'undefined') return 'android';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const osParam = params.get('os')?.toLowerCase();
+    if (osParam === 'android' || osParam === 'ios') return osParam;
+
+    const ua = navigator.userAgent || '';
+    const isIOS =
+      /iPhone|iPad|iPod/i.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return isIOS ? 'ios' : 'android';
+  } catch (_) {
+    return 'android';
+  }
+}
+
+function getInitialAutoDetected() {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const osParam = params.get('os')?.toLowerCase();
+    if (osParam === 'android' || osParam === 'ios') return false;
+
+    const ua = navigator.userAgent || '';
+    const isIOS =
+      /iPhone|iPad|iPod/i.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    return isIOS || isAndroid;
+  } catch (_) {
+    return false;
+  }
+}
+
+const emptySubscribe = () => () => {};
+
+function useSavedUsername() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => {
+      try {
+        return localStorage.getItem(USERNAME_STORAGE_KEY)?.trim() || '';
+      } catch (_) {
+        return '';
+      }
+    },
+    () => ''
+  );
+}
+
+// ── Página principal /widgets ────────────────────────────────────────────────
 export default function WidgetsPage() {
-  const [platform, setPlatform] = useState(() => {
-    if (typeof window === 'undefined') return 'android';
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const osParam = params.get('os')?.toLowerCase();
-      if (osParam === 'android' || osParam === 'ios') return osParam;
-
-      const ua = navigator.userAgent || '';
-      const isIOS =
-        /iPhone|iPad|iPod/i.test(ua) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      return isIOS ? 'ios' : 'android';
-    } catch (_) {
-      return 'android';
-    }
-  });
-
-  const [autoDetected, setAutoDetected] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const osParam = params.get('os')?.toLowerCase();
-      if (osParam === 'android' || osParam === 'ios') return false;
-
-      const ua = navigator.userAgent || '';
-      const isIOS =
-        /iPhone|iPad|iPod/i.test(ua) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const isAndroid = /Android/i.test(ua);
-      return isIOS || isAndroid;
-    } catch (_) {
-      return false;
-    }
-  });
-
-  const [savedUsername] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      return localStorage.getItem(USERNAME_STORAGE_KEY)?.trim() || '';
-    } catch (_) {
-      return '';
-    }
-  });
+  const [platform, setPlatform] = useState(getInitialPlatform);
+  const [autoDetected, setAutoDetected] = useState(getInitialAutoDetected);
+  const savedUsername = useSavedUsername();
 
   const [copiedId, setCopiedId] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
 
   const handleCopyId = async () => {
     if (!savedUsername) return;
@@ -91,33 +238,34 @@ export default function WidgetsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)]">
-      {/* ── Contenedor principal ── */}
-      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 pb-20">
-        {/* ── Botón Volver al horario ── */}
-        <div className="mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] hover:opacity-80 transition-opacity p-1.5 -ml-1.5 rounded-lg focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-          >
-            <ArrowLeft size={16} strokeWidth={2.5} />
-            <span>Volver al horario</span>
-          </Link>
-        </div>
+      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 pb-24">
+        {/* ── Barra de navegación superior ── */}
+        <header className="mb-6 pt-[env(safe-area-inset-top,0px)]">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-1.5 -ml-1 rounded-[var(--radius-md)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] shadow-xs touch-target-44"
+            >
+              <ArrowLeft size={15} strokeWidth={2.2} />
+              <span>Volver al horario</span>
+            </Link>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-light)] text-[var(--accent)] text-[11px] font-bold tracking-wide uppercase">
+              <span>EHUntis Mobile</span>
+            </div>
+          </div>
 
-        {/* ── Cabecera ── */}
-        <header className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)] mb-2 font-display">
             Widgets para tu móvil
           </h1>
-          <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-            Lleva tu horario, aulas y eventos en la pantalla de inicio de Android o iOS.
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+            Consulta tus próximas clases, aulas y horarios en la pantalla de inicio de Android o iOS sin necesidad de abrir el navegador.
           </p>
         </header>
 
-        {/* ── Selector de plataforma (Segmented Control) ── */}
+        {/* ── Selector de plataforma ── */}
         <div className="mb-6">
           <SegmentedControl
-            ariaLabel="Selecciona tu plataforma"
+            ariaLabel="Selecciona tu plataforma móvil"
             value={platform}
             onChange={(val) => {
               setPlatform(val);
@@ -128,7 +276,7 @@ export default function WidgetsPage() {
                 value: 'android',
                 label: (
                   <span className="inline-flex items-center justify-center gap-2 font-semibold">
-                    <Smartphone size={16} />
+                    <AndroidIcon size={16} />
                     <span>Android</span>
                   </span>
                 ),
@@ -137,35 +285,48 @@ export default function WidgetsPage() {
                 value: 'ios',
                 label: (
                   <span className="inline-flex items-center justify-center gap-2 font-semibold">
-                    <Apple size={16} />
-                    <span>iOS</span>
+                    <AppleIcon size={16} />
+                    <span>iOS (Scriptable)</span>
                   </span>
                 ),
               },
             ]}
           />
           {autoDetected && (
-            <p className="text-xs text-[var(--text-muted)] text-center mt-2">
-              Hemos detectado tu dispositivo, pero puedes cambiar de plataforma arriba.
-            </p>
+            <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[11px] text-[var(--text-muted)]">
+              <CheckCircle2 size={12} className="text-[var(--accent)]" />
+              <span>Detectado automáticamente. Puedes cambiar de plataforma pulsando arriba.</span>
+            </div>
           )}
         </div>
 
-        {/* ── Bloque de requisito previo (común a Android e iOS) ── */}
-        <section className="mb-8 p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]">
+        {/* ── Tarjeta de requisito previo (Paso 0) ── */}
+        <section
+          aria-label="Requisito previo de sincronización"
+          className="mb-8 p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]"
+        >
           <div className="flex items-start gap-3.5">
             <div className="w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
               <Info size={17} strokeWidth={2.2} />
             </div>
             <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
+                  Paso previo
+                </span>
+                <span className="text-[var(--text-muted)] text-xs">·</span>
+                <span className="text-xs font-semibold text-[var(--text-primary)]">
+                  Identificador de cuenta
+                </span>
+              </div>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-                <strong>Antes de empezar:</strong> el widget sincroniza tu horario desde la nube. Asegúrate de haber iniciado sesión con tu identificador en la pestaña <strong>Info</strong> de EHUntis (no requiere contraseña).
+                Los widgets obtienen tu horario personalizado directamente desde la nube. Asegúrate de tener o conocer tu identificador de EHUntis para vincularlo.
               </p>
 
               {savedUsername ? (
-                <div className="inline-flex items-center gap-2 p-2 px-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] max-w-full">
+                <div className="flex flex-wrap items-center gap-2 p-2.5 px-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)]">
                   <span className="text-xs text-[var(--text-secondary)] font-medium">
-                    Tu identificador:
+                    Tu identificador guardado:
                   </span>
                   <span className="font-mono font-bold text-xs sm:text-sm text-[var(--text-primary)] select-all truncate">
                     {savedUsername}
@@ -174,7 +335,7 @@ export default function WidgetsPage() {
                     size="sm"
                     variant={copiedId ? 'default' : 'secondary'}
                     onClick={handleCopyId}
-                    className="ml-1 h-7 px-2.5 text-xs shrink-0"
+                    className="h-7 px-2.5 text-xs ml-auto shrink-0"
                   >
                     {copiedId ? (
                       <>
@@ -190,11 +351,14 @@ export default function WidgetsPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)]">
-                  <span>No has iniciado sesión en este navegador. </span>
-                  <Link href="/" className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1 mt-0.5">
-                    <span>Configura tu identificador en EHUntis primero</span>
-                    <ChevronRight size={12} />
+                <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span>No hay identificador guardado en este navegador.</span>
+                  <Link
+                    href="/"
+                    className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1 shrink-0"
+                  >
+                    <span>Configurar en EHUntis</span>
+                    <ChevronRight size={13} />
                   </Link>
                 </div>
               )}
@@ -202,225 +366,202 @@ export default function WidgetsPage() {
           </div>
         </section>
 
-        {/* ── CONTENIDO: Pestaña Android ── */}
+        {/* ── PESTAÑA ANDROID ── */}
         {platform === 'android' && (
           <div className="space-y-8 animate-fade-in">
-            {/* 1. Tarjeta de descarga principal */}
-            <div className="p-5 sm:p-6 rounded-[var(--radius-xl)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                    EHUntis Widget para Android
-                  </h2>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
-                    Vista diaria y semanal (3×2 a 5×5), sincronización con la nube y tema automático.
-                  </p>
+            {/* 1. Tarjeta principal de descarga */}
+            <section className="p-5 sm:p-6 rounded-[var(--radius-xl)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <AndroidIcon size={22} />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-display">
+                        EHUntis Widget para Android
+                      </h2>
+                    </div>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                      App nativa ligera con vista diaria y semanal, refresco manual y tema automático.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        APK v5.0.0
+                      </span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        Android 8.0+
+                      </span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        Nativo Kotlin
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="shrink-0">
+
+                <div className="shrink-0 sm:self-center">
                   <a
                     href={APK_DOWNLOAD_URL}
-                    className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm shadow-md hover:opacity-95 active:scale-[0.98] transition-all w-full sm:w-auto text-center"
+                    className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm shadow-sm hover:opacity-95 active:scale-[0.98] transition-all w-full sm:w-auto text-center touch-target-44"
                   >
-                    <Download size={18} strokeWidth={2.2} />
-                    <span>Descargar EHUntis Widget (.apk)</span>
+                    <Download size={17} strokeWidth={2.2} />
+                    <span>Descargar APK</span>
                   </a>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3.5 border-t border-[var(--border)] text-right">
+              <div className="mt-4 pt-3.5 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                <span>Instalación directa sin intermediarios</span>
                 <a
                   href={GITHUB_RELEASES_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  className="inline-flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors font-medium"
                 >
-                  <span>Ver versiones y código fuente en GitHub</span>
+                  <span>Releases en GitHub</span>
                   <ExternalLink size={12} />
                 </a>
               </div>
-            </div>
+            </section>
 
-            {/* 2. Guía de instalación paso a paso */}
-            <section>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4">
+            {/* 2. Guía paso a paso (Timeline vertical) */}
+            <section aria-labelledby="android-steps-heading">
+              <h2 id="android-steps-heading" className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-5">
                 Guía de instalación
               </h2>
 
-              <ol className="space-y-4">
-                {/* Paso 1 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      1
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 1 — Descarga e instala el APK
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed mb-3">
-                        Abre el archivo descargado (<code>ehuntis-widget.apk</code>). Si es tu primera vez instalando fuera de Google Play, Android te pedirá permitir <em>&quot;Instalar aplicaciones desconocidas&quot;</em> desde tu navegador.
-                      </p>
-                      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-900 dark:text-amber-200">
-                        <strong className="block font-semibold mb-0.5 flex items-center gap-1.5">
-                          <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                          <span>Nota sobre Google Play Protect</span>
-                        </strong>
-                        <span>
-                          Al descargarse directamente desde GitHub y no desde Google Play, puede aparecer un aviso de seguridad. Pulsa <strong>Más detalles → Instalar de todas formas</strong>. Todo el código es público y verificable en GitHub.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </li>
+              <ol className="p-0 m-0">
+                <TimelineStep
+                  stepNumber="1"
+                  title="Paso 1 — Descarga e instala el APK"
+                >
+                  <p>
+                    Abre el archivo descargado (<KeyTag>ehuntis-widget.apk</KeyTag>). Si tu navegador te solicita permisos para <em>Instalar aplicaciones desconocidas</em>, concédeselo para continuar.
+                  </p>
+                  <LateralCallout variant="warning" title="Aviso sobre Google Play Protect">
+                    Al descargarse de forma directa desde GitHub y no mediante Google Play Store, Android puede mostrar una pantalla preventiva. Pulsa en <KeyTag>Más detalles</KeyTag> → <KeyTag>Instalar de todas formas</KeyTag>. Todo el código fuente es público y verificable en el repositorio del proyecto.
+                  </LateralCallout>
+                </TimelineStep>
 
-                {/* Paso 2 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      2
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 2 — Pulsa &quot;Listo&quot; (no busques icono de app)
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed mb-2">
-                        Al terminar la instalación, pulsa el botón <strong>Listo</strong>.
-                      </p>
-                      <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-xs text-blue-900 dark:text-blue-200">
-                        <span>
-                          <strong>EHUntis Widget</strong> no crea ningún icono en tu cajón de aplicaciones ni en el escritorio; funciona exclusivamente como widget para no ocupar espacio innecesario.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="2"
+                  title="Paso 2 — Pulsa &quot;Listo&quot; al finalizar"
+                >
+                  <p>
+                    Una vez concluida la instalación, pulsa el botón <KeyTag>Listo</KeyTag>.
+                  </p>
+                  <LateralCallout variant="info" title="Diseñado exclusivamente como widget">
+                    <strong>EHUntis Widget</strong> no crea ningún icono en tu cajón de aplicaciones ni en el escritorio. Funciona 100% como widget de pantalla de inicio para no saturar tu lista de aplicaciones.
+                  </LateralCallout>
+                </TimelineStep>
 
-                {/* Paso 3 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      3
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 3 — Añade el widget a tu pantalla de inicio
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed">
-                        Mantén pulsado un espacio vacío del escritorio → <strong>Widgets</strong> → busca <strong>EHUntis Widget</strong> → arrástralo donde quieras (puedes redimensionarlo de 3×2 a 5×5).
-                      </p>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="3"
+                  title="Paso 3 — Añade el widget a tu pantalla de inicio"
+                >
+                  <p>
+                    Mantén pulsado un área libre de tu pantalla de inicio → pulsa <KeyTag>Widgets</KeyTag> → busca <KeyTag>EHUntis Widget</KeyTag> y arrástralo donde prefieras.
+                  </p>
+                  <p className="text-[var(--text-muted)] text-[11px]">
+                    Tip: Puedes redimensionarlo desde 3×2 (tarjeta compacta) hasta 5×5 (vista semanal espaciosa).
+                  </p>
+                </TimelineStep>
 
-                {/* Paso 4 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      4
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 4 — Configura tu horario
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed">
-                        Al soltarlo se abrirá la pantalla de ajustes. Introduce tu identificador de EHUntis, pulsa <strong>Conectar y cargar</strong>, elige tu horario (<em>Seguir horario activo</em> o uno concreto), el modo de vista (<em>Vista diaria</em> o <em>Semana completa</em>) y el tema (<em>Sistema</em>, <em>Claro</em> u <em>Oscuro</em>), y pulsa <strong>Guardar y actualizar widget</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="4"
+                  title="Paso 4 — Configura tu identificador y vista"
+                  isLast={true}
+                >
+                  <p>
+                    Al colocar el widget se abrirá la ventana de configuración:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                    <li>Pega o escribe tu identificador de usuario y pulsa <KeyTag>Conectar y cargar</KeyTag>.</li>
+                    <li>Selecciona el horario a mostrar (<KeyTag>Seguir horario activo</KeyTag> o uno fijo).</li>
+                    <li>Elige el modo de vista (<KeyTag>Vista diaria</KeyTag> o <KeyTag>Semana completa</KeyTag>) y el tema (<KeyTag>Sistema</KeyTag>, <KeyTag>Claro</KeyTag> u <KeyTag>Oscuro</KeyTag>).</li>
+                    <li>Pulsa <KeyTag>Guardar y actualizar widget</KeyTag>.</li>
+                  </ol>
+                </TimelineStep>
               </ol>
             </section>
 
-            {/* 3. Acordeón de Preguntas Frecuentes (Android) */}
-            <section className="pt-2">
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            {/* 3. Preguntas frecuentes (Android) */}
+            <section aria-labelledby="android-faq-heading" className="pt-2">
+              <h2 id="android-faq-heading" className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                 <HelpCircle size={18} className="text-[var(--accent)]" />
                 <span>Preguntas frecuentes (Android)</span>
               </h2>
 
-              <div className="space-y-3">
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Por qué no aparece la app en mi menú de aplicaciones?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Está diseñada para existir únicamente como widget. Si quieres abrir la web de EHUntis, solo tienes que tocar cualquier parte del horario en el widget.
-                  </p>
-                </details>
+              <div className="space-y-2.5">
+                <FaqItem question="¿Por qué no aparece un icono en mi menú de aplicaciones?">
+                  Está concebida para operar exclusivamente como widget en la pantalla de inicio. Si deseas abrir la web de EHUntis para editar clases o ver detalles, solo toca cualquier zona del horario en el widget.
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo pongo varios widgets a la vez?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Repite el Paso 3 y añade otro widget de <strong>EHUntis Widget</strong>. Cada widget guarda su propio horario y modo de vista (por ejemplo, uno en vista diaria y otro en semana completa). La cuenta y el tema se comparten entre todos.
-                  </p>
-                </details>
+                <FaqItem question="¿Cómo puedo añadir varios widgets a la vez?">
+                  Repite el Paso 3 y añade otro widget desde el menú. Cada widget almacena su propia configuración independiente (por ejemplo, uno en vista diaria para hoy y otro en vista semanal para toda la semana).
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo se actualiza?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Vuelve a esta página, descarga la nueva versión del APK e instálala encima. Tus widgets y configuración se conservan automáticamente.
-                  </p>
-                </details>
+                <FaqItem question="¿Cómo se actualiza la aplicación cuando sale una nueva versión?">
+                  Vuelve a esta página, descarga la nueva versión del archivo APK e instálala encima sin desinstalar la anterior. Todos tus widgets y ajustes se mantendrán intactos.
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo se desinstala?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Quitar el widget del escritorio no desinstala la app. Ve a <strong>Ajustes del teléfono → Aplicaciones → EHUntis Widget → Desinstalar</strong>.
-                  </p>
-                </details>
+                <FaqItem question="¿Cómo se desinstala el widget por completo?">
+                  Quitar el widget del escritorio solo retira la vista. Para desinstalar la app por completo, ve a <KeyTag>Ajustes del teléfono</KeyTag> → <KeyTag>Aplicaciones</KeyTag> → <KeyTag>EHUntis Widget</KeyTag> → <KeyTag>Desinstalar</KeyTag>.
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿El widget no se actualiza automáticamente en mi móvil?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Algunos fabricantes (Xiaomi/MIUI/HyperOS, Huawei, Oppo, Realme) restringen apps en segundo plano. Si notas retrasos, ve a <strong>Ajustes → Aplicaciones → EHUntis Widget → Batería</strong> y selecciona <strong>Sin restricciones</strong> (también puedes tocar el botón de refresco <code>↻</code> en la cabecera del widget en cualquier momento).
-                  </p>
-                </details>
+                <FaqItem question="¿Qué hacer si el widget no se actualiza automáticamente en segundo plano?">
+                  Ciertas capas de personalización (Xiaomi/MIUI/HyperOS, Huawei, Oppo o Realme) aplican cierres estrictos en segundo plano. Si notas que no refresca periódicamente, ve a <KeyTag>Ajustes → Aplicaciones → EHUntis Widget → Batería</KeyTag> y elige <KeyTag>Sin restricciones</KeyTag>. También puedes pulsar en cualquier momento el icono de refresco manual en la cabecera del widget.
+                </FaqItem>
               </div>
             </section>
           </div>
         )}
 
-        {/* ── CONTENIDO: Pestaña iOS ── */}
+        {/* ── PESTAÑA IOS ── */}
         {platform === 'ios' && (
           <div className="space-y-8 animate-fade-in">
-            {/* 1. Tarjeta de acción principal */}
-            <div className="p-5 sm:p-6 rounded-[var(--radius-xl)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                    EHUntis Widget para iOS (Scriptable)
-                  </h2>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
-                    Copia el código cargador una sola vez. Se mantendrá auto-actualizado en segundo plano.
-                  </p>
+            {/* 1. Tarjeta principal de acción */}
+            <section className="p-5 sm:p-6 rounded-[var(--radius-xl)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <AppleIcon size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-display">
+                      EHUntis Widget para iOS
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
+                      Cargador inteligente para Scriptable. Se actualiza automáticamente sin volver a copiar código.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        Scriptable
+                      </span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        Auto-actualizable
+                      </span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        iOS 14+
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="shrink-0">
+
+                <div className="shrink-0 sm:self-center">
                   <Button
                     size="lg"
                     onClick={handleCopyScript}
-                    className="w-full sm:w-auto shadow-md"
+                    className="w-full sm:w-auto shadow-sm touch-target-44"
                   >
                     {copiedScript ? (
                       <>
-                        <Check size={18} className="text-emerald-300" />
-                        <span>✓ ¡Copiado!</span>
+                        <Check size={17} className="text-emerald-300" />
+                        <span>¡Código copiado!</span>
                       </>
                     ) : (
                       <>
-                        <Copy size={18} />
+                        <Copy size={17} />
                         <span>Copiar código del widget</span>
                       </>
                     )}
@@ -428,161 +569,172 @@ export default function WidgetsPage() {
                 </div>
               </div>
 
-              {/* Desplegable colapsado: Ver código que se copia */}
+              {/* Visor colapsable estilo editor de código */}
               <div className="mt-4 pt-3.5 border-t border-[var(--border)]">
-                <details className="group">
-                  <summary className="text-xs font-semibold text-[var(--accent)] cursor-pointer list-none flex items-center gap-1.5 hover:underline">
-                    <span>Ver código que se copia</span>
-                    <ChevronDown size={14} className="group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <div className="mt-3 p-3 rounded-xl bg-slate-950 text-slate-200 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-60 border border-slate-800 select-all">
-                    <pre>{IOS_WIDGET_LOADER_CODE}</pre>
-                  </div>
-                </details>
-              </div>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setCodeOpen(!codeOpen)}
+                  aria-expanded={codeOpen}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)] hover:opacity-85 transition-opacity cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-sm"
+                >
+                  <span>{codeOpen ? 'Ocultar código del cargador' : 'Ver código que se copia'}</span>
+                  <ChevronDown
+                    size={14}
+                    className={cn('transition-transform duration-200', codeOpen && 'rotate-180')}
+                  />
+                </button>
 
-            {/* 2. Guía de instalación paso a paso */}
-            <section>
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4">
+                <div
+                  className={cn(
+                    'grid transition-all duration-200 ease-in-out',
+                    codeOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'
+                  )}
+                >
+                  <div className="overflow-hidden">
+                    <div className="rounded-[var(--radius-lg)] bg-slate-950 text-slate-200 border border-slate-800 shadow-md overflow-hidden">
+                      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <span className="font-mono text-slate-300 font-medium">iosWidgetLoader.js</span>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-[10px] text-slate-400">JavaScript (~50 líneas)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCopyScript}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+                        >
+                          {copiedScript ? (
+                            <>
+                              <Check size={11} className="text-emerald-400" />
+                              <span>Copiado</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>Copiar</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <div className="p-3.5 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-64 select-all text-slate-300">
+                        <pre>{IOS_WIDGET_LOADER_CODE}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Guía paso a paso (Timeline vertical) */}
+            <section aria-labelledby="ios-steps-heading">
+              <h2 id="ios-steps-heading" className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-5">
                 Guía de instalación
               </h2>
 
-              <ol className="space-y-4">
-                {/* Paso 1 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      1
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 1 — Instala Scriptable
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed mb-2">
-                        Descarga gratis <a href="https://apps.apple.com/app/scriptable/id1405459188" target="_blank" rel="noopener noreferrer" className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-0.5">Scriptable <ExternalLink size={11} /></a> desde la App Store.
-                      </p>
-                    </div>
-                  </div>
-                </li>
+              <ol className="p-0 m-0">
+                <TimelineStep
+                  stepNumber="1"
+                  title="Paso 1 — Instala Scriptable"
+                >
+                  <p>
+                    Instala gratis la app oficial de{' '}
+                    <a
+                      href={SCRIPTABLE_APP_STORE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-0.5"
+                    >
+                      Scriptable en la App Store
+                      <ExternalLink size={11} />
+                    </a>
+                    . Es la plataforma que permite ejecutar widgets de JavaScript nativos en iOS sin certificados externos.
+                  </p>
+                </TimelineStep>
 
-                {/* Paso 2 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      2
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 2 — Crea el script una sola vez
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed">
-                        Pulsa <strong>Copiar código del widget</strong> arriba → abre <strong>Scriptable</strong> → pulsa <strong><code>+</code></strong> arriba a la derecha → pega el código → toca el título arriba del todo y renómbralo a <strong><code>EHUntis</code></strong> → pulsa <strong>Done</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="2"
+                  title="Paso 2 — Crea el script una única vez"
+                >
+                  <p>
+                    Pulsa en <KeyTag>Copiar código del widget</KeyTag> arriba. Luego abre <strong>Scriptable</strong>:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                    <li>Toca el botón <KeyTag>+</KeyTag> arriba a la derecha para crear un nuevo script.</li>
+                    <li>Pega el código copiado en el editor.</li>
+                    <li>Toca el título del script arriba del todo y renómbralo exactamente a <KeyTag>EHUntis</KeyTag>.</li>
+                    <li>Pulsa <KeyTag>Done</KeyTag> para guardar.</li>
+                  </ol>
+                  <LateralCallout variant="info" title="Nunca más tendrás que pegar código">
+                    Este script cargador almacena el núcleo en segundo plano y se mantiene actualizado automáticamente una vez al día sin alterar tu lista de scripts.
+                  </LateralCallout>
+                </TimelineStep>
 
-                {/* Paso 3 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      3
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 3 — Añade el widget a tu pantalla de inicio
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed">
-                        Mantén pulsado el fondo de pantalla → pulsa <strong><code>+</code></strong> arriba a la izquierda → busca <strong>Scriptable</strong> → elige tamaño <strong>Mediano</strong>, <strong>Grande</strong> (o <strong>Extra Grande</strong> en iPad) → <strong>Añadir widget</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="3"
+                  title="Paso 3 — Añade el widget a tu pantalla de inicio"
+                >
+                  <p>
+                    Mantén pulsado cualquier espacio vacío del fondo de pantalla hasta que los iconos vibren → pulsa <KeyTag>+</KeyTag> arriba a la izquierda → busca <KeyTag>Scriptable</KeyTag> y elige tamaño <strong>Mediano</strong>, <strong>Grande</strong> (o <strong>Extra Grande</strong> en iPad) → pulsa <KeyTag>Añadir widget</KeyTag>.
+                  </p>
+                </TimelineStep>
 
-                {/* Paso 4 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      4
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 4 — Vincula el script
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed mb-2">
-                        Mantén pulsado el widget recién añadido → <strong>Editar widget</strong>:
-                      </p>
-                      <ul className="list-disc list-inside text-xs sm:text-sm text-[var(--text-secondary)] space-y-1 pl-1">
-                        <li>En <strong>Script</strong>, selecciona <strong><code>EHUntis</code></strong>.</li>
-                        <li>Deja <strong>When Interacting</strong> en <strong>Open URL</strong> (así tocar el horario abrirá la web y tocar el icono de engranaje ⚙ abrirá los ajustes).</li>
-                      </ul>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="4"
+                  title="Paso 4 — Vincula el script en el widget"
+                >
+                  <p>
+                    Mantén pulsado el widget recién añadido y selecciona <KeyTag>Editar widget</KeyTag>:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 pl-1">
+                    <li>En el campo <strong>Script</strong>, selecciona <KeyTag>EHUntis</KeyTag>.</li>
+                    <li>En <strong>When Interacting</strong>, déjalo en <KeyTag>Open URL</KeyTag> (permite tocar las clases para abrir la web y el engranaje para configurar).</li>
+                  </ul>
+                </TimelineStep>
 
-                {/* Paso 5 */}
-                <li className="p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)]">
-                  <div className="flex items-start gap-3.5">
-                    <span className="w-7 h-7 rounded-full bg-[var(--accent-light)] text-[var(--accent)] font-bold text-xs flex items-center justify-center shrink-0">
-                      5
-                    </span>
-                    <div className="flex-1 text-sm">
-                      <h3 className="font-bold text-[var(--text-primary)] mb-1">
-                        Paso 5 — Configura tu horario
-                      </h3>
-                      <p className="text-[var(--text-secondary)] text-xs sm:text-sm leading-relaxed">
-                        Toca el widget (o el icono ⚙ arriba a la derecha). Introduce tu identificador de EHUntis, pulsa <strong>Conectar y cargar</strong>, elige horario, vista (<em>Vista diaria</em> / <em>Semana completa</em>) y tema (<em>Sistema</em> / <em>Claro</em> / <em>Oscuro</em>), y pulsa <strong>Guardar y actualizar widget</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </li>
+                <TimelineStep
+                  stepNumber="5"
+                  title="Paso 5 — Configura tu horario"
+                  isLast={true}
+                >
+                  <p>
+                    Toca el widget recién colocado (o el icono de engranaje arriba a la derecha). Introduce tu identificador de EHUntis, pulsa <KeyTag>Conectar y cargar</KeyTag>, elige tu horario, vista (<KeyTag>Vista diaria</KeyTag> o <KeyTag>Semana completa</KeyTag>) y tema, y guarda los cambios.
+                  </p>
+                </TimelineStep>
               </ol>
             </section>
 
-            {/* 3. Acordeón de Preguntas Frecuentes (iOS) */}
-            <section className="pt-2">
-              <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            {/* 3. Preguntas frecuentes (iOS) */}
+            <section aria-labelledby="ios-faq-heading" className="pt-2">
+              <h2 id="ios-faq-heading" className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                 <HelpCircle size={18} className="text-[var(--accent)]" />
                 <span>Preguntas frecuentes (iOS)</span>
               </h2>
 
-              <div className="space-y-3">
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo pongo varios widgets a la vez?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <div className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed space-y-2">
+              <div className="space-y-2.5">
+                <FaqItem question="¿Cómo puedo tener múltiples widgets a la vez en iOS?">
+                  <div className="space-y-2">
                     <p>
-                      No hace falta duplicar el script. Añade otro widget de Scriptable, selecciona el mismo script <strong><code>EHUntis</code></strong> y rellena el campo <strong>Parameter</strong> dentro de <em>Editar widget</em>:
+                      No necesitas duplicar el script en Scriptable. Añade otro widget de Scriptable, selecciona el mismo script <KeyTag>EHUntis</KeyTag> y completa el campo <strong>Parameter</strong> dentro de <em>Editar widget</em>:
                     </p>
-                    <ul className="list-disc list-inside pl-1 space-y-1">
-                      <li><em>Atajo rápido (mismo horario, otra vista o tema):</em> escribe <code>semanal</code>, <code>diario</code>, <code>oscuro</code> o <code>claro</code> (puedes combinarlos, p. ej. <code>semanal oscuro</code>).</li>
-                      <li><em>Widget totalmente independiente:</em> escribe cualquier nombre identificador (p. ej. <code>horario2</code>), guarda, y toca su icono ⚙ para elegir un horario o cuenta diferente.</li>
+                    <ul className="list-disc list-inside space-y-1 pl-1">
+                      <li>
+                        <strong>Parámetros rápidos (mismo usuario):</strong> escribe <KeyTag>semanal</KeyTag>, <KeyTag>diario</KeyTag>, <KeyTag>oscuro</KeyTag> o <KeyTag>claro</KeyTag> (por ejemplo: <KeyTag>semanal oscuro</KeyTag>).
+                      </li>
+                      <li>
+                        <strong>Widget totalmente independiente:</strong> escribe cualquier identificador propio (por ejemplo <KeyTag>horario2</KeyTag>), guarda y toca el engranaje del widget para asociarlo a otro horario o cuenta.
+                      </li>
                     </ul>
                   </div>
-                </details>
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo se actualiza?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    No tienes que hacer nada: el script comprueba automáticamente si hay mejoras una vez al día (y cada vez que abres sus ajustes ⚙) sin perder tu configuración.
-                  </p>
-                </details>
+                <FaqItem question="¿Cómo se aplican las actualizaciones en iOS?">
+                  La actualización es 100% silenciosa y automática: el cargador verifica si existen mejoras una vez al día (y cada vez que abres los ajustes del widget). Tus preferencias y personalizaciones no se pierden nunca.
+                </FaqItem>
 
-                <details className="group p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--border)]">
-                  <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between text-[var(--text-primary)]">
-                    <span>¿Cómo se desinstala?</span>
-                    <ChevronDown size={16} className="text-[var(--text-muted)] group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <p className="mt-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Elimina el widget de la pantalla de inicio y, dentro de Scriptable, desliza para borrar el script <code>EHUntis</code>.
-                  </p>
-                </details>
+                <FaqItem question="¿Cómo se desinstala el widget en iOS?">
+                  Elimina el widget de tu pantalla de inicio como cualquier otro widget y, en la app Scriptable, desliza hacia la izquierda sobre el script <KeyTag>EHUntis</KeyTag> para borrarlo.
+                </FaqItem>
               </div>
             </section>
           </div>
