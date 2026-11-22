@@ -241,7 +241,7 @@ export default function WidgetsPage() {
       <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 pb-24">
         {/* ── Barra de navegación superior ── */}
         <header className="mb-6 pt-[env(safe-area-inset-top,0px)]">
-          <div className="flex items-center justify-between gap-3 mb-5">
+          <div className="mb-5">
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-3 py-1.5 -ml-1 rounded-[var(--radius-md)] bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] shadow-xs touch-target-44"
@@ -249,9 +249,6 @@ export default function WidgetsPage() {
               <ArrowLeft size={15} strokeWidth={2.2} />
               <span>Volver al horario</span>
             </Link>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-light)] text-[var(--accent)] text-[11px] font-bold tracking-wide uppercase">
-              <span>EHUntis Mobile</span>
-            </div>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)] mb-2 font-display">
@@ -377,50 +374,33 @@ export default function WidgetsPage() {
                     <AndroidIcon size={22} />
                   </div>
                   <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-display">
-                        EHUntis Widget para Android
-                      </h2>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                    <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-display">
+                      EHUntis Widget para Android
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
                       App nativa ligera con vista diaria y semanal, refresco manual y tema automático.
                     </p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        APK v5.0.0
-                      </span>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        Android 8.0+
-                      </span>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        Nativo Kotlin
-                      </span>
-                    </div>
                   </div>
                 </div>
 
-                <div className="shrink-0 sm:self-center">
+                <div className="shrink-0 flex flex-col sm:items-end gap-1.5">
                   <a
                     href={APK_DOWNLOAD_URL}
-                    className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm shadow-sm hover:opacity-95 active:scale-[0.98] transition-all w-full sm:w-auto text-center touch-target-44"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm shadow-sm hover:opacity-95 active:scale-[0.98] transition-all w-full sm:w-auto text-center touch-target-44"
                   >
-                    <Download size={17} strokeWidth={2.2} />
+                    <Download size={16} strokeWidth={2.2} />
                     <span>Descargar APK</span>
                   </a>
+                  <a
+                    href={GITHUB_RELEASES_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors self-center sm:self-end mt-0.5"
+                  >
+                    <span>Releases en GitHub</span>
+                    <ExternalLink size={11} />
+                  </a>
                 </div>
-              </div>
-
-              <div className="mt-4 pt-3.5 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                <span>Instalación directa sin intermediarios</span>
-                <a
-                  href={GITHUB_RELEASES_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-[var(--text-primary)] transition-colors font-medium"
-                >
-                  <span>Releases en GitHub</span>
-                  <ExternalLink size={12} />
-                </a>
               </div>
             </section>
 
@@ -510,7 +490,7 @@ export default function WidgetsPage() {
                 </FaqItem>
 
                 <FaqItem question="¿Qué hacer si el widget no se actualiza automáticamente en segundo plano?">
-                  Ciertas capas de personalización (Xiaomi/MIUI/HyperOS, Huawei, Oppo o Realme) aplican cierres estrictos en segundo plano. Si notas que no refresca periódicamente, ve a <KeyTag>Ajustes → Aplicaciones → EHUntis Widget → Batería</KeyTag> y elige <KeyTag>Sin restricciones</KeyTag>. También puedes pulsar en cualquier momento el icono de refresco manual en la cabecera del widget.
+                  Algunos fabricantes aplican restricciones estrictas en segundo plano para ahorrar batería. Si notas que no refresca, ve a <KeyTag>Ajustes → Aplicaciones → EHUntis Widget → Batería</KeyTag> y selecciona <KeyTag>Sin restricciones</KeyTag>. También puedes pulsar en cualquier momento el icono de refresco en la cabecera del widget.
                 </FaqItem>
               </div>
             </section>
@@ -531,38 +511,27 @@ export default function WidgetsPage() {
                     <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] font-display">
                       EHUntis Widget para iOS
                     </h2>
-                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-                      Cargador inteligente para Scriptable. Se actualiza automáticamente sin volver a copiar código.
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+                      Cargador para Scriptable. Se actualiza automáticamente sin volver a copiar código.
                     </p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        Scriptable
-                      </span>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        Auto-actualizable
-                      </span>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                        iOS 14+
-                      </span>
-                    </div>
                   </div>
                 </div>
 
                 <div className="shrink-0 sm:self-center">
                   <Button
-                    size="lg"
+                    size="md"
                     onClick={handleCopyScript}
-                    className="w-full sm:w-auto shadow-sm touch-target-44"
+                    className="w-full sm:w-[150px] shrink-0 shadow-sm touch-target-44"
                   >
                     {copiedScript ? (
                       <>
-                        <Check size={17} className="text-emerald-300" />
-                        <span>¡Código copiado!</span>
+                        <Check size={16} className="text-emerald-300 shrink-0" />
+                        <span>¡Copiado!</span>
                       </>
                     ) : (
                       <>
-                        <Copy size={17} />
-                        <span>Copiar código del widget</span>
+                        <Copy size={16} className="shrink-0" />
+                        <span>Copiar código</span>
                       </>
                     )}
                   </Button>
@@ -577,7 +546,7 @@ export default function WidgetsPage() {
                   aria-expanded={codeOpen}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)] hover:opacity-85 transition-opacity cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-sm"
                 >
-                  <span>{codeOpen ? 'Ocultar código del cargador' : 'Ver código que se copia'}</span>
+                  <span>{codeOpen ? 'Ocultar código' : 'Ver código'}</span>
                   <ChevronDown
                     size={14}
                     className={cn('transition-transform duration-200', codeOpen && 'rotate-180')}
@@ -657,7 +626,7 @@ export default function WidgetsPage() {
                   title="Paso 2 — Crea el script una única vez"
                 >
                   <p>
-                    Pulsa en <KeyTag>Copiar código del widget</KeyTag> arriba. Luego abre <strong>Scriptable</strong>:
+                    Pulsa en <KeyTag>Copiar código</KeyTag> arriba. Luego abre <strong>Scriptable</strong>:
                   </p>
                   <ol className="list-decimal list-inside space-y-1.5 pl-1">
                     <li>Toca el botón <KeyTag>+</KeyTag> arriba a la derecha para crear un nuevo script.</li>
@@ -665,9 +634,6 @@ export default function WidgetsPage() {
                     <li>Toca el título del script arriba del todo y renómbralo exactamente a <KeyTag>EHUntis</KeyTag>.</li>
                     <li>Pulsa <KeyTag>Done</KeyTag> para guardar.</li>
                   </ol>
-                  <LateralCallout variant="info" title="Nunca más tendrás que pegar código">
-                    Este script cargador almacena el núcleo en segundo plano y se mantiene actualizado automáticamente una vez al día sin alterar tu lista de scripts.
-                  </LateralCallout>
                 </TimelineStep>
 
                 <TimelineStep
@@ -728,12 +694,12 @@ export default function WidgetsPage() {
                   </div>
                 </FaqItem>
 
-                <FaqItem question="¿Cómo se aplican las actualizaciones en iOS?">
-                  La actualización es 100% silenciosa y automática: el cargador verifica si existen mejoras una vez al día (y cada vez que abres los ajustes del widget). Tus preferencias y personalizaciones no se pierden nunca.
+                <FaqItem question="¿Cómo se actualiza en iOS?">
+                  Es automático: el script comprueba y descarga las nuevas versiones en segundo plano sin que tengas que volver a copiar código ni rehacer tu configuración.
                 </FaqItem>
 
                 <FaqItem question="¿Cómo se desinstala el widget en iOS?">
-                  Elimina el widget de tu pantalla de inicio como cualquier otro widget y, en la app Scriptable, desliza hacia la izquierda sobre el script <KeyTag>EHUntis</KeyTag> para borrarlo.
+                  Elimina el widget de tu pantalla de inicio como cualquier otro widget y borra el script <KeyTag>EHUntis</KeyTag> dentro de Scriptable. Si no utilizas Scriptable para nada más, también puedes desinstalar la app directamente.
                 </FaqItem>
               </div>
             </section>
