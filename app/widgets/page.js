@@ -287,67 +287,68 @@ export default function WidgetsPage() {
         {/* ── Tarjeta de requisito previo (Paso 0) ── */}
         <section
           aria-label="Requisito previo de sincronización"
-          className="mb-8 p-4 sm:p-5 rounded-[var(--radius-lg)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]"
+          className="mb-8 p-4 sm:p-5 rounded-[var(--radius-xl)] bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)]"
         >
-          <div className="flex items-start gap-3.5">
-            <div className="w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] flex items-center justify-center shrink-0 mt-0.5">
-              <Info size={17} strokeWidth={2.2} />
+          <div className="flex items-center gap-2.5 mb-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[var(--accent-light)] text-[var(--accent)] flex items-center justify-center shrink-0">
+              <Info size={16} strokeWidth={2.2} />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent)]">
-                  Paso previo
-                </span>
-                <span className="text-[var(--text-muted)] text-xs">·</span>
-                <span className="text-xs font-semibold text-[var(--text-primary)]">
-                  Identificador de cuenta
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-                Los widgets obtienen tu horario personalizado directamente desde la nube. Asegúrate de tener o conocer tu identificador de EHUntis para vincularlo.
-              </p>
-
-              {savedUsername ? (
-                <div className="flex flex-wrap items-center gap-2 p-2.5 px-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-xs text-[var(--text-secondary)] font-medium">
-                    Tu identificador guardado:
-                  </span>
-                  <span className="font-mono font-bold text-xs sm:text-sm text-[var(--text-primary)] select-all truncate">
-                    {savedUsername}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={copiedId ? 'default' : 'secondary'}
-                    onClick={handleCopyId}
-                    className="h-7 px-2.5 text-xs ml-auto shrink-0"
-                  >
-                    {copiedId ? (
-                      <>
-                        <Check size={13} className="text-emerald-400" />
-                        <span>¡Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={13} />
-                        <span>Copiar</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span>No hay identificador guardado en este navegador.</span>
-                  <Link
-                    href="/?tab=info"
-                    className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1 shrink-0"
-                  >
-                    <span>Configurar en EHUntis</span>
-                    <ChevronRight size={13} />
-                  </Link>
-                </div>
-              )}
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent)]">
+                Paso previo
+              </span>
+              <span className="text-[var(--text-muted)] text-xs">·</span>
+              <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                Identificador de cuenta
+              </span>
             </div>
           </div>
+
+          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed mb-3.5">
+            Los widgets obtienen tu horario personalizado directamente desde la nube. Asegúrate de tener o conocer tu identificador de EHUntis para vincularlo.
+          </p>
+
+          {savedUsername ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)]">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className="text-xs text-[var(--text-secondary)] font-medium">
+                  Tu identificador guardado:
+                </span>
+                <span className="font-mono font-bold text-xs sm:text-sm text-[var(--text-primary)] select-all truncate bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)]">
+                  {savedUsername}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant={copiedId ? 'default' : 'secondary'}
+                onClick={handleCopyId}
+                className="h-8 sm:h-7 px-3 text-xs shrink-0 self-start sm:self-auto touch-target-44 sm:touch-auto"
+              >
+                {copiedId ? (
+                  <>
+                    <Check size={13} className="text-emerald-400" />
+                    <span>¡Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span>No hay identificador guardado en este navegador.</span>
+              <Link
+                href="/?tab=info"
+                className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1 shrink-0 pt-0.5 sm:pt-0 touch-target-44 sm:touch-auto"
+              >
+                <span>Configurar en EHUntis</span>
+                <ChevronRight size={13} />
+              </Link>
+            </div>
+          )}
         </section>
 
         {/* ── PESTAÑA ANDROID ── */}
