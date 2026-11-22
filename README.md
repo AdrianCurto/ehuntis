@@ -33,15 +33,17 @@
 
 Lleva tu horario siempre a la vista con widgets nativos sincronizados con tu cuenta:
 
-* **🤖 Widget Nativo de Android:** Soporte para vista diaria y semanal completa (redimensionable de 3×2 a 5×5), eventos personalizados, multi-widget con configuraciones independientes y tema automático/claro/oscuro.
+* **🤖 Widget Nativo de Android:** Soporte para vista diaria y semanal completa (redimensionable de 3×2 a 5×5), eventos personalizados, multi-widget con horario y vista independientes y tema automático/claro/oscuro.
 * **🍎 Widget de iOS (Scriptable):** Script cargador transparente auto-actualizable (sin tener que volver a copiar código), vista diaria y semanal, eventos personalizados y parámetros de vista/tema.
 
 > 📖 **Guía interactiva de instalación y descargas:** Consulta **[ehuntis.vercel.app/widgets](https://ehuntis.vercel.app/widgets)** o descarga directamente el instalador desde **[GitHub Releases](https://github.com/AdrianCurto/ehuntis/releases/latest)**.
 
+---
+
 ## 🛠️ Stack Tecnológico
 
 * **Web & Frontend:** [Next.js 16](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/)
-* **Widget Android:** [Kotlin](https://kotlinlang.org/) nativo con [Jetpack Glance / AppWidgets](https://developer.android.com/jetpack/compose/glance)
+* **Widget Android:** [Kotlin](https://kotlinlang.org/) nativo con [AppWidgets](https://developer.android.com/develop/ui/views/appwidgets) (Canvas 2D) y [Jetpack Compose](https://developer.android.com/jetpack/compose)
 * **Widget iOS:** [Scriptable](https://scriptable.app/) (JavaScript)
 * **Backend & Persistencia:** [Supabase](https://supabase.com/) (PostgreSQL con Row Level Security)
 * **Métricas:** [PostHog](https://posthog.com/) y [Vercel Analytics](https://vercel.com/analytics)
@@ -55,7 +57,7 @@ Lleva tu horario siempre a la vista con widgets nativos sincronizados con tu cue
    ```bash
    git clone https://github.com/AdrianCurto/ehuntis.git
    cd ehuntis
-   npm install
+   pnpm install
    ```
 2. Configura las variables de entorno:
    ```bash
@@ -63,7 +65,7 @@ Lleva tu horario siempre a la vista con widgets nativos sincronizados con tu cue
    ```
 3. Inicia el servidor de desarrollo:
    ```bash
-   npm run dev
+   pnpm dev
    ```
 4. Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 

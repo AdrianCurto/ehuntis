@@ -1,4 +1,4 @@
-﻿// EHUNTIS_WIDGET_CORE
+// EHUNTIS_WIDGET_CORE
 // ===========================================================================
 //  EHUntis Widget para iOS — Scriptable
 //  Port fiel del widget Android (Kotlin) a JavaScript/Scriptable
@@ -346,6 +346,10 @@ async function fetchUserData(username) {
   req.headers = { "Cache-Control": "no-cache", "Pragma": "no-cache" };
   try {
     const data = await req.loadJSON();
+    const status = req.response ? req.response.statusCode : 200;
+    if (status >= 400 || !data || !Array.isArray(data.configs)) {
+      throw new Error((data && data.error) || `Error HTTP ${status}`);
+    }
     return data;
   } catch(e) {
     throw new Error(`Error al cargar usuario: ${e.message}`);
@@ -3293,7 +3297,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       const isConnected = !!(state.settings.username && state.settings.username.trim() && uData);
       const configs = (isConnected && uData && Array.isArray(uData.configs)) ? uData.configs : [];
       const activeId = uData ? uData.active_config_id : null;
-      const activeName = (configs.find(c => c && c.id === activeId) || {}).name || "Principal";
+      const activeName = (activeId != null ? (configs.find(c => c && String(c.id) === String(activeId)) || {}).name : null) || "Principal";
 
       let html = "";
 
@@ -3353,7 +3357,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
 
         // Cada horario
         for (const cfg of configs) {
-          const isSelected = (state.settings.configId === cfg.id);
+          const isSelected = (state.settings.configId != null && String(state.settings.configId) === String(cfg.id));
           const grpCount = (cfg.selectedGroups && Array.isArray(cfg.selectedGroups)) ? cfg.selectedGroups.length : 0;
           html += \`
             <div class="radio-item \${isSelected ? 'selected' : ''}" onclick="selectConfig('\${cfg.id}')">
@@ -3553,16 +3557,11 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
           state.settings.systemThemeCached = isDark ? 'dark' : 'light';
         }
       } catch(_) {}
-      showToast("✓ Guardando ajustes...");
+      showToast("✓ Ajustes guardados. Ya puedes cerrar esta ventana (✕)");
       notifyScriptable("save", {
         settings: state.settings,
         userData: state.userData
       });
-      setTimeout(() => {
-        let closeUrl = "scriptable:///run?scriptName=" + encodeURIComponent(SCRIPT_NAME) + "&close=true";
-        if (INSTANCE_ID) closeUrl += "&instance=" + encodeURIComponent(INSTANCE_ID);
-        window.location.href = closeUrl;
-      }, 350);
     }
 
     function escapeHtml(str) {
@@ -3851,7 +3850,7 @@ function buildUnconfiguredWidget(settings, family, dims, scale, isDark, instance
   const topBarStack = widget.addStack();
   topBarStack.layoutHorizontally();
   topBarStack.size = new Size(0, HEADER_HEIGHT * scale);
-  topBarStack.setPadding(0, 0, 0, 0);
+  topBarStack.setPadding(5.5 * scale, 0, 0, 0);
 
   // Espaciador para alinear el botón a la derecha
   topBarStack.addSpacer();
@@ -3901,11 +3900,12 @@ function isDarkModeActive(settings) {
   if (settings && settings.theme === "dark") return true;
   if (settings && settings.theme === "light") return false;
 
-  // 1. Probar con Device.isUsingDarkAppearance() si devuelve explícitamente true
+  // 1. Probar con Device.isUsingDarkAppearance() si devuelve un booleano definido
   try {
     if (typeof Device !== "undefined" && typeof Device.isUsingDarkAppearance === "function") {
-      if (Device.isUsingDarkAppearance() === true) {
-        return true;
+      const darkApp = Device.isUsingDarkAppearance();
+      if (typeof darkApp === "boolean") {
+        return darkApp;
       }
     }
   } catch(_) {}
@@ -3915,29 +3915,29 @@ function isDarkModeActive(settings) {
     if (typeof Color !== "undefined" && typeof Color.dynamic === "function") {
       const probe = Color.dynamic(Color.white(), Color.black());
       if (probe && typeof probe.red === "number") {
-        if (probe.red < 0.5) return true;
+        return probe.red < 0.5;
       }
     }
   } catch(_) {}
 
-  // 3. Caché del tema del sistema detectada al configurar o abrir la app en Scriptable
-  if (settings && settings.systemThemeCached === "dark") {
-    return true;
-  }
-
-  // 4. Heurística horaria para widgets en segundo plano:
-  // Si estamos en horario nocturno (>= 20:45 o < 07:30) y ninguna de las APIs nativas
-  // pudo confirmar el estado (habitual en tareas de fondo de WidgetKit), asumimos modo oscuro
-  // para evitar deslumbrar al usuario en la oscuridad.
+  // 3. Heurística horaria para widgets en segundo plano cuando las APIs nativas no están disponibles:
+  // Horario nocturno: >= 20:45 o < 07:30
+  let isNight = false;
   try {
     const now = new Date();
     const timeDec = now.getHours() + now.getMinutes() / 60;
-    if (timeDec >= 20.75 || timeDec < 7.5) {
-      return true;
-    }
+    isNight = (timeDec >= 20.75 || timeDec < 7.5);
   } catch(_) {}
 
-  return false;
+  // 4. Caché del tema del sistema: usarla solo si no contradice la franja diurna
+  if (settings && settings.systemThemeCached === "dark" && isNight) {
+    return true;
+  }
+  if (settings && settings.systemThemeCached === "light" && !isNight) {
+    return false;
+  }
+
+  return isNight;
 }
 
 async function buildWidget(settings, instanceId) {
@@ -4101,7 +4101,7 @@ async function buildWidget(settings, instanceId) {
   const topBarStack = widget.addStack();
   topBarStack.layoutHorizontally();
   topBarStack.size = new Size(0, HEADER_HEIGHT * scale);
-  topBarStack.setPadding(0, 0, 0, 0);
+  topBarStack.setPadding(5.5 * scale, 0, 0, 0);
 
   // Espaciador para empujar el botón de ajustes a la derecha
   topBarStack.addSpacer();
@@ -4214,14 +4214,23 @@ async function main() {
       // (iOS otorga ~30s para el proceso; como Script.setWidget() ya se ejecutó inmediatamente
       // con la caché en el paso 1, el widget nunca falla ni se queda en blanco, y 20s garantizan
       // tiempo suficiente incluso en redes móviles lentas o servidores sobrecargados)
+      let timeoutTimer = null;
       try {
         await Promise.race([
           syncIfNeeded(settings, false, instanceId),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 20000))
+          new Promise((_, reject) => {
+            timeoutTimer = Timer.schedule(20000, false, () => reject(new Error("Timeout")));
+          })
         ]);
+        if (timeoutTimer && typeof timeoutTimer.invalidate === "function") {
+          timeoutTimer.invalidate();
+        }
         widget = await buildWidget(settings, instanceId);
         Script.setWidget(widget);
       } catch(_) {
+        if (timeoutTimer && typeof timeoutTimer.invalidate === "function") {
+          timeoutTimer.invalidate();
+        }
         // En caso de timeout o fallo de red, el widget ya tiene el contenido en caché válido
       }
     } else {
@@ -4251,4 +4260,4 @@ async function main() {
   Script.complete();
 }
 
-await main();
+return await main();

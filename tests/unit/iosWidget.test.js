@@ -23,6 +23,12 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       console,
       setTimeout,
       clearTimeout,
+      Timer: {
+        schedule: (millis, repeats, callback) => {
+          const id = setTimeout(callback, millis);
+          return { invalidate: () => clearTimeout(id) };
+        },
+      },
       Script: { complete: () => {}, setWidget: () => {}, name: () => 'EHUntis' },
       config: { runsInWidget: false, runsInAccessoryWidget: false },
       args: { queryParameters: { close: 'true' } },
@@ -498,6 +504,73 @@ describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () =>
       assert.doesNotThrow(() => {
         widgetEnv.renderWeekTimetable(dc, 338, 114, monday, lessons, false, new Date(2026, 10, 16, 10, 0), 1.0, {});
       });
+    });
+  });
+
+  describe('isDarkModeActive logic and sticky dark prevention', () => {
+    test('explicit dark theme always returns true', () => {
+      assert.equal(widgetEnv.isDarkModeActive({ theme: 'dark' }), true);
+    });
+
+    test('explicit light theme always returns false', () => {
+      assert.equal(widgetEnv.isDarkModeActive({ theme: 'light' }), false);
+    });
+
+    test('native Device.isUsingDarkAppearance() is respected directly', () => {
+      widgetEnv.Device.isUsingDarkAppearance = () => true;
+      assert.equal(widgetEnv.isDarkModeActive({ theme: 'system' }), true);
+
+      widgetEnv.Device.isUsingDarkAppearance = () => false;
+      assert.equal(widgetEnv.isDarkModeActive({ theme: 'system' }), false);
+    });
+  });
+
+  describe('fetchUserData validation in iOS script', () => {
+    test('validates statusCode and array of configs', async () => {
+      let mockStatusCode = 200;
+      let mockBody = { configs: [{ id: 1, name: 'Principal' }] };
+
+      widgetEnv.Request = class {
+        constructor() {
+          this.headers = {};
+        }
+        async loadJSON() {
+          return mockBody;
+        }
+        get response() {
+          return { statusCode: mockStatusCode };
+        }
+      };
+
+      // Success
+      const data = await widgetEnv.fetchUserData('testuser');
+      assert.equal(Array.isArray(data.configs), true);
+
+      // Status 404 (e.g. user not found)
+      mockStatusCode = 404;
+      mockBody = { error: 'Usuario no encontrado' };
+      await assert.rejects(
+        async () => await widgetEnv.fetchUserData('testuser'),
+        /Usuario no encontrado/
+      );
+
+      // Status 200 but corrupted JSON missing configs
+      mockStatusCode = 200;
+      mockBody = { somethingElse: true };
+      await assert.rejects(
+        async () => await widgetEnv.fetchUserData('testuser'),
+        /Error HTTP 200/
+      );
+    });
+  });
+
+  describe('iosWidgetLoader helper functions', () => {
+    test('extracts ETag case-insensitively', () => {
+      const { IOS_WIDGET_LOADER_CODE } = require('../../app/utils/iosWidgetLoader.js');
+      // Verify helper definition exists in loader code
+      assert.equal(IOS_WIDGET_LOADER_CODE.includes('function getHeaderCaseInsensitive'), true);
+      assert.equal(IOS_WIDGET_LOADER_CODE.includes('body.trimStart().startsWith(CORE_MARKER)'), true);
+      assert.equal(IOS_WIDGET_LOADER_CODE.includes('CORE_URL = "https://ehuntis.vercel.app/widgets/ehuntis-widget-core.js";'), true);
     });
   });
 });

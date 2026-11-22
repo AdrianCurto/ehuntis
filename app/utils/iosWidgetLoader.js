@@ -23,24 +23,30 @@ function saveMeta(data) {
   } catch (_) {}
 }
 
+function getHeaderCaseInsensitive(headers, name) {
+  if (!headers || typeof headers !== "object") return null;
+  const target = name.toLowerCase();
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === target);
+  return key ? headers[key] : null;
+}
+
 async function checkUpdate(meta, timeoutSec) {
   try {
-    const req = new Request(\`\${CORE_URL}?t=\${Date.now()}\`);
+    const req = new Request(CORE_URL);
     req.timeoutInterval = timeoutSec;
     req.headers = { "Cache-Control": "no-cache" };
     if (meta.etag) req.headers["If-None-Match"] = meta.etag;
 
     const body = await req.loadString();
     const status = req.response ? req.response.statusCode : 0;
-    const resHeaders = (req.response && req.response.headers) ? req.response.headers : {};
-    const newEtag = resHeaders["ETag"] || resHeaders["etag"] || null;
+    const newEtag = getHeaderCaseInsensitive(req.response && req.response.headers, "etag");
 
     if (status === 304 || (newEtag && newEtag === meta.etag)) {
       saveMeta({ ...meta, lastCheck: Date.now() });
       return null;
     }
 
-    if (status === 200 && typeof body === "string" && body.startsWith(CORE_MARKER)) {
+    if (status === 200 && typeof body === "string" && body.trimStart().startsWith(CORE_MARKER)) {
       FM.writeString(CORE_PATH, body);
       saveMeta({ etag: newEtag, lastCheck: Date.now() });
       return body;
@@ -49,13 +55,33 @@ async function checkUpdate(meta, timeoutSec) {
   return null;
 }
 
-async function run() {
-  const hasCache = FM.fileExists(CORE_PATH);
-  const meta = readMeta();
-  const inWidget = typeof config !== "undefined" && (config.runsInWidget || config.runsInAccessoryWidget);
-  const shouldCheck = !hasCache || !inWidget || (Date.now() - (meta.lastCheck || 0) > UPDATE_INTERVAL_MS);
+async function showError(inWidget, message) {
+  if (inWidget) {
+    const w = new ListWidget();
+    w.backgroundColor = new Color("#0B0F17");
+    const t = w.addText(message);
+    t.font = Font.systemFont(12);
+    t.textColor = new Color("#F8FAFC");
+    Script.setWidget(w);
+  } else {
+    const a = new Alert();
+    a.title = "EHUntis Widget";
+    a.message = message;
+    await a.presentAlert();
+  }
+}
 
-  let code = hasCache ? FM.readString(CORE_PATH) : null;
+async function run() {
+  const inWidget = typeof config !== "undefined" && (config.runsInWidget || config.runsInAccessoryWidget);
+  const meta = readMeta();
+
+  let code = null;
+  try {
+    if (FM.fileExists(CORE_PATH)) code = FM.readString(CORE_PATH);
+  } catch (_) {}
+
+  const hasCache = Boolean(code && code.trimStart().startsWith(CORE_MARKER));
+  const shouldCheck = !hasCache || !inWidget || (Date.now() - (meta.lastCheck || 0) > UPDATE_INTERVAL_MS);
 
   if (shouldCheck) {
     const updatedCode = await checkUpdate(meta, hasCache ? 4 : 10);
@@ -63,29 +89,30 @@ async function run() {
   }
 
   if (!code) {
-    if (inWidget) {
-      const w = new ListWidget();
-      w.backgroundColor = new Color("#0B0F17");
-      const t = w.addText("EHUntis: sin conexión para la descarga inicial. Abre Scriptable con internet.");
-      t.font = Font.systemFont(12);
-      t.textColor = new Color("#F8FAFC");
-      Script.setWidget(w);
-    } else {
-      const a = new Alert();
-      a.title = "Sin conexión";
-      a.message = "Necesitas conexión a internet la primera vez para descargar EHUntis Widget.";
-      await a.presentAlert();
-    }
+    await showError(
+      inWidget,
+      inWidget
+        ? "EHUntis: sin conexión para la descarga inicial. Abre Scriptable con internet."
+        : "Necesitas conexión a internet la primera vez para descargar EHUntis Widget."
+    );
     Script.complete();
     return;
   }
 
-  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-  await new AsyncFunction("args", "config", "Script", code)(
-    typeof args !== "undefined" ? args : undefined,
-    typeof config !== "undefined" ? config : undefined,
-    typeof Script !== "undefined" ? Script : undefined
-  );
+  try {
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+    await new AsyncFunction("args", "config", "Script", code)(
+      typeof args !== "undefined" ? args : undefined,
+      typeof config !== "undefined" ? config : undefined,
+      typeof Script !== "undefined" ? Script : undefined
+    );
+  } catch (err) {
+    // Limpiar ETag para forzar re-descarga en el siguiente intento si la copia local estaba dañada
+    saveMeta({ etag: null, lastCheck: 0 });
+    await showError(inWidget, "Error al ejecutar EHUntis: " + (err && err.message ? err.message : String(err)));
+  }
+
+  Script.complete();
 }
 
 await run();
