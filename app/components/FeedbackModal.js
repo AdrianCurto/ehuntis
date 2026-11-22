@@ -22,7 +22,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { showSuccessToast } from './ui/undo-toast';
 import posthog from 'posthog-js';
 
 const COOLDOWN_KEY = 'ehuntis_feedback_cooldown_until';
@@ -211,7 +211,10 @@ export default function FeedbackModal({
         setWebsite('');
         setIsSubmitting(false);
         onOpenChange(false);
-        toast.success('¡Gracias! Hemos recibido tu mensaje.');
+        showSuccessToast({
+          title: 'Mensaje enviado',
+          message: 'Gracias por ayudarnos a mejorar EHUntis.',
+        });
       } catch (err) {
         console.error('Error de red al enviar feedback:', err);
         setError('Error de conexión. Comprueba tu conexión a internet.');
@@ -234,17 +237,17 @@ export default function FeedbackModal({
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent className="max-w-[460px] p-0 overflow-hidden flex flex-col">
-        {/* Cabecera fija */}
-        <ResponsiveModalHeader className="px-5 sm:px-6 pt-5 pb-3">
-          <ResponsiveModalTitle className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-            Enviar comentarios
-          </ResponsiveModalTitle>
-        </ResponsiveModalHeader>
+      <ResponsiveModalContent className="max-w-md p-0 pb-0 overflow-hidden max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] flex flex-col">
+        {/* Formulario que contiene cabecera fija, cuerpo con scroll independiente y pie fijo */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden" noValidate>
+          {/* Cabecera fija */}
+          <ResponsiveModalHeader className="px-5 sm:px-6 min-h-[52px] sm:min-h-[56px] justify-center shrink-0 border-b border-[var(--border-light)] bg-[var(--surface-elevated)] pr-14 mb-0">
+            <ResponsiveModalTitle className="text-base font-bold text-[var(--text-primary)]">
+              Enviar comentarios
+            </ResponsiveModalTitle>
+          </ResponsiveModalHeader>
 
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <ResponsiveModalBody className="px-5 sm:px-6 py-2 space-y-4 flex-1 overflow-y-auto">
+          <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
             {/* 1. Selector de tipo de mensaje */}
             <div className="space-y-1.5">
               <label className="text-[13px] font-medium text-[var(--text-primary)] block">
@@ -282,6 +285,7 @@ export default function FeedbackModal({
                 rows={4}
                 maxLength={2000}
                 required
+                data-sheet-no-drag="true"
                 className="resize-none"
               />
             </div>
@@ -302,6 +306,7 @@ export default function FeedbackModal({
                 placeholder="Email, Telegram o Instagram (solo si quieres respuesta)"
                 maxLength={200}
                 autoComplete="off"
+                data-sheet-no-drag="true"
               />
               {type === 'question' && !contact.trim() && (
                 <p className="text-[11px] text-[var(--text-secondary)] mt-1">
@@ -339,7 +344,7 @@ export default function FeedbackModal({
             )}
           </ResponsiveModalBody>
 
-          {/* Pie de acciones */}
+          {/* Pie de acciones fijo */}
           <ResponsiveModalFooter className="flex flex-col gap-2.5 px-5 sm:px-6 py-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-[var(--border-light)] bg-[var(--surface-elevated)] shrink-0 z-10 mt-auto">
             <Button
               type="submit"

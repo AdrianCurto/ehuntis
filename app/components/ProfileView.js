@@ -533,11 +533,11 @@ export default function ProfileView({
           </p>
           <Link
             href="/widgets"
-            className="sync-btn-accent-outline"
+            className="sync-btn-secondary"
             style={{ textDecoration: 'none' }}
           >
-            <span>Ver Guía de Instalación y Descargas</span>
-            <ChevronRight size={15} />
+            <Smartphone size={15} />
+            <span>Ver guía de instalación y widgets</span>
           </Link>
         </div>
 

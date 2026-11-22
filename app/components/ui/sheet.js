@@ -171,6 +171,7 @@ export const SheetContent = React.forwardRef(
       const isInsideScrollableOrNoDrag = (target) => {
         if (!target || !contentEl) return false;
         if (target.closest?.('[data-sheet-no-drag]')) return true;
+        if (target.closest?.('input, textarea, select, [contenteditable]')) return true;
         let node = target;
         while (node && node !== contentEl) {
           if (node instanceof HTMLElement) {
@@ -191,6 +192,14 @@ export const SheetContent = React.forwardRef(
         e.stopPropagation();
         const drag = dragRef.current;
         if (drag.closing || e.touches.length !== 1) return;
+
+        // Impedir que toques o escritura en campos de formulario activen arrastre o provoquen blur()
+        if (e.target?.closest?.('input, textarea, select, [contenteditable]')) {
+          drag.active = false;
+          drag.dragging = false;
+          drag.scrollableEl = null;
+          return;
+        }
 
         const fromHandle = Boolean(e.target?.closest?.('[data-sheet-handle]'));
         const scrollable = contentEl.querySelector('[data-sheet-scroll]') || contentEl;

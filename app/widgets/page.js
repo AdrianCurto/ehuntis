@@ -239,7 +239,7 @@ export default function WidgetsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)]">
-      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 pb-24">
+      <main className="max-w-2xl mx-auto px-4 py-6 sm:py-10 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-12">
         {/* ── Barra de navegación superior ── */}
         <header className="mb-6 pt-[env(safe-area-inset-top,0px)]">
           <div className="mb-5">
