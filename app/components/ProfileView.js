@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import posthog from 'posthog-js';
 import {
   GraduationCap,
@@ -491,13 +492,14 @@ export default function ProfileView({
           <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Consulta tu próxima clase directamente desde la pantalla de inicio de tu móvil, sin abrir la app.
           </p>
-          <button
+          <Link
+            href="/widgets"
             className="sync-btn-accent-outline"
-            onClick={() => {/* Fase 4: link to /widgets guide */}}
+            style={{ textDecoration: 'none' }}
           >
             <span>Ver Guía de Instalación y Descargas</span>
             <ChevronRight size={15} />
-          </button>
+          </Link>
         </div>
 
         {/* ── WebUntis link ── */}

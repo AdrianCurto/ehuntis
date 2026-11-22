@@ -23,21 +23,20 @@
 * **Búsqueda sencilla:** Encuentra tu grado y tu grupo en segundos.
 * **Colores personalizados:** Asigna el color que prefieras a cada asignatura, con paleta adaptada para modo claro y modo oscuro.
 * **Filtrado de subgrupos:** Oculta las clases de prácticas o laboratorios a los que no perteneces para ver solo tu horario real.
+* **Eventos personalizados y edición de clases:** Añade eventos puntuales o semanales, mueve o cancela clases y anota comentarios con sincronización automática en la nube.
 * **Nombres reales de profesores:** Resuelve automáticamente los códigos crudos de la universidad mostrando el nombre y apellidos de tus profesores.
 * **Sincronización en la nube:** Guarda tu horario y colores con un identificador para acceder a ellos desde tu móvil, tablet u ordenador.
 
 ---
 
-## 📱 Widgets para la Pantalla de Inicio *(En desarrollo)*
+## 📱 Widgets para la Pantalla de Inicio
 
-### 🤖 Widget Nativo de Android
-* Muestra tu horario directamente en la pantalla de inicio, con un diseño visualmente casi idéntico al de la versión web.
-* Muestra la hora actual y atenúa las clases que ya han terminado.
-* Se actualiza automáticamente a lo largo del día sin consumir batería innecesaria.
-* Configuración sencilla para elegir tu usuario, perfil y tema (automático, claro u oscuro).
+Lleva tu horario siempre a la vista con widgets nativos sincronizados con tu cuenta:
 
-### 🍎 Widget de iOS (Scriptable)
-* Script para la app [Scriptable](https://scriptable.app) de iOS, con soporte para widgets medianos y grandes y modo oscuro integrado.
+* **🤖 Widget Nativo de Android:** Soporte para vista diaria y semanal completa (redimensionable de 3×2 a 5×5), eventos personalizados, multi-widget con configuraciones independientes y tema automático/claro/oscuro.
+* **🍎 Widget de iOS (Scriptable):** Script cargador transparente auto-actualizable (sin tener que volver a copiar código), vista diaria y semanal, eventos personalizados y parámetros de vista/tema.
+
+> 📖 **Guía interactiva de instalación y descargas:** Consulta **[ehuntis.vercel.app/widgets](https://ehuntis.vercel.app/widgets)** o descarga directamente el instalador desde **[GitHub Releases](https://github.com/AdrianCurto/ehuntis/releases/latest)**.
 
 ## 🛠️ Stack Tecnológico
 

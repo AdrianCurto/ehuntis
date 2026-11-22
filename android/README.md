@@ -3,9 +3,11 @@
 Widget de pantalla de inicio nativo para Android que muestra el horario de clases de la UPV/EHU en tiempo real, visualmente idéntico a la versión web de EHUntis.
 
 ## Características Principales
-- **Fidelidad Gráfica en Canvas 2D**: Renderizado continuo sobre `Bitmap` (ARGB_8888) respetando al 100% las proporciones, la cuadrícula (07:30 a 21:30), la paleta de 16 colores (Claro y Oscuro) y los 7 niveles de ajuste tipográfico de `WeekCalendar.js`.
-- **Doble Frecuencia Inteligente**:
-  - **Red (cada 6 horas)**: `TimetableSyncWorker` (WorkManager) descarga datos frescos sin sobrecargar la red ni la batería.
+- **Fidelidad Gráfica en Canvas 2D**: Renderizado continuo sobre `Bitmap` (ARGB_8888) respetando al 100% las proporciones, la cuadrícula (07:30 a 21:30), la paleta de 14 colores (Claro y Oscuro) y los 7 niveles de ajuste tipográfico de `WeekCalendar.js`.
+- **Vista Diaria y Semanal**: Soporte completo para vista diaria compacta o vista semanal completa, adaptable mediante redimensionado (3×2 a 5×5).
+- **Eventos Propios y Modificaciones**: Sincroniza clases movidas, aulas cambiadas y eventos personales creados en la web.
+- **Eficiencia y Cero Fricción**:
+  - **Red (cada 6 horas)**: `TimetableSyncWorker` (WorkManager) descarga datos frescos sin sobrecargar la red ni la batería. No requiere permisos especiales de exención de batería.
   - **Tiempo Real (~15 min y al encender pantalla)**: Actualización de la línea azul de hora (`#4F6EF7`) y atenuación de clases concluidas con 0 peticiones a internet.
   - **Refresco Manual**: Botón `[ ↻ ]` en la cabecera del widget para forzar actualización inmediata.
 - **Acceso Directo**: Tocar el horario abre inmediatamente `https://ehuntis.vercel.app` en el navegador.
@@ -26,7 +28,7 @@ android/
 │   │   │   ├── ApiClient.kt             # Cliente OkHttp para /api/user y /api/timetable
 │   │   │   └── LocalCacheManager.kt     # Almacenamiento local en disco y SharedPreferences
 │   │   ├── render/
-│   │   │   ├── Palette.kt               # 16 colores idénticos (Claro/Oscuro) y asignación
+│   │   │   ├── Palette.kt               # 14 colores idénticos (Claro/Oscuro) y asignación
 │   │   │   ├── LayoutEngine.kt          # Disposición de columnas paralelas y ajuste tipográfico
 │   │   │   └── TimetableRenderEngine.kt # Motor de dibujo en android.graphics.Canvas
 │   │   ├── worker/

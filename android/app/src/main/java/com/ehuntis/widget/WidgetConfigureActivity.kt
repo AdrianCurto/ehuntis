@@ -5,17 +5,11 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,8 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,14 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import com.ehuntis.widget.data.ApiClient
 import com.ehuntis.widget.data.LocalCacheManager
 import com.ehuntis.widget.data.UserConfig
@@ -119,31 +108,6 @@ fun WidgetConfigScreen(
 
     val accountConfigured by remember(configs) {
         derivedStateOf { configs.isNotEmpty() }
-    }
-
-    // Estado para optimización de batería
-    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
-    var isIgnoringBatteryOptimizations by remember {
-        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
-    }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                isIgnoringBatteryOptimizations = powerManager.isIgnoringBatteryOptimizations(context.packageName)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    val batterySettingsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        isIgnoringBatteryOptimizations = powerManager.isIgnoringBatteryOptimizations(context.packageName)
     }
 
     Scaffold(
@@ -248,54 +212,7 @@ fun WidgetConfigScreen(
         ) {
             item { Spacer(modifier = Modifier.height(2.dp)) }
 
-            // 1. Banner de Optimización de Batería (si procede)
-            item {
-                AnimatedVisibility(visible = !isIgnoringBatteryOptimizations) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                        onClick = {
-                            try {
-                                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                }
-                                batterySettingsLauncher.launch(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Color(0xFFD97706),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Optimización de batería activa",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.5.sp,
-                                    color = Color(0xFF92400E)
-                                )
-                                Text(
-                                    text = "Android puede limitar la actualización de clases. Toca para permitir.",
-                                    fontSize = 11.5.sp,
-                                    color = Color(0xFFB45309)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 2. Tarjeta de Cuenta UPV/EHU
+            // 1. Tarjeta de Cuenta UPV/EHU
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
