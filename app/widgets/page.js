@@ -504,11 +504,11 @@ export default function WidgetsPage() {
                   </div>
                 </div>
 
-                <div className="shrink-0 sm:self-center">
+                <div className="shrink-0 sm:self-center flex flex-col items-center gap-1.5 w-full sm:w-[150px]">
                   <Button
                     size="md"
                     onClick={handleCopyScript}
-                    className="w-full sm:w-[150px] shrink-0 shadow-sm touch-target-44"
+                    className="w-full shrink-0 shadow-sm touch-target-44"
                   >
                     {copiedScript ? (
                       <>
@@ -522,43 +522,40 @@ export default function WidgetsPage() {
                       </>
                     )}
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => setCodeOpen(!codeOpen)}
+                    aria-expanded={codeOpen}
+                    className="inline-flex items-center justify-center gap-1 text-[11px] font-medium text-[var(--accent)] hover:opacity-85 transition-opacity py-0.5 cursor-pointer touch-target-44 sm:touch-auto"
+                  >
+                    <span>{codeOpen ? 'Ocultar código' : 'Ver código'}</span>
+                    <ChevronDown
+                      size={12}
+                      className={cn('transition-transform duration-200', codeOpen && 'rotate-180')}
+                    />
+                  </button>
                 </div>
               </div>
 
               {/* Visor colapsable estilo editor de código */}
-              <div className="mt-4 pt-3.5 border-t border-[var(--border)]">
-                <button
-                  type="button"
-                  onClick={() => setCodeOpen(!codeOpen)}
-                  aria-expanded={codeOpen}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)] hover:opacity-85 transition-opacity cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-sm"
-                >
-                  <span>{codeOpen ? 'Ocultar código' : 'Ver código'}</span>
-                  <ChevronDown
-                    size={14}
-                    className={cn('transition-transform duration-200', codeOpen && 'rotate-180')}
-                  />
-                </button>
-
-                <div
-                  className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    codeOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'
-                  )}
-                >
-                  <div className="overflow-hidden">
-                    <div className="rounded-[var(--radius-lg)] bg-slate-950 text-slate-200 border border-slate-800 shadow-md overflow-hidden">
-                      <div className="flex items-center px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
-                        <div className="flex items-center gap-2">
-                          <JsIcon />
-                          <span className="font-mono text-slate-300 font-medium">EHUntis.js</span>
-                          <span className="text-slate-600">·</span>
-                          <span className="text-[11px] text-slate-400">{LOADER_LINE_COUNT} líneas</span>
-                        </div>
+              <div
+                className={cn(
+                  'grid transition-all duration-200 ease-in-out',
+                  codeOpen ? 'grid-rows-[1fr] opacity-100 mt-4 pt-3.5 border-t border-[var(--border)]' : 'grid-rows-[0fr] opacity-0'
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="rounded-[var(--radius-lg)] bg-slate-950 text-slate-200 border border-slate-800 shadow-md overflow-hidden">
+                    <div className="flex items-center px-3.5 py-2 bg-slate-900/90 border-b border-slate-800 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <JsIcon />
+                        <span className="font-mono text-slate-300 font-medium">EHUntis.js</span>
+                        <span className="text-slate-600">·</span>
+                        <span className="text-[11px] text-slate-400">{LOADER_LINE_COUNT} líneas</span>
                       </div>
-                      <div className="code-scroll-container p-3.5 font-mono text-[11px] leading-relaxed max-h-64 select-all text-slate-300">
-                        <pre>{IOS_WIDGET_LOADER_CODE}</pre>
-                      </div>
+                    </div>
+                    <div className="code-scroll-container p-3.5 font-mono text-[11px] leading-relaxed max-h-64 select-all text-slate-300">
+                      <pre>{IOS_WIDGET_LOADER_CODE}</pre>
                     </div>
                   </div>
                 </div>
