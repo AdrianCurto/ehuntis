@@ -384,7 +384,7 @@ export default function WidgetsPage() {
               <ol className="p-0 m-0">
                 <TimelineStep
                   stepNumber="1"
-                  title="Paso 1 — Descarga e instala el APK"
+                  title="Descarga e instala el APK"
                 >
                   <p>
                     Abre el archivo descargado (<KeyTag>ehuntis-widget.apk</KeyTag>). Si tu navegador te solicita permisos para <em>Instalar aplicaciones desconocidas</em>, concédeselo para continuar.
@@ -396,7 +396,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="2"
-                  title="Paso 2 — Pulsa &quot;Listo&quot; al finalizar"
+                  title="Pulsa &quot;Listo&quot; al finalizar"
                 >
                   <p>
                     Una vez concluida la instalación, pulsa el botón <KeyTag>Listo</KeyTag>.
@@ -408,7 +408,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="3"
-                  title="Paso 3 — Añade el widget a tu pantalla de inicio"
+                  title="Añade el widget a tu pantalla de inicio"
                 >
                   <p>
                     Mantén pulsado un área libre de tu pantalla de inicio → pulsa <KeyTag>Widgets</KeyTag> → busca <KeyTag>EHUntis Widget</KeyTag> y arrástralo donde prefieras.
@@ -420,7 +420,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="4"
-                  title="Paso 4 — Configura tu horario"
+                  title="Configura tu horario"
                   isLast={true}
                 >
                   <p>
@@ -569,7 +569,7 @@ export default function WidgetsPage() {
               <ol className="p-0 m-0">
                 <TimelineStep
                   stepNumber="1"
-                  title="Paso 1 — Instala Scriptable"
+                  title="Instala Scriptable"
                 >
                   <p>
                     Instala gratis la app oficial de{' '}
@@ -588,7 +588,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="2"
-                  title="Paso 2 — Crea el script una única vez"
+                  title="Crea el script una única vez"
                 >
                   <p>
                     Pulsa en <KeyTag>Copiar código</KeyTag> arriba. Luego abre <strong>Scriptable</strong>:
@@ -603,7 +603,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="3"
-                  title="Paso 3 — Añade el widget a tu pantalla de inicio"
+                  title="Añade el widget a tu pantalla de inicio"
                 >
                   <p>
                     Mantén pulsado cualquier espacio vacío del fondo de pantalla hasta que los iconos vibren → pulsa <KeyTag>+</KeyTag> arriba a la izquierda → busca <KeyTag>Scriptable</KeyTag> y elige tamaño <strong>Mediano</strong>, <strong>Grande</strong> (o <strong>Extra Grande</strong> en iPad) → pulsa <KeyTag>Añadir widget</KeyTag>.
@@ -612,7 +612,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="4"
-                  title="Paso 4 — Vincula el script en el widget"
+                  title="Vincula el script en el widget"
                 >
                   <p>
                     Mantén pulsado el widget recién añadido y selecciona <KeyTag>Editar widget</KeyTag>:
@@ -625,7 +625,7 @@ export default function WidgetsPage() {
 
                 <TimelineStep
                   stepNumber="5"
-                  title="Paso 5 — Configura tu horario"
+                  title="Configura tu horario"
                   isLast={true}
                 >
                   <p>
