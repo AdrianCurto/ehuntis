@@ -322,7 +322,7 @@ export default function WidgetsPage() {
                 <div className="p-3 rounded-[var(--radius-md)] bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <span>No hay identificador guardado en este navegador.</span>
                   <Link
-                    href="/"
+                    href="/?tab=info"
                     className="font-semibold text-[var(--accent)] hover:underline inline-flex items-center gap-1 shrink-0"
                   >
                     <span>Configurar en EHUntis</span>

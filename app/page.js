@@ -211,14 +211,38 @@ function getInitialActiveConfigId(configs) {
   return configs[0]?.id || '';
 }
 
+function getInitialActiveTab() {
+  if (typeof window === 'undefined') return 'horarios';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab')?.toLowerCase();
+    if (tabParam === 'info' || tabParam === 'ajustes' || tabParam === 'horarios') {
+      return tabParam;
+    }
+  } catch (_) {}
+  return 'horarios';
+}
+
+function getInitialProfileAuthPanel() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const authParam = params.get('auth')?.toLowerCase();
+    if (authParam === 'login' || authParam === 'register') {
+      return authParam;
+    }
+  } catch (_) {}
+  return null;
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const [activeTab, setActiveTab] = useState('horarios');
-  const [profileInitialAuthPanel, setProfileInitialAuthPanel] = useState(null);
+  const [activeTab, setActiveTab] = useState(getInitialActiveTab);
+  const [profileInitialAuthPanel, setProfileInitialAuthPanel] = useState(getInitialProfileAuthPanel);
   const [allClasses, setAllClasses] = useState([]);
 
   // Configurations (profiles) state
