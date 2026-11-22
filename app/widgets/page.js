@@ -13,7 +13,6 @@ import {
   Info,
   ChevronDown,
   ChevronRight,
-  CheckCircle2,
 } from 'lucide-react';
 import { SegmentedControl } from '@/app/components/ui/segmented-control';
 import { Button } from '@/app/components/ui/button';
@@ -175,24 +174,6 @@ function getInitialPlatform() {
   }
 }
 
-function getInitialAutoDetected() {
-  if (typeof window === 'undefined') return false;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const osParam = params.get('os')?.toLowerCase();
-    if (osParam === 'android' || osParam === 'ios') return false;
-
-    const ua = navigator.userAgent || '';
-    const isIOS =
-      /iPhone|iPad|iPod/i.test(ua) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isAndroid = /Android/i.test(ua);
-    return isIOS || isAndroid;
-  } catch (_) {
-    return false;
-  }
-}
-
 const emptySubscribe = () => () => {};
 
 function useSavedUsername() {
@@ -212,7 +193,6 @@ function useSavedUsername() {
 // ── Página principal /widgets ────────────────────────────────────────────────
 export default function WidgetsPage() {
   const [platform, setPlatform] = useState(getInitialPlatform);
-  const [autoDetected, setAutoDetected] = useState(getInitialAutoDetected);
   const savedUsername = useSavedUsername();
 
   const [copiedId, setCopiedId] = useState(false);
@@ -264,10 +244,7 @@ export default function WidgetsPage() {
           <SegmentedControl
             ariaLabel="Selecciona tu plataforma móvil"
             value={platform}
-            onChange={(val) => {
-              setPlatform(val);
-              setAutoDetected(false);
-            }}
+            onChange={(val) => setPlatform(val)}
             options={[
               {
                 value: 'android',
@@ -289,12 +266,6 @@ export default function WidgetsPage() {
               },
             ]}
           />
-          {autoDetected && (
-            <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[11px] text-[var(--text-muted)]">
-              <CheckCircle2 size={12} className="text-[var(--accent)]" />
-              <span>Detectado automáticamente. Puedes cambiar de plataforma pulsando arriba.</span>
-            </div>
-          )}
         </div>
 
         {/* ── Tarjeta de requisito previo (Paso 0) ── */}
