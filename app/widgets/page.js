@@ -349,12 +349,12 @@ export default function WidgetsPage() {
                       EHUntis Widget para Android
                     </h2>
                     <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
-                      App nativa ligera con vista diaria y semanal, refresco manual y tema automático.
+                      App nativa con vista diaria y semanal, aulas y sincronización manual y automática.
                     </p>
                   </div>
                 </div>
 
-                <div className="shrink-0 flex flex-col sm:items-end gap-1.5">
+                <div className="shrink-0 flex flex-col items-center gap-1.5">
                   <a
                     href={APK_DOWNLOAD_URL}
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--radius-md)] bg-[var(--accent)] text-white font-semibold text-sm shadow-sm hover:opacity-95 active:scale-[0.98] transition-all w-full sm:w-auto text-center touch-target-44"
@@ -366,7 +366,7 @@ export default function WidgetsPage() {
                     href={GITHUB_RELEASES_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors self-center sm:self-end mt-0.5"
+                    className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mt-0.5"
                   >
                     <span>Releases en GitHub</span>
                     <ExternalLink size={11} />
