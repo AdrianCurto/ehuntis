@@ -3,13 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const vm = require('vm');
 
-describe('iOS Scriptable Widget suite (public/scripts/ehuntis-widget.js)', () => {
+describe('iOS Scriptable Widget suite (public/widgets/ehuntis-widget-core.js)', () => {
   let widgetEnv;
 
   before(() => {
-    let code = fs.readFileSync('public/scripts/ehuntis-widget.js', 'utf8');
+    let code = fs.readFileSync('public/widgets/ehuntis-widget-core.js', 'utf8');
     // Prevent auto-execution of main()
-    code = code.replace(/await main\(\);/, '// await main();');
+    code = code.replace(/(?:return\s+)?await main\(\);/, '// await main();');
 
     const mockFM = {
       documentsDirectory: () => '/docs',

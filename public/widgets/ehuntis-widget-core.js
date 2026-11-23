@@ -3138,8 +3138,8 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 12px 6px;
+      gap: 5px;
+      padding: 12px 4px;
       border-radius: var(--elem-radius);
       background: var(--surface-variant);
       border: 1px solid var(--border);
@@ -3147,7 +3147,12 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       color: var(--text);
       font-size: 13px;
       font-weight: 500;
+      letter-spacing: -0.1px;
+      white-space: nowrap;
       transition: all 0.15s ease;
+    }
+    .segmented-btn span {
+      white-space: nowrap;
     }
     .segmented-btn svg {
       width: 17px;
@@ -3160,7 +3165,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       background: var(--primary-tint);
       border: 1.5px solid var(--primary);
       color: var(--primary);
-      font-weight: 700;
+      font-weight: 600;
     }
     .segmented-btn.selected svg {
       fill: var(--primary);
