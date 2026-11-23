@@ -502,7 +502,7 @@ export default function SettingsView({
             <SettingsIcon size={20} strokeWidth={2.4} />
           </div>
           <div>
-            <h1 className="settings-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>
+            <h1 className="settings-title text-[1.125rem] sm:text-[1.25rem] font-extrabold m-0 leading-tight">
               Ajustes y Personalización
             </h1>
             <p className="settings-subtitle">
@@ -514,7 +514,7 @@ export default function SettingsView({
 
       {/* ── Modern Segmented Nav ────────────────────────────────────────────── */}
       <Tabs value={settingsTab} onValueChange={setSettingsTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-5 h-11">
+        <TabsList className="w-full grid grid-cols-3 mb-3.5 sm:mb-5 h-10 sm:h-11">
           <TabsTrigger value="groups">Horario y Grupos</TabsTrigger>
           <TabsTrigger value="custom">Eventos y Cambios</TabsTrigger>
           <TabsTrigger value="appearance">Apariencia</TabsTrigger>
@@ -681,8 +681,8 @@ export default function SettingsView({
           </div>
 
           {/* Display Options */}
-          <div className="mt-3">
-            <div className="settings-card" style={{ padding: '14px 16px' }}>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="settings-card !p-3 sm:!p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-[var(--text-primary)] leading-snug">
@@ -705,10 +705,21 @@ export default function SettingsView({
 
           {/* Groups list */}
           <div className="settings-section !gap-0">
-            <div className="mt-7 mb-2.5 flex items-center justify-between gap-3 px-1">
+            <div className="mt-3.5 sm:mt-5 mb-2 sm:mb-2.5 flex items-center justify-between gap-3 px-1">
               <div className="settings-section-label !p-0 truncate">
                 Grupos en &quot;{activeConfig.name}&quot;
               </div>
+              {selectedGroups.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onAddGroup}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[var(--radius-sm)] bg-[var(--accent)] text-white text-xs font-semibold shadow-xs hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shrink-0"
+                  title="Añadir grupo o titulación"
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                  <span>Añadir</span>
+                </button>
+              )}
             </div>
 
             {selectedGroups.length === 0 ? (
@@ -732,7 +743,7 @@ export default function SettingsView({
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5 sm:gap-3">
                 {selectedGroups.map((g) => {
                   const key = groupKey(g);
                   const isExpanded = expandedGroups[key];
@@ -745,7 +756,7 @@ export default function SettingsView({
                     <div key={key} className="settings-card" style={{ opacity: isGroupDisabled ? 0.6 : 1, transition: 'all 0.2s ease' }}>
                       {/* Group row: linea 1 codigo + icono info para nombre completo; linea 2 contador de asignaturas activas */}
                       <div
-                        className="settings-row !items-center !px-4 !py-3.5"
+                        className="settings-row !items-center !px-3.5 sm:!px-4 !py-2.5 sm:!py-3.5"
                         style={{ cursor: 'pointer', gap: '10px' }}
                         onClick={() => toggleExpanded(key)}
                       >
@@ -1066,12 +1077,12 @@ export default function SettingsView({
             )}
 
             {selectedGroups.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-2.5 sm:mt-4">
                 <button
                   type="button"
                   className="settings-btn-primary"
                   onClick={onAddGroup}
-                  style={{ width: '100%', padding: '12px 18px', borderRadius: 14 }}
+                  style={{ width: '100%', padding: '10px 16px', borderRadius: 14 }}
                 >
                   <Plus size={16} /> Añadir titulación o grupo
                 </button>
