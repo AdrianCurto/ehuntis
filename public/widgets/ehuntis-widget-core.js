@@ -3199,7 +3199,13 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(79, 110, 247, 0.3);
       font-family: inherit;
-      transition: background 0.15s;
+      box-sizing: border-box;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
     }
     .btn-primary:active {
       background: var(--primary-active);
@@ -3209,30 +3215,39 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       box-shadow: none;
       cursor: not-allowed;
     }
+    .btn-primary.saved {
+      background: var(--success);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    }
 
     .toast {
       position: fixed;
-      top: 14px;
+      bottom: calc(82px + env(safe-area-inset-bottom, 0px));
       left: 50%;
-      transform: translateX(-50%);
-      background: #0F172A;
-      color: #FFFFFF;
-      padding: 10px 18px;
-      border-radius: 20px;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 11px 18px;
+      border-radius: 22px;
       font-size: 13px;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.22);
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: calc(100% - 32px);
     }
     .toast.show {
       opacity: 1;
-      transform: translateX(-50%) translateY(4px);
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+      cursor: pointer;
     }
 
     .spinner {
@@ -3250,7 +3265,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
 </head>
 <body>
 
-  <div id="toast" class="toast">✓ Ajustes guardados</div>
+  <div id="toast" class="toast" onclick="this.classList.remove('show')">✓ Ajustes guardados</div>
 
   <div class="header">
     <h1>Ajustes del Widget</h1>
@@ -3283,12 +3298,14 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       } catch(_) {}
     }
 
-    function showToast(msg) {
+    let toastTimer = null;
+    function showToast(msg, duration = 4000) {
       const t = document.getElementById("toast");
       if (!t) return;
       t.textContent = msg;
       t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), 2200);
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), duration);
     }
 
     function applyTheme(theme) {
@@ -3550,10 +3567,11 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       notifyScriptable("update_settings", { settings: state.settings });
     }
 
+    let saveResetTimer = null;
     function handleSave() {
       const isConnected = !!(state.settings.username && state.settings.username.trim() && state.userData);
       if (!isConnected || state.isEditingUser) {
-        showToast("⚠️ Conecta tu cuenta primero");
+        showToast("⚠️ Conecta tu cuenta primero", 3000);
         return;
       }
       try {
@@ -3562,7 +3580,19 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
           state.settings.systemThemeCached = isDark ? 'dark' : 'light';
         }
       } catch(_) {}
-      showToast("✓ Ajustes guardados. Ya puedes cerrar esta ventana (✕)");
+
+      const btnSave = document.getElementById("btn-save");
+      if (btnSave) {
+        btnSave.classList.add("saved");
+        btnSave.textContent = "✓ ¡Widget actualizado!";
+        if (saveResetTimer) clearTimeout(saveResetTimer);
+        saveResetTimer = setTimeout(() => {
+          btnSave.classList.remove("saved");
+          btnSave.textContent = "Guardar y actualizar widget";
+        }, 2500);
+      }
+
+      showToast("✓ Ajustes guardados. Pulsa «Close» arriba para salir", 4000);
       notifyScriptable("save", {
         settings: state.settings,
         userData: state.userData
@@ -3734,6 +3764,10 @@ async function showSettingsScreen(settings, instanceId) {
         if (currentSettings.username) {
           syncIfNeeded(currentSettings, true, instanceId).catch(() => {});
         }
+        try {
+          const w = await buildWidget(currentSettings, instanceId);
+          Script.setWidget(w);
+        } catch(_) {}
       }
     } catch(err) {
       console.error("Bridge action error: " + err);
@@ -3744,7 +3778,7 @@ async function showSettingsScreen(settings, instanceId) {
   await wv.loadHTML(html, "https://ehuntis.vercel.app");
   await wv.present(false);
 
-  // Asegurar persistencia completa al cerrar
+  // Asegurar persistencia completa al cerrar y actualizar widget en Scriptable
   try {
     if (typeof Device !== 'undefined' && typeof Device.isUsingDarkAppearance === 'function') {
       currentSettings.systemThemeCached = Device.isUsingDarkAppearance() === true ? "dark" : "light";
@@ -3754,6 +3788,10 @@ async function showSettingsScreen(settings, instanceId) {
   if (currentSettings.username) {
     await syncIfNeeded(currentSettings, true, instanceId);
   }
+  try {
+    const w = await buildWidget(currentSettings, instanceId);
+    Script.setWidget(w);
+  } catch(_) {}
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -4148,8 +4186,8 @@ async function buildWidget(settings, instanceId) {
   } catch(_) {
     refreshDate = new Date(now.getTime() + 15 * 60 * 1000);
   }
-  // Mínimo 10 min, máximo 6h (mismo período que Android WorkManager)
-  const minRefresh = new Date(now.getTime() + 10 * 60 * 1000);
+  // Mínimo 5 min, máximo 6h
+  const minRefresh = new Date(now.getTime() + 5 * 60 * 1000);
   const maxRefresh = new Date(now.getTime() + 6 * 60 * 60 * 1000);
   if (refreshDate < minRefresh) refreshDate = minRefresh;
   if (refreshDate > maxRefresh) refreshDate = maxRefresh;
@@ -4198,6 +4236,11 @@ async function main() {
     const closeAction = (typeof args !== 'undefined' && args.queryParameters && args.queryParameters.close === "true");
 
     if (closeAction) {
+      try {
+        const freshSettings = loadSettings(instanceId);
+        const w = await buildWidget(freshSettings, instanceId);
+        Script.setWidget(w);
+      } catch(_) {}
       Script.complete();
       return;
     }
@@ -4205,6 +4248,11 @@ async function main() {
     if (openSettings) {
       // Prioridad máxima: si viene el flag de ajustes, abrir la pantalla de ajustes siempre para esta instancia
       await showSettingsScreen(settings, instanceId);
+      try {
+        const freshSettings = loadSettings(instanceId);
+        const w = await buildWidget(freshSettings, instanceId);
+        Script.setWidget(w);
+      } catch(_) {}
       Script.complete();
       return;
     }
@@ -4241,6 +4289,11 @@ async function main() {
     } else {
       // Modo App (abierto directamente desde la lista de scripts de Scriptable)
       await showSettingsScreen(settings, instanceId);
+      try {
+        const freshSettings = loadSettings(instanceId);
+        const w = await buildWidget(freshSettings, instanceId);
+        Script.setWidget(w);
+      } catch(_) {}
     }
   } catch(err) {
     console.error("Fatal widget error: " + (err.stack || err.message || err));
