@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
 import { SegmentedControl } from '@/app/components/ui/segmented-control';
 import { Button } from '@/app/components/ui/button';
 import { IOS_WIDGET_LOADER_CODE } from '@/app/utils/iosWidgetLoader';
+import { dismissWidgetsBanner } from '@/app/utils/widgetsBanner';
 import { cn } from '@/app/utils/cn';
 
 const USERNAME_STORAGE_KEY = 'ehuntis_username_v1';
@@ -219,6 +220,10 @@ export default function WidgetsPage() {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
+
+  useEffect(() => {
+    dismissWidgetsBanner();
+  }, []);
 
   const handleCopyId = async () => {
     if (!savedUsername) return;

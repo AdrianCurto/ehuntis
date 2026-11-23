@@ -75,6 +75,7 @@ import WeekHeader from './components/WeekHeader';
 import SettingsView from './components/SettingsView';
 import ProfileView from './components/ProfileView';
 import WelcomeView from './components/WelcomeView';
+import WidgetsLaunchBanner from './components/WidgetsLaunchBanner';
 
 const WeekCalendar = dynamic(() => import('./components/WeekCalendar'), { ssr: false });
 const LAST_TIMETABLE_CACHE_KEY = 'ehuntis_timetable_last_v3';
@@ -373,6 +374,15 @@ export default function Home() {
   const [customEvents, setCustomEvents] = useState(() => {
     if (typeof window === 'undefined') return [];
     return getStoredCustomEvents();
+  });
+  const [hadScheduleOnMount] = useState(() => {
+    const initialActive = configs.find(c => c.id === activeConfigId) || configs[0];
+    const initialGroups = initialActive?.selectedGroups || [];
+    const initialDisabled = initialActive?.disabledGroupIds || [];
+    const hasInitialActiveGroup = initialGroups.some(
+      g => !initialDisabled.includes(String(g.uniqueId || g.id))
+    );
+    return hasInitialActiveGroup || customEvents.length > 0;
   });
   const [selectedCustomEvent, setSelectedCustomEvent] = useState(null);
   const [editingCustomEvent, setEditingCustomEvent] = useState(null);
@@ -2361,6 +2371,11 @@ export default function Home() {
       {/* Content */}
       {activeTab === 'horarios' && (
         <>
+          <WidgetsLaunchBanner
+            hasSchedule={hadScheduleOnMount && (activeGroups.length > 0 || customEvents.length > 0)}
+            isSwapModeActive={Boolean(calendarSwapOrigin)}
+          />
+
           {(activeGroups.length > 0 || customEvents.length > 0) && (
             <WeekHeader
               weekDates={weekDates}
