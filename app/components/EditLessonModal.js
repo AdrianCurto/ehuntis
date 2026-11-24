@@ -210,12 +210,12 @@ export default function EditLessonModal({
             <ResponsiveModalBody className="px-5 sm:px-6 pt-4 pb-4 space-y-4">
               {/* Tarjeta de asignatura (porta el color oficial sin barra arqueada superior) */}
               <div
-                className="flex items-center justify-between p-3 rounded-[var(--radius-md)] text-sm font-bold"
+                className="flex items-center justify-between gap-3 p-3 rounded-[var(--radius-md)] text-sm font-bold"
                 style={{ background: color.bg, color: color.text }}
               >
-                <span>{subjectName}</span>
+                <span className="min-w-0">{subjectName}</span>
                 {lesson.type && (
-                  <span className="text-xs font-normal opacity-85">
+                  <span className="text-xs font-normal opacity-85 shrink-0 whitespace-nowrap">
                     {lesson.type}
                   </span>
                 )}
