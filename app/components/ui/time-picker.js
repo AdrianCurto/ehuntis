@@ -212,6 +212,7 @@ export function TimePicker({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          data-sheet-allow-drag="true"
           value={tempHour}
           placeholder="08"
           aria-label="Horas"
@@ -260,6 +261,7 @@ export function TimePicker({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
+          data-sheet-allow-drag="true"
           value={tempMinute}
           placeholder="00"
           aria-label="Minutos"
@@ -305,7 +307,7 @@ export function TimePicker({
         />
       </div>
 
-      {/* Dos columnas visuales (Horas y Minutos) protegidas contra swipe-to-dismiss */}
+      {/* Dos columnas visuales (Horas y Minutos): si tienen scroll disponible scrollean; en scrollTop === 0 permiten cerrar */}
       <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border)]">
         {/* Columna Horas */}
         <div className="flex flex-col">
@@ -314,7 +316,6 @@ export function TimePicker({
           </span>
           <div
             ref={hourListRef}
-            data-sheet-no-drag="true"
             className="relative h-44 overflow-y-auto space-y-1 pr-0.5 overscroll-contain touch-pan-y"
           >
             {HOURS.map((hStr) => {
@@ -346,7 +347,6 @@ export function TimePicker({
           </span>
           <div
             ref={minuteListRef}
-            data-sheet-no-drag="true"
             className="relative h-44 overflow-y-auto space-y-1 pr-0.5 overscroll-contain touch-pan-y"
           >
             {minutesList.map((mStr) => {

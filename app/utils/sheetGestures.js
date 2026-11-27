@@ -53,11 +53,12 @@ export function resolveSheetTouchStart({
   fromHandle = false,
   isNoDrag = false,
   isFormControl = false,
+  allowDragOnFormControl = false,
   hasDedicatedScroll = false,
   isInsideDedicatedScroll = false,
   hasScrolledAncestor = false,
 } = {}) {
-  if (isNoDrag || isFormControl) {
+  if (isNoDrag || (isFormControl && !allowDragOnFormControl)) {
     return { canDrag: false, isFixedDragZone: false };
   }
 

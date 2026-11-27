@@ -43,6 +43,7 @@ export const SheetContent = React.forwardRef(
       active: false,
       dragging: false,
       fromHandle: false,
+      fromFormControl: false,
       scrollableEl: null,
       startX: 0,
       startY: 0,
@@ -91,6 +92,7 @@ export const SheetContent = React.forwardRef(
       drag.active = false;
       drag.dragging = false;
       drag.fromHandle = false;
+      drag.fromFormControl = false;
       drag.scrollableEl = null;
       drag.currentY = 0;
       drag.closing = false;
@@ -210,6 +212,7 @@ export const SheetContent = React.forwardRef(
 
         const isNoDrag = Boolean(targetEl.closest('[data-sheet-no-drag]'));
         const isFormControl = Boolean(targetEl.closest('input, textarea, select, [contenteditable]'));
+        const allowDragOnFormControl = Boolean(isFormControl && targetEl.closest('[data-sheet-allow-drag]'));
         const fromHandle = Boolean(targetEl.closest('[data-sheet-handle]'));
         const dedicatedScrollable = contentEl.querySelector('[data-sheet-scroll]');
         const hasDedicatedScroll = Boolean(dedicatedScrollable);
@@ -220,6 +223,7 @@ export const SheetContent = React.forwardRef(
           fromHandle,
           isNoDrag,
           isFormControl,
+          allowDragOnFormControl,
           hasDedicatedScroll,
           isInsideDedicatedScroll,
           hasScrolledAncestor,
@@ -234,6 +238,7 @@ export const SheetContent = React.forwardRef(
           drag.active = true;
           drag.dragging = false;
           drag.fromHandle = isFixedDragZone;
+          drag.fromFormControl = allowDragOnFormControl;
           drag.scrollableEl = isFixedDragZone
             ? null
             : nearestScrollable || dedicatedScrollable || contentEl;
@@ -246,6 +251,7 @@ export const SheetContent = React.forwardRef(
         } else {
           drag.active = false;
           drag.dragging = false;
+          drag.fromFormControl = false;
           drag.scrollableEl = null;
         }
       };
@@ -277,8 +283,9 @@ export const SheetContent = React.forwardRef(
             drag.scrollableEl = null;
             return;
           }
-          // Desde scrollTop === 0, si el dedo baja, cancelar el scroll nativo antes del touch slop (~8px) de Chrome Android
-          if (deltaY > 2 && Math.abs(deltaY) >= Math.abs(deltaX) && e.cancelable) {
+          // Desde scrollTop === 0, si el dedo baja, cancelar el scroll nativo antes del touch slop (~8px) de Chrome Android.
+          // En inputs con data-sheet-allow-drag evitamos preventDefault prematuro para no bloquear el tap/foco.
+          if (!drag.fromFormControl && deltaY > 2 && Math.abs(deltaY) >= Math.abs(deltaX) && e.cancelable) {
             e.preventDefault();
           }
           if (deltaY <= SHEET_DRAG_DEADZONE_PX) {
@@ -333,6 +340,7 @@ export const SheetContent = React.forwardRef(
         drag.active = false;
         drag.dragging = false;
         drag.fromHandle = false;
+        drag.fromFormControl = false;
         drag.scrollableEl = null;
         drag.currentY = 0;
 

@@ -59,7 +59,7 @@ describe('Sheet touchstart scroll vs drag resolution', () => {
     );
   });
 
-  test('blocks drag inside form controls anywhere in the sheet', () => {
+  test('blocks drag inside form controls unless explicitly opted in with allowDragOnFormControl', () => {
     assert.deepEqual(
       resolveSheetTouchStart({
         isFormControl: true,
@@ -67,6 +67,15 @@ describe('Sheet touchstart scroll vs drag resolution', () => {
         isInsideDedicatedScroll: false,
       }),
       { canDrag: false, isFixedDragZone: false }
+    );
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        isFormControl: true,
+        allowDragOnFormControl: true,
+        hasDedicatedScroll: false,
+        hasScrolledAncestor: false,
+      }),
+      { canDrag: true, isFixedDragZone: false }
     );
   });
 
