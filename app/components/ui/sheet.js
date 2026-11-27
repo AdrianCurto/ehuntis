@@ -8,6 +8,7 @@ import {
   SHEET_DRAG_DEADZONE_PX,
   shouldDismissSheet,
   getSheetExitDurationMs,
+  resolveSheetTouchStart,
 } from '@/app/utils/sheetGestures';
 
 export const Sheet = SheetPrimitive.Root;
@@ -168,24 +169,30 @@ export const SheetContent = React.forwardRef(
       const contentEl = contentRef.current;
       if (!contentEl) return;
 
-      const isInsideScrollableOrNoDrag = (target) => {
-        if (!target || !contentEl) return false;
-        if (target.closest?.('[data-sheet-no-drag]')) return true;
-        if (target.closest?.('input, textarea, select, [contenteditable]')) return true;
-        let node = target;
-        while (node && node !== contentEl) {
+      const inspectScrollableAncestors = (targetEl) => {
+        let nearestScrollable = null;
+        let hasScrolledAncestor = false;
+        let node = targetEl;
+        while (node) {
           if (node instanceof HTMLElement) {
             const { overflowY } = window.getComputedStyle(node);
             const canScrollY =
               (overflowY === 'auto' || overflowY === 'scroll') &&
               node.scrollHeight > node.clientHeight + 1;
-            if (canScrollY && node.scrollTop > 0) {
-              return true;
+            if (canScrollY) {
+              if (!nearestScrollable) {
+                nearestScrollable = node;
+              }
+              if (node.scrollTop > 0) {
+                hasScrolledAncestor = true;
+                break;
+              }
             }
           }
+          if (node === contentEl) break;
           node = node.parentElement;
         }
-        return false;
+        return { nearestScrollable, hasScrolledAncestor };
       };
 
       const onTouchStart = (e) => {
@@ -193,29 +200,32 @@ export const SheetContent = React.forwardRef(
         const drag = dragRef.current;
         if (drag.closing || e.touches.length !== 1) return;
 
-        // Impedir que toques o escritura en campos de formulario activen arrastre o provoquen blur()
-        if (e.target?.closest?.('input, textarea, select, [contenteditable]')) {
+        const targetEl = e.target instanceof Element ? e.target : e.target?.parentElement;
+        if (!targetEl) {
           drag.active = false;
           drag.dragging = false;
           drag.scrollableEl = null;
           return;
         }
 
-        const fromHandle = Boolean(e.target?.closest?.('[data-sheet-handle]'));
-        const scrollable = contentEl.querySelector('[data-sheet-scroll]') || contentEl;
-        const isInsideScrollable = Boolean(e.target?.closest?.('[data-sheet-scroll]'));
-        const isHeaderOrHandle = fromHandle || !isInsideScrollable;
+        const isNoDrag = Boolean(targetEl.closest('[data-sheet-no-drag]'));
+        const isFormControl = Boolean(targetEl.closest('input, textarea, select, [contenteditable]'));
+        const fromHandle = Boolean(targetEl.closest('[data-sheet-handle]'));
+        const dedicatedScrollable = contentEl.querySelector('[data-sheet-scroll]');
+        const hasDedicatedScroll = Boolean(dedicatedScrollable);
+        const isInsideDedicatedScroll = Boolean(hasDedicatedScroll && targetEl.closest('[data-sheet-scroll]'));
+        const { nearestScrollable, hasScrolledAncestor } = inspectScrollableAncestors(targetEl);
 
-        if (!isHeaderOrHandle && isInsideScrollableOrNoDrag(e.target)) {
-          drag.active = false;
-          drag.dragging = false;
-          drag.scrollableEl = null;
-          return;
-        }
+        const { canDrag, isFixedDragZone } = resolveSheetTouchStart({
+          fromHandle,
+          isNoDrag,
+          isFormControl,
+          hasDedicatedScroll,
+          isInsideDedicatedScroll,
+          hasScrolledAncestor,
+        });
 
-        const scrollTop = scrollable ? scrollable.scrollTop : 0;
-
-        if (isHeaderOrHandle || scrollTop <= 0) {
+        if (canDrag) {
           if (settleTimerRef.current) {
             clearTimeout(settleTimerRef.current);
             settleTimerRef.current = null;
@@ -223,8 +233,10 @@ export const SheetContent = React.forwardRef(
           const touch = e.touches[0];
           drag.active = true;
           drag.dragging = false;
-          drag.fromHandle = isHeaderOrHandle;
-          drag.scrollableEl = scrollable;
+          drag.fromHandle = isFixedDragZone;
+          drag.scrollableEl = isFixedDragZone
+            ? null
+            : nearestScrollable || dedicatedScrollable || contentEl;
           drag.startX = touch.clientX;
           drag.startY = touch.clientY;
           drag.currentY = 0;
@@ -248,6 +260,12 @@ export const SheetContent = React.forwardRef(
         const deltaX = touch.clientX - drag.startX;
 
         if (!drag.dragging) {
+          // Si el contenedor scrollable ya empezó a desplazarse de forma nativa, abortar el arrastre del Sheet
+          if (!drag.fromHandle && drag.scrollableEl && drag.scrollableEl.scrollTop > 0) {
+            drag.active = false;
+            drag.scrollableEl = null;
+            return;
+          }
           // Si el usuario empieza a deslizar hacia arriba, cedemos el gesto completo al scroll interno
           if (deltaY < -4 && !drag.fromHandle) {
             drag.active = false;

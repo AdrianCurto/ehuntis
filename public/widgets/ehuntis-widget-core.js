@@ -3228,7 +3228,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
       background: var(--surface);
       color: var(--text);
       border: 1px solid var(--border);
-      padding: 11px 18px;
+      padding: 10px 15px;
       border-radius: 22px;
       font-size: 13px;
       font-weight: 600;
@@ -3265,7 +3265,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
 </head>
 <body>
 
-  <div id="toast" class="toast" onclick="this.classList.remove('show')">✓ Ajustes guardados</div>
+  <div id="toast" class="toast" onclick="this.classList.remove('show')">Ajustes guardados</div>
 
   <div class="header">
     <h1>Ajustes del Widget</h1>
@@ -3525,7 +3525,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
         }
       } catch(_) {}
       render();
-      showToast("✓ Conectado correctamente");
+      showToast("Conectado correctamente");
 
       notifyScriptable("update_user", {
         username: user,
@@ -3592,7 +3592,7 @@ function getSettingsHTML(settings, userData, scriptName, instanceId) {
         }, 2500);
       }
 
-      showToast("✓ Ajustes guardados. Pulsa «Close» arriba para salir", 4000);
+      showToast("Ajustes guardados. Pulsa «Close» para salir", 4000);
       notifyScriptable("save", {
         settings: state.settings,
         userData: state.userData

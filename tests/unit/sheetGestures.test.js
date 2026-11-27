@@ -4,6 +4,7 @@ import {
   getSheetDismissThreshold,
   shouldDismissSheet,
   getSheetExitDurationMs,
+  resolveSheetTouchStart,
 } from '../../app/utils/sheetGestures.js';
 
 describe('Sheet swipe-to-dismiss gesture physics', () => {
@@ -33,5 +34,102 @@ describe('Sheet swipe-to-dismiss gesture physics', () => {
     assert.ok(slowDuration >= 140 && slowDuration <= 230);
     assert.ok(fastDuration >= 110 && fastDuration <= 230);
     assert.ok(fastDuration <= slowDuration);
+  });
+});
+
+describe('Sheet touchstart scroll vs drag resolution', () => {
+  test('blocks drag inside [data-sheet-no-drag] even when sheet has no [data-sheet-scroll] (TimePicker)', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        isNoDrag: true,
+        hasDedicatedScroll: false,
+        isInsideDedicatedScroll: false,
+        hasScrolledAncestor: false,
+      }),
+      { canDrag: false, isFixedDragZone: false }
+    );
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        isNoDrag: true,
+        hasDedicatedScroll: false,
+        isInsideDedicatedScroll: false,
+        hasScrolledAncestor: true,
+      }),
+      { canDrag: false, isFixedDragZone: false }
+    );
+  });
+
+  test('blocks drag inside form controls anywhere in the sheet', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        isFormControl: true,
+        hasDedicatedScroll: true,
+        isInsideDedicatedScroll: false,
+      }),
+      { canDrag: false, isFixedDragZone: false }
+    );
+  });
+
+  test('blocks drag in sheets without [data-sheet-scroll] when contentEl or a child is scrolled', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        hasDedicatedScroll: false,
+        isInsideDedicatedScroll: false,
+        hasScrolledAncestor: true,
+      }),
+      { canDrag: false, isFixedDragZone: false }
+    );
+  });
+
+  test('allows non-fixed drag at scrollTop === 0 in sheets without [data-sheet-scroll] so upward swipes still scroll', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        hasDedicatedScroll: false,
+        isInsideDedicatedScroll: false,
+        hasScrolledAncestor: false,
+      }),
+      { canDrag: true, isFixedDragZone: false }
+    );
+  });
+
+  test('allows fixed-zone drag from header/footer outside [data-sheet-scroll] even if body is scrolled', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        hasDedicatedScroll: true,
+        isInsideDedicatedScroll: false,
+        hasScrolledAncestor: false,
+      }),
+      { canDrag: true, isFixedDragZone: true }
+    );
+  });
+
+  test('blocks drag inside [data-sheet-scroll] when scrolled, allows non-fixed drag at top', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        hasDedicatedScroll: true,
+        isInsideDedicatedScroll: true,
+        hasScrolledAncestor: true,
+      }),
+      { canDrag: false, isFixedDragZone: false }
+    );
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        hasDedicatedScroll: true,
+        isInsideDedicatedScroll: true,
+        hasScrolledAncestor: false,
+      }),
+      { canDrag: true, isFixedDragZone: false }
+    );
+  });
+
+  test('always allows fixed-zone drag from handle even when content is scrolled', () => {
+    assert.deepEqual(
+      resolveSheetTouchStart({
+        fromHandle: true,
+        hasDedicatedScroll: false,
+        hasScrolledAncestor: true,
+      }),
+      { canDrag: true, isFixedDragZone: true }
+    );
   });
 });
